@@ -1,0 +1,797 @@
+/* ===================================================================
+   KaTeX CSS import — must come first (CSS @import rule)
+   =================================================================== */
+@import "katex/dist/katex.min.css";
+
+/* ===================================================================
+   CodeMirror 6 theme overrides for MindZJ
+   Applied on top of the base CM6 theme defined in Editor.tsx
+   =================================================================== */
+
+/* Fix text selection precision when Windows system cursor size is changed.
+   Force the CSS cursor to 'text' so the browser uses its own text cursor
+   rather than the OS-scaled cursor — this keeps the click hotspot at
+   the exact tip of the I-beam for precise character selection.
+   Applied broadly to all editable/selectable text areas: editor lines,
+   reading view, tables, code blocks, list items. */
+.cm-editor .cm-content,
+.cm-editor .cm-line,
+.cm-editor .cm-codeBlock,
+.mz-reading-view,
+.mz-reading-view li,
+.mz-reading-view pre,
+.mz-reading-view code,
+.mz-reading-view td,
+.mz-reading-view th,
+.mz-lp-table td,
+.mz-lp-table th,
+.mz-reading-view .mz-rv-table td,
+.mz-reading-view .mz-rv-table th,
+.mz-reading-view .mz-rv-code pre {
+  cursor: text;
+}
+
+/* Markdown heading styling — inline span rules.
+   DO NOT set font-size here. If the inline <span> has a larger font-size
+   than the containing .cm-line's line-height, the visible line becomes
+   taller than CodeMirror's height-map entry, which breaks arrow-key
+   line-by-line movement and click positioning in source mode.
+   Font-size is applied on the .cm-line wrapper below via the
+   .mz-src-h1 … .mz-src-h6 classes added by sourceHeadingLineExtension. */
+.cm-editor .cm-content .cm-header-1,
+.cm-editor .cm-content .cm-header-2,
+.cm-editor .cm-content .cm-header-3,
+.cm-editor .cm-content .cm-header-4,
+.cm-editor .cm-content .cm-header-5,
+.cm-editor .cm-content .cm-header-6 {
+  font-weight: 700;
+  color: var(--mz-syntax-heading);
+  text-decoration: none;
+  border-bottom: none;
+}
+
+/* Source-mode heading LINE styling. The font-size is applied to the
+   .cm-line wrapper so the whole line has a uniform height and
+   CodeMirror's height map matches the visible layout. */
+.cm-editor .cm-line.mz-src-h1 {
+  font-size: 1.8em;
+  font-weight: 700;
+  color: var(--mz-syntax-heading);
+  line-height: 1.3;
+}
+
+.cm-editor .cm-line.mz-src-h2 {
+  font-size: 1.5em;
+  font-weight: 600;
+  color: var(--mz-syntax-heading);
+  line-height: 1.3;
+}
+
+.cm-editor .cm-line.mz-src-h3 {
+  font-size: 1.25em;
+  font-weight: 600;
+  color: var(--mz-syntax-heading);
+  line-height: 1.4;
+}
+
+.cm-editor .cm-line.mz-src-h4,
+.cm-editor .cm-line.mz-src-h5,
+.cm-editor .cm-line.mz-src-h6 {
+  font-size: 1.1em;
+  font-weight: 600;
+  color: var(--mz-syntax-heading);
+}
+
+/* Bold / italic / strikethrough */
+.cm-editor .cm-content .cm-strong {
+  font-weight: 700;
+  color: var(--mz-syntax-bold);
+}
+
+.cm-editor .cm-content .cm-emphasis {
+  font-style: italic;
+  color: var(--mz-syntax-italic);
+}
+
+.cm-editor .cm-content .cm-strikethrough {
+  text-decoration: line-through;
+  color: var(--mz-syntax-strikethrough);
+}
+
+/* Inline code */
+.cm-editor .cm-content .cm-monospace {
+  font-family: var(--mz-font-mono);
+  font-size: 0.9em;
+  background: var(--mz-syntax-code-bg);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+/* Code blocks */
+.cm-editor .cm-content .cm-codeBlock {
+  font-family: var(--mz-font-mono);
+  font-size: 0.88em;
+  line-height: 1.7 !important;
+}
+
+/* Consistent line height for all editor lines */
+.cm-editor .cm-line {
+  line-height: 1.7;
+  padding: 0 2px 0 0;
+}
+
+.cm-editor .cm-line.mz-list-wrap-line {
+  padding-left: var(--mz-list-wrap-indent, 0px);
+  text-indent: calc(var(--mz-list-wrap-indent, 0px) * -1);
+}
+
+/* Links */
+.cm-editor .cm-content .cm-link {
+  color: var(--mz-syntax-link);
+  text-decoration: none;
+}
+
+.cm-editor .cm-content .cm-link:hover {
+  text-decoration: underline;
+}
+
+.cm-editor .cm-content .cm-url {
+  color: var(--mz-syntax-link);
+  opacity: 0.7;
+}
+
+/* Task lists — CodeMirror's built-in class for task markers in source mode */
+.cm-editor .cm-content .cm-task-marker {
+  color: var(--mz-accent);
+  font-weight: 700;
+}
+
+/* Blockquote */
+.cm-editor .cm-content .cm-quote {
+  color: var(--mz-text-secondary);
+  border-left: 3px solid var(--mz-border-strong);
+  padding-left: 12px;
+}
+
+/* Embedded images — constraints via class so plugins can override with inline style */
+.cm-editor .cm-content .mz-embed-image {
+  max-width: 100%;
+  max-height: 400px;
+}
+/* When pixel-perfect-image (or any plugin) sets inline width, remove constraints */
+.cm-editor .cm-content img[data-ppi-wheel-inline-width] {
+  max-width: none !important;
+  max-height: none !important;
+}
+
+/* Horizontal rule */
+.cm-editor .cm-content .cm-hr {
+  border-top: 1px solid var(--mz-border);
+  margin: 16px 0;
+}
+
+/* Search match highlighting */
+.cm-editor .cm-searchMatch {
+  background: var(--mz-syntax-highlight-bg);
+  border-radius: 2px;
+}
+
+.cm-editor .cm-searchMatch-selected {
+  background: var(--mz-accent-subtle);
+}
+
+/* Tooltip styling */
+.cm-editor .cm-tooltip {
+  background: var(--mz-bg-secondary);
+  border: 1px solid var(--mz-border);
+  border-radius: var(--mz-radius-md);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.cm-editor .cm-tooltip-autocomplete ul li {
+  padding: 4px 8px;
+  font-size: var(--mz-font-size-sm);
+}
+
+.cm-editor .cm-tooltip-autocomplete ul li[aria-selected] {
+  background: var(--mz-bg-hover);
+}
+
+/* Panel (search, go to line) */
+.cm-editor .cm-panels {
+  background: var(--mz-bg-secondary);
+  border-bottom: 1px solid var(--mz-border);
+}
+
+html[data-theme="dark"] .cm-editor .cm-panels-bottom {
+  border-top: 1px solid #474747;
+}
+
+html[data-theme="light"] .cm-editor .cm-panels-bottom {
+  border-top: 1px solid #ddd;
+}
+
+.cm-editor .cm-panel input {
+  background: var(--mz-bg-primary);
+  color: var(--mz-text-primary);
+  border: 1px solid var(--mz-border);
+  border-radius: var(--mz-radius-sm);
+  padding: 2px 6px;
+  font-family: var(--mz-font-sans);
+}
+
+.cm-editor .cm-panel button {
+  background: var(--mz-bg-tertiary);
+  color: var(--mz-text-secondary);
+  border: 1px solid var(--mz-border);
+  border-radius: var(--mz-radius-sm);
+  padding: 2px 8px;
+  cursor: pointer;
+  font-family: var(--mz-font-sans);
+}
+
+.cm-editor .cm-panel button:hover {
+  background: var(--mz-bg-hover);
+}
+
+.cm-editor .cm-search .mz-search-match-counter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 48px;
+  padding: 0 6px;
+  color: var(--mz-text-muted);
+  font-size: var(--mz-font-size-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.cm-editor .cm-search button[name="close"] {
+  position: relative;
+  min-width: 26px;
+  font-size: 0;
+}
+
+.cm-editor .cm-search button[name="close"]::before {
+  font-size: var(--mz-font-size-base);
+  line-height: 1;
+}
+
+/* Fold gutter */
+.cm-editor .cm-foldGutter span {
+  color: var(--mz-text-muted);
+  cursor: pointer;
+}
+
+.cm-editor .cm-foldGutter span:hover {
+  color: var(--mz-text-primary);
+}
+
+/* ===================================================================
+   Live Preview Styles (mz-lp-* classes from livePreview.ts)
+   =================================================================== */
+
+/* Note: Markdown syntax markers (`**`, `_`, heading `#`, link `](url)`
+   etc.) are hidden via inline REPLACE decorations in livePreview.ts,
+   not via a CSS `.mz-lp-hidden` class anymore. The replace approach
+   physically removes those characters from CM6's rendered DOM, so
+   `posAtCoords` maps click coordinates correctly on styled lines. */
+
+/* Heading line styles have been moved into `EditorView.baseTheme` inside
+   `livePreview.ts`. Keeping them in CM6's own theme — not a separate
+   stylesheet — ensures CM6's line-height measurement pipeline picks up
+   the font-size changes correctly, which is what keeps click-to-line
+   mapping accurate even after the user has scrolled far into the doc. */
+
+/* Inline formatting */
+.cm-editor .mz-lp-bold { font-weight: 700; color: var(--mz-syntax-bold); }
+.cm-editor .mz-lp-italic { font-style: italic; color: var(--mz-syntax-italic); }
+.cm-editor .mz-lp-strikethrough { text-decoration: line-through; color: var(--mz-syntax-strikethrough); }
+.cm-editor .mz-lp-highlight { background: var(--mz-syntax-highlight-bg); border-radius: 2px; padding: 1px 2px; }
+.cm-editor .mz-lp-inline-code {
+  font-family: var(--mz-font-mono);
+  font-size: 0.9em;
+  background: var(--mz-syntax-code-bg);
+  border-radius: 3px;
+  padding: 1px 5px;
+}
+
+/* Links */
+.cm-editor .mz-lp-link {
+  color: var(--mz-syntax-link);
+  text-decoration: none;
+  cursor: pointer;
+  border-bottom: 1px solid transparent;
+}
+.cm-editor .mz-lp-link:hover {
+  border-bottom-color: var(--mz-syntax-link);
+}
+
+/* Blockquote and horizontal rule line styles live in livePreview.ts's
+   base theme for the same reason as the heading styles above. */
+
+/* Tags */
+.cm-editor .mz-lp-tag {
+  color: var(--mz-accent);
+  background: var(--mz-accent-subtle);
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-size: 0.9em;
+}
+
+/* Task list `[x]` / `[ ]` markers — keep them visible in dark mode.
+   Before this rule the brackets fell through to the comment color which
+   was almost invisible against the dark background. */
+.cm-editor .mz-lp-task-marker {
+  color: var(--mz-accent);
+  font-weight: 700;
+  background: var(--mz-accent-subtle);
+  border-radius: 3px;
+  padding: 0 2px;
+}
+
+/* `](url)` tail of a markdown link shown on the cursor line. The default
+   CodeMirror muted colour is barely visible against the dark background
+   so we give it a dedicated legible tone. Matches the dim url styling
+   from Obsidian but with enough contrast to read anchors like `](#foo)`. */
+.cm-editor .mz-lp-link-url-tail {
+  color: var(--mz-syntax-link);
+  opacity: 0.85;
+}
+
+/* Footnote */
+.cm-editor .mz-lp-footnote {
+  color: var(--mz-accent);
+  font-size: 0.85em;
+  vertical-align: super;
+}
+
+/* Tables rendered as widgets in live preview */
+.mz-lp-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0;
+  font-size: 0.95em;
+}
+.mz-lp-table th,
+.mz-lp-table td {
+  border: 1px solid var(--mz-border);
+  padding: 10px 12px;
+  text-align: left;
+  line-height: 1.9;
+}
+.mz-lp-table th {
+  background: var(--mz-bg-tertiary);
+  font-weight: 600;
+}
+.mz-lp-table tr:hover td {
+  background: var(--mz-bg-hover);
+}
+
+/* ── List layout constants ──
+   Keep the rendered tab width and guide spacing aligned with the
+   shared list keyboard/rendering logic. */
+.cm-editor .cm-content {
+  tab-size: 40px;
+  -moz-tab-size: 40px;
+  --mz-list-indent-step: 40px;
+  --mz-list-guide-offset: 20px;
+}
+
+/* ── Nested list guide lines ──
+   Draw one guide at the middle of each indent unit and clip the
+   repeating background to the current nesting depth. */
+.cm-editor .cm-content .cm-line.mz-lp-list-guides {
+  background-image:
+    repeating-linear-gradient(
+      to right,
+      var(--mz-border) 0,
+      var(--mz-border) 1px,
+      transparent 1px,
+      transparent var(--mz-list-indent-step)
+    );
+  background-repeat: no-repeat;
+  background-position: 0 0;
+  background-size: calc(var(--mz-list-level, 0) * var(--mz-list-indent-step)) 100%;
+}
+
+/* Checkbox widget */
+.mz-lp-checkbox {
+  cursor: pointer;
+  margin-right: 6px;
+  transform: scale(1.1);
+  vertical-align: middle;
+  accent-color: var(--mz-accent);
+}
+
+/* Inline math */
+.mz-lp-inline-math {
+  font-size: 0.95em;
+}
+
+/* ===================================================================
+   Reading View Styles
+   =================================================================== */
+
+.mz-reading-view {
+  --mz-reading-list-indent-step: 36px;
+  --mz-reading-list-guide-offset: 18px;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  /* Explicitly allow text selection + copy — some ancestors (e.g. the
+     tab bar's `-webkit-app-region: drag` spacer) flip `user-select` off
+     and that can cascade. */
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: text;
+}
+
+/* Headings */
+.mz-reading-view h1.mz-rv-h1 { font-size: 1.8em; font-weight: 700; color: var(--mz-syntax-heading); margin: 24px 0 12px; line-height: 1.3; }
+.mz-reading-view h2.mz-rv-h2 { font-size: 1.5em; font-weight: 600; color: var(--mz-syntax-heading); margin: 20px 0 10px; line-height: 1.3; padding-bottom: 4px; }
+.mz-reading-view h3.mz-rv-h3 { font-size: 1.25em; font-weight: 600; color: var(--mz-syntax-heading); margin: 16px 0 8px; line-height: 1.4; }
+.mz-reading-view h4 { font-size: 1.1em; font-weight: 600; color: var(--mz-syntax-heading); margin: 12px 0 6px; }
+.mz-reading-view h5 { font-size: 1.05em; font-weight: 600; color: var(--mz-syntax-heading); margin: 10px 0 5px; }
+.mz-reading-view h6 { font-size: 1em; font-weight: 600; color: var(--mz-syntax-heading); margin: 8px 0 4px; }
+
+/* Paragraphs */
+.mz-reading-view p {
+  margin: 8px 0;
+  line-height: 1.7;
+}
+
+/* Bold / italic */
+.mz-reading-view strong { font-weight: 700; color: var(--mz-syntax-bold); }
+.mz-reading-view em { font-style: italic; color: var(--mz-syntax-italic); }
+.mz-reading-view del { text-decoration: line-through; color: var(--mz-syntax-strikethrough); }
+
+/* Highlight */
+.mz-reading-view .mz-rv-highlight {
+  background: var(--mz-syntax-highlight-bg);
+  border-radius: 2px;
+  padding: 1px 3px;
+}
+
+/* Inline code */
+.mz-reading-view .mz-rv-inline-code {
+  font-family: var(--mz-font-mono);
+  font-size: 0.9em;
+  background: var(--mz-syntax-code-bg);
+  border-radius: 3px;
+  padding: 1px 5px;
+}
+
+/* Links */
+.mz-reading-view .mz-rv-link,
+.mz-reading-view .mz-rv-wikilink {
+  color: var(--mz-syntax-link);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  cursor: pointer;
+  transition: border-color 120ms ease;
+}
+
+.mz-reading-view .mz-rv-link:hover,
+.mz-reading-view .mz-rv-wikilink:hover {
+  border-bottom-color: var(--mz-syntax-link);
+}
+
+/* Images */
+.mz-reading-view .mz-rv-image {
+  max-width: 100%;
+  max-height: 500px;
+  border-radius: 6px;
+  display: block;
+  margin: 8px 0;
+}
+/* When pixel-perfect-image sets inline width in reading view */
+.mz-reading-view img[data-ppi-wheel-inline-width] {
+  max-width: none !important;
+  max-height: none !important;
+}
+
+/* Blockquote */
+.mz-reading-view blockquote.mz-rv-blockquote {
+  border-left: 3px solid var(--mz-border-strong);
+  padding: 4px 12px;
+  margin: 8px 0;
+  color: var(--mz-text-secondary);
+  font-style: italic;
+  background: var(--mz-bg-tertiary);
+  border-radius: 0 4px 4px 0;
+}
+
+/* Horizontal rule */
+.mz-reading-view hr.mz-rv-hr {
+  border: none;
+  border-top: 1px solid var(--mz-border);
+  margin: 20px 0;
+}
+
+/* Lists — wrapped text aligns with the first character of list content.
+   Use padding-left on li + negative text-indent on the bullet via
+   list-style-position: outside for proper hanging indent. */
+.mz-reading-view .mz-rv-list {
+  margin: 6px 0;
+  padding-left: var(--mz-reading-list-indent-step);
+  list-style-position: outside;
+  line-height: 1.7;
+}
+
+.mz-reading-view .mz-rv-list > li {
+  margin: 4px 0;
+  line-height: 1.7;
+  padding-left: 4px;
+  font-weight: 400;
+}
+
+/* Top-level ordered list number markers are muted */
+.mz-reading-view .mz-rv-list-ol > li::marker {
+  color: var(--mz-text-muted);
+  font-weight: 400;
+}
+
+.mz-reading-view li > .mz-rv-list {
+  margin-top: 6px;
+  margin-bottom: 6px;
+  position: relative;
+}
+
+.mz-reading-view li > .mz-rv-list::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--mz-border);
+  pointer-events: none;
+}
+
+.mz-reading-view .mz-rv-list-ul:not(.mz-rv-task-list) {
+  list-style: none;
+}
+
+.mz-reading-view .mz-rv-list-ul:not(.mz-rv-task-list) > li {
+  position: relative;
+  padding-left: 0.95em;
+}
+
+.mz-reading-view .mz-rv-list-ul:not(.mz-rv-task-list) > li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.86em;
+  width: 0.42em;
+  height: 0.42em;
+  border-radius: 999px;
+  background: var(--mz-text-muted);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+/* Task lists */
+.mz-reading-view .mz-rv-task-list {
+  list-style: none;
+  padding-left: 0;
+}
+
+.mz-reading-view li > .mz-rv-task-list {
+  padding-left: var(--mz-reading-list-indent-step);
+}
+
+.mz-reading-view .mz-rv-task-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.mz-reading-view .mz-rv-task-item > span {
+  flex: 1;
+  min-width: 0;
+}
+
+.mz-reading-view .mz-rv-task-item-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.mz-reading-view .mz-rv-task-item-content > span {
+  display: block;
+}
+
+.mz-reading-view .mz-rv-task-item input[type="checkbox"] {
+  margin-top: 4px;
+  accent-color: var(--mz-accent);
+  transform: scale(1.1);
+}
+
+.mz-reading-view .mz-rv-task-item.checked span {
+  text-decoration: line-through;
+  color: var(--mz-text-muted);
+}
+
+/* Tables */
+.mz-reading-view .mz-rv-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+  font-size: 0.95em;
+}
+
+.mz-reading-view .mz-rv-table th,
+.mz-reading-view .mz-rv-table td {
+  border: 1px solid var(--mz-border);
+  padding: 10px 12px;
+  line-height: 1.7;
+}
+
+.mz-reading-view .mz-rv-table th {
+  background: var(--mz-bg-tertiary);
+  font-weight: 600;
+}
+
+.mz-reading-view .mz-rv-table tr:hover td {
+  background: var(--mz-bg-hover);
+}
+
+/* Code blocks */
+.mz-reading-view .mz-rv-code {
+  position: relative;
+  background: var(--mz-bg-tertiary);
+  border-radius: 6px;
+  margin: 10px 0;
+  overflow: hidden;
+  border: 1px solid var(--mz-border);
+  font-family: var(--mz-font-mono);
+}
+
+.mz-reading-view .mz-rv-code pre {
+  margin: 0;
+  padding: 12px 16px;
+  overflow-x: auto;
+  font-size: 0.88em;
+  line-height: 1.7;
+}
+
+.mz-reading-view .mz-rv-code code {
+  font-family: var(--mz-font-mono);
+}
+
+.mz-reading-view .mz-rv-code-lang {
+  position: absolute;
+  top: 4px;
+  right: 56px;
+  font-size: 10px;
+  color: var(--mz-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: var(--mz-bg-hover);
+  font-family: var(--mz-font-sans);
+}
+
+.mz-reading-view .mz-rv-code-copy {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  font-size: 11px;
+  color: var(--mz-text-muted);
+  background: var(--mz-bg-hover);
+  border: 1px solid var(--mz-border);
+  border-radius: 3px;
+  padding: 2px 8px;
+  cursor: pointer;
+  font-family: var(--mz-font-sans);
+}
+
+.mz-reading-view .mz-rv-code-copy:hover {
+  color: var(--mz-text-primary);
+  background: var(--mz-bg-active);
+}
+
+/* Math blocks */
+.mz-reading-view .mz-rv-math-block {
+  padding: 16px;
+  margin: 10px 0;
+  text-align: center;
+  overflow-x: auto;
+}
+
+/* Mermaid */
+.mz-reading-view .mz-rv-mermaid {
+  margin: 10px 0;
+  padding: 16px;
+  background: var(--mz-bg-tertiary);
+  border-radius: 6px;
+  border: 1px solid var(--mz-border);
+  overflow: auto;
+  text-align: center;
+}
+
+.mz-reading-view .mz-rv-mermaid svg {
+  max-width: 100%;
+}
+
+/* Callouts */
+.mz-reading-view .mz-rv-callout {
+  border-left: 4px solid var(--mz-callout-note);
+  background: var(--mz-bg-tertiary);
+  border-radius: 0 6px 6px 0;
+  margin: 10px 0;
+  overflow: hidden;
+}
+
+.mz-reading-view .mz-rv-callout-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  font-weight: 600;
+  font-size: 0.95em;
+}
+
+.mz-reading-view .mz-rv-callout-icon {
+  font-size: 1.1em;
+  flex-shrink: 0;
+}
+
+.mz-reading-view .mz-rv-callout-title {
+  flex: 1;
+}
+
+.mz-reading-view .mz-rv-callout-body {
+  padding: 0 12px 10px 12px;
+  font-size: 0.92em;
+  color: var(--mz-text-secondary);
+  line-height: 1.6;
+}
+
+/* Tags */
+.mz-reading-view .mz-rv-tag {
+  color: var(--mz-accent);
+  background: var(--mz-accent-subtle);
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-size: 0.9em;
+  cursor: pointer;
+}
+
+/* Footnotes */
+.mz-reading-view .mz-rv-footnote-ref a {
+  color: var(--mz-accent);
+  text-decoration: none;
+  font-size: 0.85em;
+}
+
+.mz-reading-view .mz-rv-footnote-ref a:hover {
+  text-decoration: underline;
+}
+
+.mz-reading-view .mz-rv-footnotes {
+  font-size: 0.9em;
+  color: var(--mz-text-secondary);
+}
+
+.mz-reading-view .mz-rv-footnote-def {
+  margin: 4px 0;
+  padding-left: 16px;
+}
+
+.mz-reading-view .mz-rv-footnote-def sup {
+  color: var(--mz-accent);
+  font-weight: 600;
+  margin-right: 4px;
+}
+
+/* Error styling */
+.mz-reading-view .mz-rv-error {
+  color: var(--mz-error);
+}
+
+/* KaTeX display wrapper in reading view */
+.mz-reading-view .katex-display {
+  margin: 0;
+  overflow-x: auto;
+}

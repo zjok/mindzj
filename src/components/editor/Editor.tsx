@@ -1,0 +1,1546 @@
+import {
+    Component,
+    Show,
+    createEffect,
+    createMemo,
+    createSignal,
+    on,
+    onMount,
+    onCleanup,
+} from "solid-js";
+import { Compartment, EditorSelection, EditorState } from "@codemirror/state";
+import {
+    EditorView,
+    keymap,
+    lineNumbers,
+    drawSelection,
+} from "@codemirror/view";
+import {
+    defaultKeymap,
+    history,
+    historyKeymap,
+    undo,
+    redo,
+} from "@codemirror/commands";
+import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
+import {
+    syntaxHighlighting,
+    defaultHighlightStyle,
+    HighlightStyle,
+    bracketMatching,
+    foldGutter,
+    foldKeymap,
+    indentUnit,
+} from "@codemirror/language";
+import { tags as t_ } from "@lezer/highlight";
+import { searchKeymap, highlightSelectionMatches } from "@codemirror/search";
+import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
+import { invoke } from "@tauri-apps/api/core";
+import { vaultStore } from "../../stores/vault";
+import { editorStore, type ViewMode } from "../../stores/editor";
+import { settingsStore } from "../../stores/settings";
+import { ContextMenu, type MenuItem } from "../common/ContextMenu";
+import { livePreviewExtension } from "./extensions/livePreview";
+import { listContinuationExtension } from "./extensions/listContinuation";
+
+import { searchCounterExtension } from "./extensions/searchCounter";
+
+import {
+    LIST_INDENT_UNIT,
+    LIST_RENDER_TAB_SIZE,
+} from "./extensions/listUtils";
+import { linkHandlerExtension } from "./extensions/linkHandler";
+import { sourceHeadingLineExtension } from "./extensions/sourceHeadingLine";
+import {
+    DEFAULT_ATTACHMENT_FOLDER,
+    getParentPath,
+    joinVaultPath,
+    normalizeVaultRelativePath,
+} from "../../utils/vaultPaths";
+import { t } from "../../i18n";
+
+interface EditorProps {
+    file?: ReturnType<typeof vaultStore.activeFile>;
+    viewMode?: ViewMode;
+    isActive?: boolean;
+    onActivate?: () => void;
+}
+
+// Override the default highlight style for heading tags so they no
+// longer carry an underline (the built-in defaultHighlightStyle sets
+// `textDecoration: "underline"` on `tags.heading`). Keeping bold +
+// colour — just nuking the underline.
+const mzHeadingHighlightStyle = HighlightStyle.define([
+    { tag: t_.heading, textDecoration: "none", fontWeight: "bold", color: "var(--mz-syntax-heading)" },
+    { tag: t_.heading1, textDecoration: "none", fontWeight: "bold", color: "var(--mz-syntax-heading)" },
+    { tag: t_.heading2, textDecoration: "none", fontWeight: "bold", color: "var(--mz-syntax-heading)" },
+    { tag: t_.heading3, textDecoration: "none", fontWeight: "bold", color: "var(--mz-syntax-heading)" },
+    { tag: t_.heading4, textDecoration: "none", fontWeight: "bold", color: "var(--mz-syntax-heading)" },
+    { tag: t_.heading5, textDecoration: "none", fontWeight: "bold", color: "var(--mz-syntax-heading)" },
+    { tag: t_.heading6, textDecoration: "none", fontWeight: "bold", color: "var(--mz-syntax-heading)" },
+]);
+
+/**
+ * Build the font-size theme used by the zoom compartment.
+ *
+ * The font-size is applied via a THEME (not an inherited CSS variable)
+ * because CodeMirror only invalidates its internal height map when a
+ * theme change flows through its own update pipeline. Reconfiguring
+ * this theme through a Compartment is what actually tells CM6
+ * "everything might have a new height — throw away the cached heightmap
+ * and re-measure from scratch". Without that, changing font-size on an
+ * ancestor via CSS leaves the heightmap stale and the cursor drifts off
+ * the text during Ctrl+wheel zoom.
+ */
+function buildZoomTheme(pxSize: number) {
+    return EditorView.theme({
+        "&": {
+            fontSize: `${pxSize}px`,
+        },
+    });
+}
+
+export const Editor: Component<EditorProps> = (props) => {
+    let containerRef: HTMLDivElement | undefined;
+    let editorView: EditorView | null = null;
+    let currentFilePath: string | null = null;
+    let currentViewMode: ViewMode | null = null;
+    let isProgrammaticUpdate = false;
+    // Compartment that holds the zoom font-size theme. Reconfiguring it
+    // is the only way to get CodeMirror to invalidate its height map
+    // when the editor font-size changes.
+    const zoomCompartment = new Compartment();
+    const [contextMenu, setContextMenu] = createSignal<{
+        x: number;
+        y: number;
+        items: MenuItem[];
+    } | null>(null);
+    const resolvedFile = createMemo(() => props.file ?? vaultStore.activeFile());
+    const isPaneActive = () => props.isActive ?? true;
+
+    // CRITICAL: In SolidJS, createEffect runs BEFORE the JSX ref is bound.
+    // When switching from reading to edit mode with an already-open file,
+    // the activeFile signal hasn't changed, so the effect never re-runs
+    // after containerRef is set. onMount guarantees containerRef is ready.
+    // Return the 1-based line number of the FIRST line visible at the top
+    // of the current viewport. This is what the user sees as "the top line"
+    // — the user requirement is that switching modes keeps this exact line
+    // pinned at the top, regardless of where the cursor is.
+    function getTopVisibleLine(view: EditorView): number {
+        try {
+            const scrollTop = view.scrollDOM.scrollTop;
+            const topBlock = view.lineBlockAtHeight(scrollTop + 1);
+            return view.state.doc.lineAt(topBlock.from).number;
+        } catch {
+            return 1;
+        }
+    }
+
+    // Scroll the view so `lineNum` lands at the top of the viewport.
+    // Uses CM6's `EditorView.scrollIntoView` effect inside a dispatch
+    // because that path queues into CM6's measure cycle — it works
+    // correctly even on a freshly created view (before any manual
+    // measurement pass), which direct `scrollDOM.scrollTop` assignment
+    // does not. Does NOT touch the selection, so the caller's separate
+    // selection-restore dispatch isn't clobbered.
+    function scrollLineToTop(view: EditorView, lineNum: number) {
+        const maxLine = view.state.doc.lines;
+        const clamped = Math.max(1, Math.min(lineNum, maxLine));
+        const line = view.state.doc.line(clamped);
+        view.dispatch({
+            effects: EditorView.scrollIntoView(line.from, {
+                y: "start",
+                yMargin: 0,
+            }),
+        });
+    }
+
+    function posToOffset(view: EditorView, pos: { line: number; ch: number }) {
+        const lineNum = Math.max(1, Math.min(view.state.doc.lines, pos.line + 1));
+        const line = view.state.doc.line(lineNum);
+        return Math.min(line.to, line.from + Math.max(0, pos.ch));
+    }
+
+    function offsetToPos(view: EditorView, offset: number) {
+        const line = view.state.doc.lineAt(Math.max(0, Math.min(view.state.doc.length, offset)));
+        return { line: line.number - 1, ch: Math.max(0, offset - line.from) };
+    }
+
+    function closeContextMenu() {
+        setContextMenu(null);
+    }
+
+    function getActiveViewMode(): ViewMode {
+        const path = currentFilePath ?? resolvedFile()?.path ?? null;
+        return props.viewMode ?? editorStore.getViewModeForFile(path);
+    }
+
+    function activatePane() {
+        props.onActivate?.();
+    }
+
+    function setEditorSurfaceVisibility(visible: boolean) {
+        if (!containerRef) return;
+        containerRef.style.visibility = visible ? "visible" : "hidden";
+    }
+
+    function revealEditorSurface(view: EditorView) {
+        requestAnimationFrame(() => {
+            if (editorView !== view) return;
+            setEditorSurfaceVisibility(true);
+        });
+    }
+
+    function rememberEditorViewport(view: EditorView | null = editorView) {
+        const path = currentFilePath;
+        if (!path || !view) return;
+        const mode = getActiveViewMode();
+        editorStore.setFileScrollPosition(path, mode, view.scrollDOM.scrollTop);
+        editorStore.setFileTopLine(path, getTopVisibleLine(view));
+    }
+
+    function restoreEditorViewport(
+        view: EditorView,
+        path: string,
+        mode: ViewMode,
+        preferExactScroll: boolean,
+    ) {
+        const exactScrollTop = preferExactScroll
+            ? editorStore.getFileScrollPosition(path, mode)
+            : null;
+        const topLine = editorStore.getFileTopLine(path);
+
+        requestAnimationFrame(() => {
+            if (editorView !== view) return;
+
+            if (exactScrollTop !== null) {
+                view.requestMeasure({
+                    read() {
+                        return null;
+                    },
+                    write() {
+                        view.scrollDOM.scrollTop = exactScrollTop;
+                        revealEditorSurface(view);
+                    },
+                });
+                return;
+            }
+
+            if (topLine !== null) {
+                scrollLineToTop(view, topLine);
+                revealEditorSurface(view);
+                return;
+            }
+
+            revealEditorSurface(view);
+        });
+    }
+
+    function syncPluginEditorBindings(view: EditorView | null) {
+        if (!isPaneActive()) return;
+        if (!view || !containerRef) {
+            (window as any).__mindzj_plugin_editor_api = null;
+            (window as any).__mindzj_markdown_view = null;
+            return;
+        }
+
+        const editorApi = {
+            // Expose the raw CodeMirror 6 EditorView so plugins (e.g.
+            // editing-toolbar) can access cm.state, cm.dispatch(),
+            // cm.dom, register extensions, etc.
+            cm: view,
+            focus: () => view.focus(),
+            getSelection: () => {
+                const sel = view.state.selection.main;
+                return view.state.sliceDoc(sel.from, sel.to);
+            },
+            replaceSelection: (text: string) => {
+                const sel = view.state.selection.main;
+                view.dispatch({
+                    changes: { from: sel.from, to: sel.to, insert: text },
+                    selection: { anchor: sel.from + text.length },
+                });
+                view.focus();
+            },
+            somethingSelected: () => !view.state.selection.main.empty,
+            getCursor: (which?: "from" | "to") => {
+                const sel = view.state.selection.main;
+                return offsetToPos(view, which === "from" ? sel.from : which === "to" ? sel.to : sel.head);
+            },
+            setCursor: (line: number, ch: number) => {
+                const offset = posToOffset(view, { line, ch });
+                view.dispatch({ selection: { anchor: offset } });
+                view.focus();
+            },
+            getLine: (line: number) => view.state.doc.line(Math.max(1, Math.min(view.state.doc.lines, line + 1))).text,
+            lineCount: () => view.state.doc.lines,
+            lastLine: () => view.state.doc.lines - 1,
+            firstLine: () => 0,
+            replaceRange: (text: string, from: { line: number; ch: number }, to?: { line: number; ch: number }) => {
+                const fromOffset = posToOffset(view, from);
+                const toOffset = posToOffset(view, to ?? from);
+                view.dispatch({
+                    changes: { from: fromOffset, to: toOffset, insert: text },
+                    selection: { anchor: fromOffset + text.length },
+                });
+            },
+            listSelections: () => view.state.selection.ranges.map((range) => ({
+                anchor: offsetToPos(view, range.anchor),
+                head: offsetToPos(view, range.head),
+            })),
+            setSelections: (ranges: Array<{ anchor: { line: number; ch: number }; head: { line: number; ch: number } }>) => {
+                if (!ranges.length) return;
+                view.dispatch({
+                    selection: EditorSelection.create(ranges.map((range) => EditorSelection.range(
+                        posToOffset(view, range.anchor),
+                        posToOffset(view, range.head),
+                    ))),
+                });
+            },
+            setSelection: (from: { line: number; ch: number }, to?: { line: number; ch: number }) => {
+                const anchor = posToOffset(view, from);
+                const head = to ? posToOffset(view, to) : anchor;
+                view.dispatch({ selection: { anchor, head } });
+            },
+            getDoc: () => ({
+                getValue: () => view.state.doc.toString(),
+                lineCount: () => view.state.doc.lines,
+            }),
+            transaction: () => view.state.update({}),
+            undo: () => undo(view),
+            redo: () => redo(view),
+            exec: (command: string) => {
+                if (command === "undo") return undo(view);
+                if (command === "redo") return redo(view);
+                if (command === "selectAll") {
+                    view.dispatch({ selection: { anchor: 0, head: view.state.doc.length } });
+                    return true;
+                }
+                return false;
+            },
+            getValue: () => view.state.doc.toString(),
+            setValue: (value: string) => {
+                view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: value } });
+                return value;
+            },
+            getRange: (from: { line: number; ch: number }, to: { line: number; ch: number }) => {
+                return view.state.sliceDoc(posToOffset(view, from), posToOffset(view, to));
+            },
+            getScrollInfo: () => ({
+                top: view.scrollDOM.scrollTop,
+                left: view.scrollDOM.scrollLeft,
+                height: view.scrollDOM.scrollHeight,
+                clientHeight: view.scrollDOM.clientHeight,
+            }),
+            scrollTo: (x: number | null, y: number | null) => {
+                if (y !== null) view.scrollDOM.scrollTop = y;
+                if (x !== null) view.scrollDOM.scrollLeft = x;
+            },
+            scrollIntoView: (pos?: { line: number; ch: number }) => {
+                if (pos) {
+                    const offset = posToOffset(view, pos);
+                    view.dispatch({ effects: EditorView.scrollIntoView(offset) });
+                }
+            },
+        };
+
+        (window as any).__mindzj_plugin_editor_api = editorApi;
+        const activePath = resolvedFile()?.path ?? "";
+        const fileName = activePath.split("/").pop() ?? activePath;
+        const markdownView: any = {
+            editor: editorApi,
+            containerEl: containerRef,
+            contentEl: containerRef,
+            // Expose the CM6 view element for plugins that need to attach
+            // toolbars, context menus, or other UI relative to the editor.
+            editMode: { editor: { cm: view } },
+            currentMode: { editor: { cm: view } },
+            sourceMode: { cmEditor: { cm: view } },
+            leaf: { width: containerRef.clientWidth || 0, containerEl: containerRef, view: null },
+            file: activePath ? {
+                path: activePath,
+                name: fileName,
+                basename: fileName.replace(/\.[^.]+$/, ""),
+                extension: fileName.includes(".") ? fileName.split(".").pop() ?? "" : "",
+                stat: { mtime: Date.now(), ctime: Date.now(), size: 0 },
+                vault: { getName: () => vaultStore.vaultInfo()?.name ?? "vault" },
+                parent: {
+                    path: activePath.includes("/") ? activePath.split("/").slice(0, -1).join("/") : "",
+                    name: activePath.includes("/") ? activePath.split("/").slice(-2, -1)[0] || "/" : "/",
+                },
+            } : null,
+            getViewType: () => "markdown",
+            getMode: () => getActiveViewMode() === "source" ? "source" : "preview",
+        };
+        markdownView.leaf.view = markdownView;
+        (window as any).__mindzj_markdown_view = markdownView;
+    }
+
+    // Handle image deletion from the context menu dispatched by livePreview.ts
+    function handleDeleteImage(e: Event) {
+        const detail = (e as CustomEvent).detail;
+        if (!detail || !editorView) return;
+        const { imageSrc, imagePath } = detail;
+
+        // Find and remove the markdown image syntax from the document
+        const doc = editorView.state.doc.toString();
+        // Match ![...](...) or ![[...]] patterns containing the image src
+        const escapedSrc = imageSrc.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const patterns = [
+            new RegExp(`!\\[[^\\]]*\\]\\(${escapedSrc}\\)\\n?`),
+            new RegExp(`!\\[\\[${escapedSrc}\\]\\]\\n?`),
+        ];
+
+        let matchFrom = -1;
+        let matchTo = -1;
+        for (const re of patterns) {
+            const m = doc.match(re);
+            if (m && m.index !== undefined) {
+                matchFrom = m.index;
+                matchTo = m.index + m[0].length;
+                break;
+            }
+        }
+
+        if (matchFrom >= 0) {
+            editorView.dispatch({
+                changes: { from: matchFrom, to: matchTo, insert: "" },
+            });
+        }
+
+        // Delete the image file from the vault
+        invoke("delete_file", { relativePath: imagePath }).catch((err) => {
+            console.warn("[Editor] Failed to delete image file:", err);
+        });
+    }
+
+    function handleRememberViewport() {
+        rememberEditorViewport();
+    }
+
+    onMount(() => {
+        document.addEventListener("mindzj:delete-image", handleDeleteImage);
+        document.addEventListener(
+            "mindzj:remember-active-viewport",
+            handleRememberViewport,
+        );
+
+        const activeFile = resolvedFile();
+        if (activeFile && containerRef && !editorView) {
+            currentFilePath = activeFile.path;
+            currentViewMode = getActiveViewMode();
+            createEditorView(activeFile.content);
+            if (editorView) {
+                restoreEditorViewport(editorView, activeFile.path, currentViewMode!, false);
+            }
+        }
+    });
+
+    // Watch for active file changes (handles file switching AFTER initial mount)
+    createEffect(
+        on(
+            resolvedFile,
+            (activeFile) => {
+                if (!activeFile || !containerRef) return;
+                if (activeFile.path !== currentFilePath) {
+                    // Rename detection: if the editor content matches the
+                    // signal content, only the path changed (file was renamed).
+                    // Update the local path reference without destroying/
+                    // recreating the view — avoids a visual flash.
+                    if (
+                        editorView &&
+                        activeFile.content === editorView.state.doc.toString()
+                    ) {
+                        const mode = getActiveViewMode();
+                        editorStore.setFileScrollPosition(
+                            activeFile.path,
+                            mode,
+                            editorView.scrollDOM.scrollTop,
+                        );
+                        editorStore.setFileTopLine(
+                            activeFile.path,
+                            getTopVisibleLine(editorView),
+                        );
+                        currentFilePath = activeFile.path;
+                        syncPluginEditorBindings(editorView);
+                        return;
+                    }
+
+                    rememberEditorViewport();
+                    currentFilePath = activeFile.path;
+                    currentViewMode = getActiveViewMode();
+                    createEditorView(activeFile.content);
+                    if (editorView) {
+                        restoreEditorViewport(editorView, activeFile.path, currentViewMode!, true);
+                    }
+                }
+            },
+        ),
+    );
+
+    // Watch for view mode changes — rebuild the editor with/without the
+    // live-preview decorations. Preserve the TOP-VISIBLE line across the
+    // rebuild so `source ↔ live-preview` transitions keep the same
+    // content pinned to the viewport top, and stash it for ReadingView
+    // to pick up on mount.
+    createEffect(
+        on(
+            getActiveViewMode,
+            (mode) => {
+                if (!containerRef || !currentFilePath) return;
+                if (mode !== currentViewMode) {
+                    rememberEditorViewport();
+                    currentViewMode = mode;
+                    const activeFile = resolvedFile();
+                    if (activeFile) {
+                        const currentContent = editorView
+                            ? editorView.state.doc.toString()
+                            : activeFile.content;
+                        // Snapshot the selection + the top-visible line.
+                        const prevSel = editorView?.state.selection.main;
+
+                        createEditorView(currentContent);
+
+                        if (editorView && prevSel) {
+                            const len = editorView.state.doc.length;
+                            const anchor = Math.min(prevSel.anchor, len);
+                            const head = Math.min(prevSel.head, len);
+                            editorView.dispatch({
+                                selection: { anchor, head },
+                            });
+                        }
+                        if (editorView) {
+                            restoreEditorViewport(editorView, currentFilePath, mode, false);
+                        }
+                    }
+                }
+            },
+        ),
+    );
+
+    // When the editor is destroyed (user switched to Reading mode, or
+    // component unmounts), stash the current top-visible line so the next
+    // mount (Editor or ReadingView) can restore the same scroll position.
+    onCleanup(() => {
+        document.removeEventListener("mindzj:delete-image", handleDeleteImage);
+        document.removeEventListener(
+            "mindzj:remember-active-viewport",
+            handleRememberViewport,
+        );
+        rememberEditorViewport();
+    });
+
+    // Also continuously track the top-visible line as the user scrolls,
+    // so even if they switch modes without making a transaction first,
+    // the stashed line is up-to-date.
+    const scrollTrackTimers = new WeakMap<EditorView, number>();
+    function installScrollTracker(view: EditorView) {
+        let timer: number | null = null;
+        const handler = () => {
+            if (timer != null) return;
+            timer = window.setTimeout(() => {
+                timer = null;
+                if (editorView === view) {
+                    rememberEditorViewport(view);
+                }
+            }, 80);
+        };
+        view.scrollDOM.addEventListener("scroll", handler, { passive: true });
+        scrollTrackTimers.set(view, 1);
+        onCleanup(() => {
+            view.scrollDOM.removeEventListener("scroll", handler);
+            if (timer != null) clearTimeout(timer);
+        });
+    }
+
+    // Apply editor text zoom.
+    //
+    // Reconfiguring the font-size THROUGH a Compartment is what makes
+    // CodeMirror rebuild its height map. Setting fontSize on the container
+    // (even with an offsetHeight reflow + requestMeasure) is not enough:
+    // CM6 only re-measures line heights when its own update pipeline sees
+    // a configuration change. A Compartment reconfigure IS such a change,
+    // so the heightmap is recomputed and the cursor overlay follows the
+    // new line positions instead of floating at its pre-zoom coords.
+    createEffect(() => {
+        const zoom = editorStore.editorZoom();
+        const baseFontSize = settingsStore.settings().font_size;
+        const pxSize = (zoom / 100) * baseFontSize;
+        // Still sync the container's font-size so anything outside the
+        // editor (gutters, panels) scales too.
+        if (containerRef) {
+            containerRef.style.fontSize = `${pxSize}px`;
+        }
+        const view = editorView;
+        if (!view) return;
+        view.dispatch({
+            effects: zoomCompartment.reconfigure(buildZoomTheme(pxSize)),
+        });
+    });
+
+    // Live-rebuild the editor when the line-number setting changes so the
+    // gutter appears/disappears immediately (no reopen required). Only
+    // rebuild while we're in source mode — the gutter isn't shown in live
+    // preview or reading mode, so changing the setting there would be a
+    // pointless recreate.
+    createEffect(
+        on(
+            () => settingsStore.settings().editor_line_numbers,
+            (_showNums, prev) => {
+                if (prev === undefined) return; // initial run
+                if (getActiveViewMode() !== "source") return;
+                if (!containerRef || !currentFilePath) return;
+                const activeFile = resolvedFile();
+                if (!activeFile) return;
+                const currentContent = editorView
+                    ? editorView.state.doc.toString()
+                    : activeFile.content;
+                rememberEditorViewport();
+                createEditorView(currentContent);
+                if (editorView && currentFilePath) {
+                    restoreEditorViewport(
+                        editorView,
+                        currentFilePath,
+                        getActiveViewMode(),
+                        true,
+                    );
+                }
+            },
+        ),
+    );
+
+    function createEditorView(content: string) {
+        if (!containerRef) return;
+        closeContextMenu();
+        setEditorSurfaceVisibility(false);
+
+        // Snapshot headings so we can detect renames on the next save.
+        if (currentFilePath) {
+            editorStore.storeHeadings(currentFilePath, content);
+        }
+
+        if (editorView) {
+            editorView.destroy();
+            editorView = null;
+            syncPluginEditorBindings(null);
+        }
+
+        const mode = getActiveViewMode();
+        const isLivePreview = mode === "live-preview";
+        const isReading = mode === "reading";
+
+        // Resolve vault root path for image previews
+        const vaultRoot = vaultStore.vaultInfo()?.path ?? "";
+
+        // Line numbers + fold gutter: ONLY in source mode AND only if the user
+        // has enabled line numbers in Settings. When disabled we skip the fold
+        // gutter too so the left rail disappears entirely (previously an
+        // empty fold gutter column remained).
+        const isSourceMode = mode === "source";
+        const showGutter = isSourceMode && settingsStore.settings().editor_line_numbers;
+
+        const extensions = [
+            // Force tab-based indentation globally — prevents CM6's
+            // insertNewlineAndIndent from converting tabs to spaces.
+            indentUnit.of(LIST_INDENT_UNIT),
+            EditorState.tabSize.of(LIST_RENDER_TAB_SIZE),
+            history(),
+            drawSelection(),
+            bracketMatching(),
+            closeBrackets(),
+            // Only highlight matching words in source mode. In LivePreview
+            // the visual noise of highlight-on-select is distracting and
+            // the user explicitly asked for it to be disabled — searches
+            // should use the dedicated search panel (Ctrl+F) instead.
+            ...(isSourceMode ? [highlightSelectionMatches()] : []),
+            ...(showGutter ? [foldGutter(), lineNumbers()] : []),
+            markdown({ base: markdownLanguage }),
+            // Custom highlight style MUST come first so it overrides the
+            // default. `defaultHighlightStyle` from @codemirror/language
+            // sets `textDecoration: "underline"` on `tags.heading`, which
+            // draws an underline under every H1–H6 in source mode. We
+            // strip that here and restore the bold/colour styling.
+            syntaxHighlighting(mzHeadingHighlightStyle),
+            syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+
+            // List continuation (auto-continue on Enter, indent/outdent)
+            listContinuationExtension(),
+           
+            
+            searchCounterExtension(),
+
+            // Link handler (Ctrl+Click, wiki link autocomplete)
+            linkHandlerExtension(),
+
+            // Source mode only: tag heading lines with mz-src-h1…h6
+            // line classes so the CSS can apply heading font-size on the
+            // line wrapper. Applying it on the inline .cm-header-N span
+            // makes the visible line taller than CM6's measured height,
+            // which breaks arrow-key movement and click positioning.
+            ...(isSourceMode ? [sourceHeadingLineExtension()] : []),
+
+            // Live Preview extension (only in live-preview mode).
+            // Block widgets (blockWidgetExtension) are NOT included here —
+            // Decoration.replace({block:true}) makes code blocks / tables
+            // atomic, so the cursor can't be placed inside, arrow keys
+            // skip them, and clicks can't map to source lines. Instead,
+            // livePreview.ts styles the raw source via line decorations
+            // (Obsidian-style) so every character stays cursor-addressable.
+            ...(isLivePreview
+                ? livePreviewExtension(vaultRoot, currentFilePath ?? "")
+                : []),
+
+            // Reading mode: make editor non-editable
+            ...(isReading ? [EditorState.readOnly.of(true)] : []),
+
+            // Plugin-registered CM6 extensions (via registerEditorExtension)
+            ...((window as any).__mindzj_plugin_cm_extensions ?? []),
+
+            keymap.of([
+                ...defaultKeymap,
+                ...historyKeymap,
+                // Redo: Ctrl+Shift+Z (Obsidian-style, overrides default Ctrl+Y)
+                { key: "Mod-Shift-z", run: (v) => redo(v) },
+                ...searchKeymap,
+                ...foldKeymap,
+                ...closeBracketsKeymap,
+                // Formatting shortcuts (Obsidian-compatible)
+                { key: "Mod-b", run: (v) => wrapSelection(v, "**") },
+                { key: "Mod-i", run: (v) => wrapSelection(v, "*") },
+                { key: "Mod-Shift-s", run: (v) => wrapSelection(v, "~~") },
+                { key: "Mod-u", run: (v) => wrapSelection(v, "<u>", "</u>") },
+                // Ctrl+E is reserved for toggling edit/preview mode (handled by global keydown).
+                // Inline code: use Ctrl+Shift+E instead.
+                { key: "Mod-Shift-e", run: (v) => wrapSelection(v, "`") },
+                { key: "Mod-k", run: (v) => insertLink(v) },
+                { key: "Mod-Shift-h", run: (v) => wrapSelection(v, "==") },
+                // Heading shortcuts: Ctrl+1 ~ Ctrl+6 for H1-H6
+                { key: "Mod-1", run: (v) => setHeading(v, 1) },
+                { key: "Mod-2", run: (v) => setHeading(v, 2) },
+                { key: "Mod-3", run: (v) => setHeading(v, 3) },
+                { key: "Mod-4", run: (v) => setHeading(v, 4) },
+                { key: "Mod-5", run: (v) => setHeading(v, 5) },
+                { key: "Mod-6", run: (v) => setHeading(v, 6) },
+                // Ctrl+0 = remove heading (normal paragraph)
+                { key: "Mod-0", run: (v) => setHeading(v, 0) },
+                // Ctrl+D: delete current line (Obsidian-like)
+                { key: "Mod-d", run: (v) => deleteLine(v) },
+                // Ctrl+Shift+K: also delete line (VS Code style)
+                { key: "Mod-Shift-k", run: (v) => deleteLine(v) },
+                // Ctrl+]: indent entire line from start
+                { key: "Mod-]", run: (v) => indentLineFromStart(v, true) },
+                // Ctrl+[: outdent entire line from start
+                { key: "Mod-[", run: (v) => indentLineFromStart(v, false) },
+                // Ctrl+Enter: insert line below
+                { key: "Mod-Enter", run: (v) => insertLineBelow(v) },
+                // Ctrl+Shift+Enter: insert line above
+                { key: "Mod-Shift-Enter", run: (v) => insertLineAbove(v) },
+                // Alt+Up/Down: move line up/down
+                { key: "Alt-ArrowUp", run: (v) => moveLine(v, -1) },
+                { key: "Alt-ArrowDown", run: (v) => moveLine(v, 1) },
+                // Ctrl+Shift+D: duplicate line
+                { key: "Mod-Shift-d", run: (v) => duplicateLine(v) },
+                // Ctrl+/: toggle comment (HTML comment for markdown)
+                { key: "Mod-/", run: (v) => toggleComment(v) },
+                // Ctrl+Shift+.: toggle callout/blockquote
+                { key: "Mod-Shift-.", run: (v) => toggleBlockquote(v) },
+            ]),
+
+            EditorView.updateListener.of((update) => {
+                if (update.docChanged && !isProgrammaticUpdate) {
+                    const content = update.state.doc.toString();
+                    if (currentFilePath) {
+                        editorStore.scheduleAutoSave(currentFilePath, content);
+                    }
+                    if (isPaneActive()) {
+                        editorStore.updateStats(content);
+                    }
+                }
+                if (update.selectionSet && isPaneActive()) {
+                    const pos = update.state.selection.main.head;
+                    const line = update.state.doc.lineAt(pos);
+                    editorStore.setCursorLine(line.number);
+                    editorStore.setCursorCol(pos - line.from + 1);
+                }
+            }),
+
+            EditorView.domEventHandlers({
+                wheel(event) {
+                    if (event.ctrlKey) {
+                        event.preventDefault();
+                        const raw = -event.deltaY;
+                        const step = Math.sign(raw) * Math.min(3, Math.max(1, Math.abs(raw) / 50));
+                        editorStore.zoomEditorText(Math.round(step));
+                        return true;
+                    }
+                    return false;
+                },
+                contextmenu(event, view) {
+                    activatePane();
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setContextMenu({
+                        x: event.clientX,
+                        y: event.clientY,
+                        items: buildEditorContextMenu(view),
+                    });
+                    return true;
+                },
+                focus() {
+                    activatePane();
+                    return false;
+                },
+                mousedown() {
+                    activatePane();
+                    return false;
+                },
+                paste(event, view) {
+                    const items = event.clipboardData?.items;
+                    if (!items) return false;
+
+                    // Look for image data in clipboard
+                    for (let i = 0; i < items.length; i++) {
+                        const item = items[i];
+                        if (item.type.startsWith("image/")) {
+                            event.preventDefault();
+                            const blob = item.getAsFile();
+                            if (!blob) return true;
+
+                            // Determine file extension from MIME type
+                            const ext = item.type.split("/")[1]?.replace("jpeg", "jpg") || "png";
+                            const now = new Date();
+                            const ts = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}${String(now.getSeconds()).padStart(2, "0")}`;
+                            const fileName = `Pasted image ${ts}.${ext}`;
+                            const currentNotePath = currentFilePath ?? "";
+                            const configuredFolder = normalizeVaultRelativePath(
+                                settingsStore.settings().attachment_folder || DEFAULT_ATTACHMENT_FOLDER,
+                            );
+                            const isNoteRelativeFolder =
+                                configuredFolder.startsWith("./") ||
+                                configuredFolder.startsWith("../");
+                            const storageDir = isNoteRelativeFolder
+                                ? joinVaultPath(getParentPath(currentNotePath), configuredFolder)
+                                : configuredFolder;
+                            const filePath = joinVaultPath(storageDir, fileName);
+                            const markdownImagePath = isNoteRelativeFolder
+                                ? joinVaultPath(configuredFolder, fileName)
+                                : `/${filePath}`;
+
+                            // Read blob as base64 and save via Rust backend
+                            const reader = new FileReader();
+                            reader.onload = async () => {
+                                try {
+                                    const dataUrl = reader.result as string;
+                                    // Strip the data:image/...;base64, prefix
+                                    const base64Data = dataUrl.split(",")[1];
+                                    if (!base64Data) return;
+
+                                    await invoke("write_binary_file", {
+                                        relativePath: filePath,
+                                        base64Data,
+                                    });
+
+                                    // Insert markdown image reference at cursor
+                                    const pos = view.state.selection.main.head;
+                                    const imageRef = `![](${markdownImagePath})`;
+                                    view.dispatch({
+                                        changes: { from: pos, insert: imageRef },
+                                        selection: { anchor: pos + imageRef.length },
+                                    });
+                                } catch (e) {
+                                    console.error("[Editor] Failed to save pasted image:", e);
+                                }
+                            };
+                            reader.readAsDataURL(blob);
+                            return true;
+                        }
+                    }
+                    return false;
+                },
+            }),
+
+            // Zoom compartment — holds the font-size theme. Reconfigured
+            // on Ctrl+wheel to trigger a full height-map rebuild. Must
+            // come BEFORE the base theme below so later theme rules (if
+            // any target font-size) can still override it, and AFTER
+            // state initialisation so createEffect can reconfigure it.
+            zoomCompartment.of(
+                buildZoomTheme(
+                    (editorStore.editorZoom() / 100) *
+                        settingsStore.settings().font_size,
+                ),
+            ),
+
+            EditorView.theme({
+                "&": {
+                    height: "100%",
+                },
+                ".cm-scroller": {
+                    overflow: "auto",
+                    fontFamily: "var(--mz-font-sans)",
+                },
+                ".cm-content": {
+                    padding: "10px 24px",
+                    caretColor: "var(--mz-accent)",
+                    minHeight: "100%",
+                },
+                ".cm-cursor": {
+                    borderLeftColor: "var(--mz-accent)",
+                    borderLeftWidth: "2px",
+                },
+                ".cm-selectionBackground": {
+                    background: "var(--mz-bg-selection) !important",
+                },
+                ".cm-activeLine": { background: "var(--mz-bg-hover)" },
+                ".cm-gutters": {
+                    background: "var(--mz-bg-secondary)",
+                    color: "var(--mz-text-muted)",
+                    border: "none",
+                    borderRight: "1px solid var(--mz-border)",
+                },
+                ".cm-activeLineGutter": { background: "var(--mz-bg-hover)" },
+                "&.cm-focused .cm-matchingBracket": {
+                    background: "var(--mz-accent-subtle)",
+                },
+            }),
+
+            EditorView.lineWrapping,
+        ];
+
+        const state = EditorState.create({ doc: content, extensions });
+
+        editorView = new EditorView({ state, parent: containerRef });
+        syncPluginEditorBindings(editorView);
+        if (isPaneActive()) {
+            editorStore.updateStats(content);
+            editorView.focus();
+        }
+
+        // Notify plugins that the editor/file changed so toolbars,
+        // context menus, and other UI can mount or update.
+        requestAnimationFrame(() => {
+            document.dispatchEvent(new CustomEvent("mindzj:workspace-trigger", {
+                detail: { event: "active-leaf-change" },
+            }));
+            document.dispatchEvent(new CustomEvent("mindzj:workspace-trigger", {
+                detail: { event: "layout-change" },
+            }));
+            document.dispatchEvent(new CustomEvent("mindzj:workspace-trigger", {
+                detail: { event: "file-open" },
+            }));
+        });
+
+        // Continuously track the top-visible line as the user scrolls
+        // so mode-switches can always restore the correct position.
+        installScrollTracker(editorView);
+
+        // Force a full measure + decoration flush on the next animation
+        // frame. Without this, switching INTO live-preview mode from
+        // another mode left the editor visually blank until the user
+        // clicked or scrolled — CM6 had the decorations computed but
+        // hadn't painted them yet because the container's layout wasn't
+        // ready when `new EditorView` ran. `requestMeasure` + a no-op
+        // dispatch triggers the viewport pass that actually draws the
+        // decorations.
+        requestAnimationFrame(() => {
+            if (!editorView) return;
+            editorView.requestMeasure();
+            editorView.dispatch({});
+        });
+    }
+
+    async function copySelection(view: EditorView) {
+        const selection = view.state.selection.main;
+        if (selection.empty) return;
+        const text = view.state.sliceDoc(selection.from, selection.to);
+        await navigator.clipboard.writeText(text).catch(() => {});
+        view.focus();
+    }
+
+    async function cutSelection(view: EditorView) {
+        const selection = view.state.selection.main;
+        if (selection.empty) return;
+        const text = view.state.sliceDoc(selection.from, selection.to);
+        await navigator.clipboard.writeText(text).catch(() => {});
+        view.dispatch({
+            changes: { from: selection.from, to: selection.to, insert: "" },
+            selection: { anchor: selection.from },
+        });
+        view.focus();
+    }
+
+    async function pasteFromClipboard(view: EditorView) {
+        const text = await navigator.clipboard.readText().catch(() => "");
+        if (!text) return;
+        const selection = view.state.selection.main;
+        view.dispatch({
+            changes: { from: selection.from, to: selection.to, insert: text },
+            selection: { anchor: selection.from + text.length },
+        });
+        view.focus();
+    }
+
+    function selectAllContent(view: EditorView) {
+        view.dispatch({
+            selection: {
+                anchor: 0,
+                head: view.state.doc.length,
+            },
+        });
+        view.focus();
+    }
+
+    function buildEditorContextMenu(view: EditorView): MenuItem[] {
+        return [
+            {
+                label: t("toolbar.undo"),
+                action: () => { undo(view); },
+            },
+            {
+                label: t("toolbar.redo"),
+                action: () => { redo(view); },
+            },
+            {
+                label: t("context.cut"),
+                action: () => { void cutSelection(view); },
+                separator: true,
+            },
+            {
+                label: t("common.copy"),
+                action: () => { void copySelection(view); },
+            },
+            {
+                label: t("context.paste"),
+                action: () => { void pasteFromClipboard(view); },
+            },
+            {
+                label: t("context.selectAll"),
+                action: () => { selectAllContent(view); },
+                separator: true,
+            },
+            {
+                label: t("toolbar.bold"),
+                action: () => { wrapSelection(view, "**"); },
+            },
+            {
+                label: t("toolbar.italic"),
+                action: () => { wrapSelection(view, "*"); },
+            },
+            {
+                label: t("toolbar.code"),
+                action: () => { wrapSelection(view, "`"); },
+            },
+            {
+                label: t("toolbar.link"),
+                action: () => { insertLink(view); },
+                separator: true,
+            },
+            {
+                label: t("toolbar.bulletList"),
+                action: () => { dispatchEditorCommand({ command: "bullet-list" }); },
+            },
+            {
+                label: t("toolbar.numberedList"),
+                action: () => { dispatchEditorCommand({ command: "numbered-list" }); },
+            },
+            {
+                label: t("toolbar.quote"),
+                action: () => { dispatchEditorCommand({ command: "quote" }); },
+                separator: true,
+            },
+            {
+                label: t("context.editMode"),
+                action: () => {
+                    activatePane();
+                    editorStore.setViewMode("live-preview", currentFilePath ?? undefined);
+                },
+                separator: true,
+            },
+            {
+                label: t("context.sourceMode"),
+                action: () => {
+                    activatePane();
+                    editorStore.setViewMode("source", currentFilePath ?? undefined);
+                },
+            },
+            {
+                label: t("context.readingView"),
+                action: () => {
+                    activatePane();
+                    editorStore.setViewMode("reading", currentFilePath ?? undefined);
+                },
+            },
+        ];
+    }
+
+    function wrapSelection(
+        view: EditorView,
+        before: string,
+        after?: string,
+    ): boolean {
+        const sel = view.state.selection.main;
+        const text = view.state.sliceDoc(sel.from, sel.to);
+        const wrappedAfter = after ?? before;
+        const replacement = `${before}${text || "text"}${wrappedAfter}`;
+        view.dispatch({
+            changes: { from: sel.from, to: sel.to, insert: replacement },
+            selection: {
+                anchor: sel.from + before.length,
+                head: sel.from + before.length + (text.length || 4),
+            },
+        });
+        return true;
+    }
+
+    function insertLink(view: EditorView): boolean {
+        const sel = view.state.selection.main;
+        const text = view.state.sliceDoc(sel.from, sel.to);
+        const replacement = `[${text || "text"}](url)`;
+        view.dispatch({
+            changes: { from: sel.from, to: sel.to, insert: replacement },
+            selection: {
+                anchor: sel.from + text.length + 3,
+                head: sel.from + text.length + 6,
+            },
+        });
+        return true;
+    }
+
+    function wrapSelectionWithHtmlTag(
+        view: EditorView,
+        openTag: string,
+        closeTag: string,
+    ): boolean {
+        return wrapSelection(view, openTag, closeTag);
+    }
+
+    // Set heading level (0 = remove heading, 1-6 = H1-H6)
+    function setHeading(view: EditorView, level: number): boolean {
+        const pos = view.state.selection.main.head;
+        const line = view.state.doc.lineAt(pos);
+        const existingMatch = line.text.match(/^#{1,6}\s*/);
+        const removeLen = existingMatch ? existingMatch[0].length : 0;
+        const prefix = level > 0 ? "#".repeat(level) + " " : "";
+        const contentOffset = line.text.trim().length === 0
+            ? 0
+            : Math.max(0, pos - line.from - removeLen);
+        const nextCursor = line.from + prefix.length + contentOffset;
+        view.dispatch({
+            changes: { from: line.from, to: line.from + removeLen, insert: prefix },
+            selection: { anchor: nextCursor },
+        });
+        return true;
+    }
+
+    // Delete the current line
+    function deleteLine(view: EditorView): boolean {
+        const pos = view.state.selection.main.head;
+        const line = view.state.doc.lineAt(pos);
+        const from = line.from;
+        const to = line.number < view.state.doc.lines ? line.to + 1 : (line.from > 0 ? line.from - 1 : line.to);
+        view.dispatch({ changes: { from: Math.max(0, from > 0 && line.number === view.state.doc.lines ? from - 1 : from), to } });
+        return true;
+    }
+
+    // Indent entire line from the start (for Ctrl+] / Ctrl+[)
+    function indentLineFromStart(view: EditorView, indent: boolean): boolean {
+        const pos = view.state.selection.main.head;
+        const line = view.state.doc.lineAt(pos);
+        if (indent) {
+            view.dispatch({ changes: { from: line.from, insert: "\t" } });
+        } else {
+            const match = line.text.match(/^(\t| {1,4})/);
+            if (match) {
+                view.dispatch({ changes: { from: line.from, to: line.from + match[0].length } });
+            }
+        }
+        return true;
+    }
+
+    // Insert line below current line
+    function insertLineBelow(view: EditorView): boolean {
+        const pos = view.state.selection.main.head;
+        const line = view.state.doc.lineAt(pos);
+        view.dispatch({
+            changes: { from: line.to, insert: "\n" },
+            selection: { anchor: line.to + 1 },
+        });
+        return true;
+    }
+
+    // Insert line above current line
+    function insertLineAbove(view: EditorView): boolean {
+        const pos = view.state.selection.main.head;
+        const line = view.state.doc.lineAt(pos);
+        view.dispatch({
+            changes: { from: line.from, insert: "\n" },
+            selection: { anchor: line.from },
+        });
+        return true;
+    }
+
+    // Move line up or down
+    function moveLine(view: EditorView, direction: number): boolean {
+        const pos = view.state.selection.main.head;
+        const line = view.state.doc.lineAt(pos);
+        if (direction === -1 && line.number === 1) return true;
+        if (direction === 1 && line.number === view.state.doc.lines) return true;
+
+        const targetLine = view.state.doc.line(line.number + direction);
+        if (direction === -1) {
+            // Swap with line above
+            view.dispatch({
+                changes: [
+                    { from: targetLine.from, to: line.to, insert: line.text + "\n" + targetLine.text },
+                ],
+                selection: { anchor: targetLine.from + (pos - line.from) },
+            });
+        } else {
+            // Swap with line below
+            view.dispatch({
+                changes: [
+                    { from: line.from, to: targetLine.to, insert: targetLine.text + "\n" + line.text },
+                ],
+                selection: { anchor: line.from + targetLine.text.length + 1 + (pos - line.from) },
+            });
+        }
+        return true;
+    }
+
+    // Duplicate current line
+    function duplicateLine(view: EditorView): boolean {
+        const pos = view.state.selection.main.head;
+        const line = view.state.doc.lineAt(pos);
+        view.dispatch({
+            changes: { from: line.to, insert: "\n" + line.text },
+            selection: { anchor: line.to + 1 + (pos - line.from) },
+        });
+        return true;
+    }
+
+    // Toggle HTML comment on current line
+    function toggleComment(view: EditorView): boolean {
+        const pos = view.state.selection.main.head;
+        const line = view.state.doc.lineAt(pos);
+        const trimmed = line.text.trim();
+        if (trimmed.startsWith("<!--") && trimmed.endsWith("-->")) {
+            // Unwrap comment
+            const inner = trimmed.slice(4, -3).trim();
+            view.dispatch({ changes: { from: line.from, to: line.to, insert: inner } });
+        } else {
+            // Wrap in comment
+            view.dispatch({ changes: { from: line.from, to: line.to, insert: `<!-- ${line.text} -->` } });
+        }
+        return true;
+    }
+
+    // Toggle blockquote on current line
+    function toggleBlockquote(view: EditorView): boolean {
+        const pos = view.state.selection.main.head;
+        const line = view.state.doc.lineAt(pos);
+        if (line.text.startsWith("> ")) {
+            view.dispatch({ changes: { from: line.from, to: line.from + 2 } });
+        } else {
+            view.dispatch({ changes: { from: line.from, insert: "> " } });
+        }
+        return true;
+    }
+
+    // Handle force save event
+    onMount(() => {
+        const handleForceSave = () => {
+            if (!isPaneActive()) return;
+            if (editorView) {
+                const content = editorView.state.doc.toString();
+                if (currentFilePath) {
+                    editorStore.forceSave(currentFilePath, content);
+                }
+            }
+        };
+
+        const handleToggleViewModeWithSave = async (event: Event) => {
+            if (!isPaneActive()) return;
+            if (!editorView || !currentFilePath) return;
+            const detail = (event as CustomEvent<{ path?: string | null }>).detail;
+            if (detail?.path && detail.path !== currentFilePath) return;
+
+            event.preventDefault();
+            const content = editorView.state.doc.toString();
+            try {
+                await editorStore.forceSave(currentFilePath, content);
+                editorStore.toggleReadingMode(currentFilePath);
+            } catch (error) {
+                console.error("Toggle view mode save failed:", error);
+            }
+        };
+
+        const handleEditorCommand = (e: Event) => {
+            if (!isPaneActive()) return;
+            if (!editorView) return;
+            const detail = (e as CustomEvent).detail;
+            dispatchEditorCommand(detail);
+        };
+
+        // Insert text at cursor (used by screenshot tool, paste handlers, etc.)
+        const handleInsertText = (e: Event) => {
+            if (!isPaneActive()) return;
+            if (!editorView) return;
+            const text = (e as CustomEvent).detail?.text;
+            if (!text) return;
+            const { state } = editorView;
+            const cursor = state.selection.main.head;
+            // Insert on a new line after the current line
+            const line = state.doc.lineAt(cursor);
+            const insertPos = line.to;
+            const insert = "\n" + text + "\n";
+            editorView.dispatch({
+                changes: { from: insertPos, insert },
+                selection: { anchor: insertPos + insert.length },
+            });
+        };
+
+        document.addEventListener("mindzj:force-save", handleForceSave);
+        document.addEventListener(
+            "mindzj:toggle-view-mode-with-save",
+            handleToggleViewModeWithSave,
+        );
+        document.addEventListener("mindzj:editor-command", handleEditorCommand);
+        document.addEventListener("mindzj:insert-text", handleInsertText);
+
+        onCleanup(() => {
+            document.removeEventListener("mindzj:force-save", handleForceSave);
+            document.removeEventListener(
+                "mindzj:toggle-view-mode-with-save",
+                handleToggleViewModeWithSave,
+            );
+            document.removeEventListener(
+                "mindzj:editor-command",
+                handleEditorCommand,
+            );
+            document.removeEventListener("mindzj:insert-text", handleInsertText);
+            if (editorView) {
+                editorView.destroy();
+                editorView = null;
+            }
+            syncPluginEditorBindings(null);
+            editorStore.cleanup();
+        });
+    });
+
+    function dispatchEditorCommand(detail: any) {
+        if (!editorView) return;
+        const view = editorView;
+
+        switch (detail.command) {
+            case "bold":
+                wrapSelection(view, "**");
+                break;
+            case "italic":
+                wrapSelection(view, "*");
+                break;
+            case "strikethrough":
+                wrapSelection(view, "~~");
+                break;
+            case "underline":
+                wrapSelection(view, "<u>", "</u>");
+                break;
+            case "highlight":
+                wrapSelection(view, "==");
+                break;
+            case "code":
+                wrapSelection(view, "`");
+                break;
+            case "link":
+                insertLink(view);
+                break;
+            case "heading": {
+                const level = detail.level ?? 2;
+                setHeading(view, level);
+                break;
+            }
+            case "codeblock": {
+                const sel = view.state.selection.main;
+                const text = view.state.sliceDoc(sel.from, sel.to);
+                view.dispatch({
+                    changes: {
+                        from: sel.from,
+                        to: sel.to,
+                        insert: `\`\`\`\n${text || "code"}\n\`\`\``,
+                    },
+                });
+                break;
+            }
+            case "table": {
+                const pos = view.state.selection.main.head;
+                view.dispatch({
+                    changes: {
+                        from: pos,
+                        insert:
+                            `\n| ${t("editor.tableHeader")}1 | ${t("editor.tableHeader")}2 | ${t("editor.tableHeader")}3 |\n` +
+                            `| --- | --- | --- |\n` +
+                            `| ${t("editor.tableCell")} | ${t("editor.tableCell")} | ${t("editor.tableCell")} |\n`,
+                    },
+                });
+                break;
+            }
+            case "horizontal-rule": {
+                const pos = view.state.selection.main.head;
+                view.dispatch({ changes: { from: pos, insert: "\n---\n" } });
+                break;
+            }
+            case "task-list": {
+                const pos = view.state.selection.main.head;
+                const line = view.state.doc.lineAt(pos);
+                const prefix = "- [ ] ";
+                view.dispatch({
+                    changes: { from: line.from, insert: prefix },
+                    selection: { anchor: line.to + prefix.length },
+                });
+                break;
+            }
+            case "bullet-list": {
+                const pos = view.state.selection.main.head;
+                const line = view.state.doc.lineAt(pos);
+                view.dispatch({ changes: { from: line.from, insert: "- " } });
+                break;
+            }
+            case "numbered-list": {
+                const pos = view.state.selection.main.head;
+                const line = view.state.doc.lineAt(pos);
+                view.dispatch({ changes: { from: line.from, insert: "1. " } });
+                break;
+            }
+            case "toggle-checklist-status": {
+                const pos = view.state.selection.main.head;
+                const line = view.state.doc.lineAt(pos);
+                const text = line.text;
+                let replacement = text;
+                if (text.startsWith("- [ ] ")) replacement = `- [x] ${text.slice(6)}`;
+                else if (text.startsWith("- [x] ")) replacement = `- ${text.slice(6)}`;
+                else if (text.startsWith("- ")) replacement = `- [ ] ${text.slice(2)}`;
+                else replacement = `- [ ] ${text}`;
+                view.dispatch({ changes: { from: line.from, to: line.to, insert: replacement } });
+                break;
+            }
+            case "toggle-comment":
+                toggleComment(view);
+                break;
+            case "tag":
+                wrapSelection(view, "#");
+                break;
+            case "wikilink":
+                wrapSelection(view, "[[", "]]");
+                break;
+            case "embed":
+                wrapSelection(view, "![[", "]]");
+                break;
+            case "callout": {
+                const sel = view.state.selection.main;
+                const text = view.state.sliceDoc(sel.from, sel.to) || "Callout";
+                view.dispatch({
+                    changes: { from: sel.from, to: sel.to, insert: `> [!note]\n> ${text}` },
+                    selection: { anchor: sel.from + 11 + text.length },
+                });
+                break;
+            }
+            case "mathblock": {
+                const sel = view.state.selection.main;
+                const text = view.state.sliceDoc(sel.from, sel.to) || "x = y";
+                view.dispatch({
+                    changes: { from: sel.from, to: sel.to, insert: `$$\n${text}\n$$` },
+                    selection: { anchor: sel.from + 3, head: sel.from + 3 + text.length },
+                });
+                break;
+            }
+            case "move-line-up":
+                moveLine(view, -1);
+                break;
+            case "move-line-down":
+                moveLine(view, 1);
+                break;
+            case "clear-formatting": {
+                const sel = view.state.selection.main;
+                const text = view.state.sliceDoc(sel.from, sel.to);
+                const cleared = text
+                    .replace(/\*\*(.*?)\*\*/g, "$1")
+                    .replace(/\*(.*?)\*/g, "$1")
+                    .replace(/~~(.*?)~~/g, "$1")
+                    .replace(/==(.*?)==/g, "$1")
+                    .replace(/`(.*?)`/g, "$1")
+                    .replace(/<u>(.*?)<\/u>/g, "$1");
+                view.dispatch({
+                    changes: { from: sel.from, to: sel.to, insert: cleared },
+                    selection: { anchor: sel.from, head: sel.from + cleared.length },
+                });
+                break;
+            }
+            case "quote": {
+                const pos = view.state.selection.main.head;
+                const line = view.state.doc.lineAt(pos);
+                view.dispatch({ changes: { from: line.from, insert: "> " } });
+                break;
+            }
+            case "superscript":
+                wrapSelectionWithHtmlTag(view, "<sup>", "</sup>");
+                break;
+            case "subscript":
+                wrapSelectionWithHtmlTag(view, "<sub>", "</sub>");
+                break;
+            case "center":
+                wrapSelectionWithHtmlTag(view, "<center>", "</center>");
+                break;
+            case "left":
+                wrapSelectionWithHtmlTag(view, '<p align="left">', "</p>");
+                break;
+            case "right":
+                wrapSelectionWithHtmlTag(view, '<p align="right">', "</p>");
+                break;
+            case "justify":
+                wrapSelectionWithHtmlTag(view, '<p align="justify">', "</p>");
+                break;
+            case "goto-line": {
+                // Scroll to a specific line number (0-based from Outline)
+                // Position the heading at the TOP of the viewport (not center)
+                const lineNum = Math.min(detail.line + 1, view.state.doc.lines);
+                const lineInfo = view.state.doc.line(lineNum);
+                view.dispatch({
+                    selection: { anchor: lineInfo.from },
+                    effects: EditorView.scrollIntoView(lineInfo.from, { y: "start", yMargin: 0 }),
+                });
+                break;
+            }
+        }
+        view.focus();
+    }
+
+    return (
+        <div
+            style={{
+                flex: "1",
+                "min-height": "0",
+                overflow: "hidden",
+                background: "var(--mz-bg-primary)",
+                position: "relative",
+            }}
+        >
+            <div
+                ref={containerRef}
+                style={{
+                    width: "100%",
+                    height: "100%",
+                    visibility: "hidden",
+                }}
+            />
+            <Show when={contextMenu()}>
+                {(menu) => (
+                    <ContextMenu
+                        x={menu().x}
+                        y={menu().y}
+                        items={menu().items}
+                        onClose={closeContextMenu}
+                    />
+                )}
+            </Show>
+        </div>
+    );
+};

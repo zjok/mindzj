@@ -1,0 +1,87 @@
+[package]
+name = "mindzj"
+version = "0.1.0"
+description = "AI-native, CLI-first, open-source local note-taking system"
+authors = ["MindZJ Contributors"]
+license = "MIT"
+edition = "2021"
+rust-version = "1.77"
+
+[lib]
+name = "mindzj_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+# Tauri core
+tauri = { version = "2", features = ["protocol-asset", "image-png"] }
+tauri-plugin-fs = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-shell = "2"
+tauri-plugin-store = "2"
+tauri-plugin-clipboard-manager = "2"
+tauri-plugin-global-shortcut = "2"
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# File system watching
+notify = "7"
+
+# Full-text search
+tantivy = "0.22"
+
+# SQLite for metadata index
+rusqlite = { version = "0.32", features = ["bundled"] }
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Error handling
+thiserror = "2"
+anyhow = "1"
+
+# UUID generation
+uuid = { version = "1", features = ["v4"] }
+
+# Date/time
+chrono = { version = "0.4", features = ["serde"] }
+
+# Path utilities
+dirs = "6"
+
+# Hashing (for file integrity, API keys)
+sha2 = "0.10"
+hex = "0.4"
+
+# Secure random
+rand = "0.8"
+
+# URL encoding for window params
+urlencoding = "2"
+
+# Keyring (system credential storage for API keys)
+keyring = "3"
+
+# Base64 encoding/decoding (for binary file writes from frontend)
+base64 = "0.22"
+
+# Screenshot capture (cross-platform screen capture)
+xcap = "0.0.14"
+
+# Image encoding (PNG encoding for screenshot data)
+image = { version = "0.25", default-features = false, features = ["png"] }
+
+# Graceful Ctrl+C handling so `tauri dev` exits 0 instead of 0xC000013A
+ctrlc = "3"
+
+[features]
+default = []
+custom-protocol = ["tauri/custom-protocol"]

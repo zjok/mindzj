@@ -1,0 +1,57 @@
+MindZJ - Dual License
+
+Copyright (c) 2026 SuperJohn. All rights reserved.
+
+This software is available under a dual license model:
+
+================================================================================
+OPTION 1: GNU Affero General Public License v3.0 or later (AGPL-3.0-or-later)
+================================================================================
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU Affero General Public License as published by the Free
+Software Foundation, either version 3 of the License, or (at your option) any
+later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License along
+with this program. If not, see <https://www.gnu.org/licenses/>.
+
+Key obligations under AGPL v3:
+- You may freely use, modify, and distribute this software.
+- Any modifications must also be licensed under AGPL v3 or later.
+- If you run a modified version of this software as a network service (SaaS),
+  you must make the complete source code available to users of that service.
+- You must retain all copyright notices and license information.
+
+================================================================================
+OPTION 2: Commercial / Proprietary License
+================================================================================
+
+For organizations or individuals who wish to use this software without the
+obligations of the AGPL (e.g., without open-sourcing modifications, without
+sharing source code for SaaS deployments, or for integration into proprietary
+products), a commercial license is available.
+
+Commercial license benefits:
+- Use in closed-source / proprietary products
+- No requirement to open-source your modifications
+- No AGPL copyleft obligations for SaaS / network use
+- Priority support from the author
+
+To obtain a commercial license, please contact:
+  Email: [developer.john.zhang@gmail.com]
+  GitHub: https://github.com/zjok/mindzj
+
+================================================================================
+NOTICE
+================================================================================
+
+Unless you have obtained a separate commercial license from the copyright holder,
+your use of this software is governed by the AGPL-3.0-or-later license.
+
+Third-party dependencies included in this project may be subject to their own
+license terms. Please review the respective licenses of those dependencies.

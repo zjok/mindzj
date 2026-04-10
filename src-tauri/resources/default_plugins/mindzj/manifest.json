@@ -1,0 +1,9 @@
+{
+    "id": "mindzj",
+    "name": "MindZJ",
+    "version": "0.1.0",
+    "minAppVersion": "1.11.7",
+    "description": "An interactive mind map plugin with rainbow connections, drag & drop, custom styles, and 19 languages.",
+    "author": "SuperJohn",
+    "isDesktopOnly": true
+}

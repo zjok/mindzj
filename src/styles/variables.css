@@ -1,0 +1,250 @@
+/* ===================================================================
+   MindZJ Design System — CSS Custom Properties
+   All colors, spacing, and typography tokens are defined here.
+   Components reference these variables, never hardcoded values.
+   =================================================================== */
+
+:root {
+  /* Typography */
+  --mz-font-sans: "Inter", "Segoe UI", -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Microsoft YaHei", "Noto Sans", Ubuntu, Cantarell, sans-serif;
+  --mz-font-mono: "JetBrains Mono", "Fira Code", "Cascadia Code", monospace;
+  --mz-font-size-base: 15px;
+  --mz-font-size-sm: 13px;
+  --mz-font-size-xs: 11px;
+  --mz-font-size-lg: 17px;
+  --mz-line-height: 1.65;
+
+  /* Spacing scale */
+  --mz-space-1: 4px;
+  --mz-space-2: 8px;
+  --mz-space-3: 12px;
+  --mz-space-4: 16px;
+  --mz-space-5: 20px;
+  --mz-space-6: 24px;
+  --mz-space-8: 32px;
+
+  /* Borders */
+  --mz-radius-sm: 4px;
+  --mz-radius-md: 6px;
+  --mz-radius-lg: 8px;
+  --mz-radius-full: 9999px;
+
+  /* Layout */
+  --mz-sidebar-width: 260px;
+  --mz-titlebar-height: 38px;
+  --mz-statusbar-height: 28px;
+  --mz-toolbar-height: 40px;
+  --mz-tab-height: 34px;
+
+  /* Transitions */
+  --mz-transition-fast: 120ms ease;
+  --mz-transition-normal: 200ms ease;
+}
+
+/* ===================================================================
+   Dark theme (default)
+   =================================================================== */
+[data-theme="dark"],
+:root {
+  --mz-bg-primary: #1e1e1e;
+  --mz-bg-secondary: #252526;
+  --mz-bg-tertiary: #2d2d2d;
+  --mz-bg-hover: #333333;
+  --mz-bg-active: #3a3a3a;
+  --mz-bg-selection: rgba(82, 139, 255, 0.22);
+
+  --mz-text-primary: #cccccc;
+  --mz-text-secondary: #9d9d9d;
+  /* Was #6b6b6b — too dark against --mz-bg-primary (#1e1e1e), made
+     markdown link URLs (e.g. `(#anchor)`) and other "muted" metadata
+     almost invisible in dark mode. Bumped to a legible mid-grey. */
+  --mz-text-muted: #8a8a8a;
+  --mz-text-on-accent: #ffffff;
+
+  --mz-accent: #1aad3f;
+  --mz-accent-hover: #20c748;
+  --mz-accent-subtle: rgba(26, 173, 63, 0.15);
+
+  --mz-border: #3e3e3e;
+  --mz-border-strong: #555555;
+
+  --mz-scrollbar-thumb: #494949;
+  --mz-scrollbar-track: transparent;
+
+  /* Syntax highlighting */
+  --mz-syntax-keyword: #c678dd;
+  --mz-syntax-string: #98c379;
+  --mz-syntax-number: #d19a66;
+  --mz-syntax-comment: #5c6370;
+  --mz-syntax-function: #61afef;
+  --mz-syntax-variable: #e06c75;
+  --mz-syntax-type: #e5c07b;
+  --mz-syntax-link: #528bff;
+  --mz-syntax-heading: #e5c07b;
+  --mz-syntax-bold: #e06c75;
+  --mz-syntax-italic: #c678dd;
+  --mz-syntax-strikethrough: #5c6370;
+  --mz-syntax-code-bg: rgba(255, 255, 255, 0.06);
+  --mz-syntax-highlight-bg: rgba(229, 192, 123, 0.25);
+
+  /* Semantic colors */
+  --mz-success: #73c991;
+  --mz-warning: #e5c07b;
+  --mz-error: #e06c75;
+  --mz-info: #61afef;
+
+  /* Callout colors */
+  --mz-callout-note: #528bff;
+  --mz-callout-tip: #73c991;
+  --mz-callout-warning: #e5c07b;
+  --mz-callout-danger: #e06c75;
+  --mz-callout-info: #61afef;
+}
+
+/* ===================================================================
+   Light theme
+   =================================================================== */
+[data-theme="light"] {
+  --mz-bg-primary: #ffffff;
+  --mz-bg-secondary: #f5f5f5;
+  --mz-bg-tertiary: #ebebeb;
+  --mz-bg-hover: #e8e8e8;
+  --mz-bg-active: #dcdcdc;
+  --mz-bg-selection: rgba(33, 100, 209, 0.15);
+
+  --mz-text-primary: #1e1e1e;
+  --mz-text-secondary: #5a5a5a;
+  --mz-text-muted: #999999;
+  --mz-text-on-accent: #ffffff;
+
+  --mz-accent: #1aad3f;
+  --mz-accent-hover: #148a32;
+  --mz-accent-subtle: rgba(26, 173, 63, 0.1);
+
+  --mz-border: #e0e0e0;
+  --mz-border-strong: #c0c0c0;
+
+  --mz-scrollbar-thumb: #c0c0c0;
+  --mz-scrollbar-track: transparent;
+
+  /* Syntax highlighting - light mode */
+  --mz-syntax-keyword: #a626a4;
+  --mz-syntax-string: #50a14f;
+  --mz-syntax-number: #986801;
+  --mz-syntax-comment: #a0a1a7;
+  --mz-syntax-function: #4078f2;
+  --mz-syntax-variable: #e45649;
+  --mz-syntax-type: #c18401;
+  --mz-syntax-link: #2164d1;
+  --mz-syntax-heading: #c18401;
+  --mz-syntax-bold: #e45649;
+  --mz-syntax-italic: #a626a4;
+  --mz-syntax-strikethrough: #a0a1a7;
+  --mz-syntax-code-bg: rgba(0, 0, 0, 0.04);
+  --mz-syntax-highlight-bg: rgba(193, 132, 1, 0.18);
+
+  --mz-success: #2da44e;
+  --mz-warning: #bf8700;
+  --mz-error: #cf222e;
+  --mz-info: #4078f2;
+
+  --mz-callout-note: #2164d1;
+  --mz-callout-tip: #2da44e;
+  --mz-callout-warning: #bf8700;
+  --mz-callout-danger: #cf222e;
+  --mz-callout-info: #4078f2;
+}
+
+/* ===================================================================
+   Global reset & base styles
+   =================================================================== */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: var(--mz-font-size-base);
+  /* Set background on html to prevent white flash during window resize */
+  background: var(--mz-bg-primary);
+}
+
+body {
+  font-family: var(--mz-font-sans);
+  background: var(--mz-bg-primary);
+  color: var(--mz-text-primary);
+  line-height: var(--mz-line-height);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow: hidden;
+  user-select: none;
+}
+
+#root {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  /* Prevent white flash during window resize by matching background */
+  background: var(--mz-bg-primary);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--mz-scrollbar-track);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--mz-scrollbar-thumb);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--mz-border-strong);
+}
+
+/* Hide scrollbar on tab header (matches Obsidian behavior) */
+[data-tauri-drag-region]::-webkit-scrollbar,
+[data-tauri-drag-region]::-webkit-scrollbar-thumb {
+  display: none;
+}
+
+/* Allow text selection inside plugin views and editors */
+.cm-editor, .mz-svg-ct, .mz-node-ta, .mz-md-ta, .view-content textarea, .view-content input {
+  user-select: text;
+}
+
+/* Focus styles */
+:focus-visible {
+  outline: 2px solid var(--mz-accent);
+  outline-offset: -2px;
+}
+
+/* Selection */
+::selection {
+  background: var(--mz-bg-selection);
+}
+
+/* Link base */
+a {
+  color: var(--mz-accent);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* Code base */
+code,
+pre {
+  font-family: var(--mz-font-mono);
+}

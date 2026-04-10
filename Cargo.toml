@@ -1,0 +1,18 @@
+[workspace]
+members = ["src-tauri", "cli"]
+resolver = "2"
+
+[profile.dev]
+debug = 0
+incremental = true
+codegen-units = 256
+
+[profile.dev.build-override]
+debug = 0
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true
