@@ -89,6 +89,18 @@ export const ScreenshotOverlay: Component<ScreenshotOverlayProps> = (props) => {
   // Move selection
   const [movingSelection, setMovingSelection] = createSignal(false);
   const [moveOffset, setMoveOffset] = createSignal<{ x: number; y: number }>({ x: 0, y: 0 });
+  // Mouse position in VIEWPORT coordinates (for the full-screen
+  // crosshair guide lines). We read it on every mousemove while in
+  // the "select" phase and clear it once a selection is locked in.
+  // Tracked as `null` when the cursor is outside the displayed
+  // screenshot rectangle (so the guide lines hide in the black
+  // letterbox bars instead of floating over empty space).
+  const [crosshairPos, setCrosshairPos] = createSignal<{
+    x: number;
+    y: number;
+    bufferX: number;
+    bufferY: number;
+  } | null>(null);
 
   // --- Annotation ---
   const [activeTool, setActiveTool] = createSignal<ToolType>("rect");
@@ -131,17 +143,122 @@ export const ScreenshotOverlay: Component<ScreenshotOverlayProps> = (props) => {
   });
 
   // ─── Coordinate helpers ────────────────────────────────────────────
-
-  function bgPos(e: MouseEvent): { x: number; y: number } {
-    if (!bgCanvasRef || !bgImage) return { x: 0, y: 0 };
-    const r = bgCanvasRef.getBoundingClientRect();
-    return { x: (e.clientX - r.left) * bgImage.width / r.width, y: (e.clientY - r.top) * bgImage.height / r.height };
+  //
+  // Both `bgPos` and `annoPos` convert a MouseEvent's client
+  // coordinates into the canvas's DRAWING-BUFFER pixel space. The
+  // subtlety is that our canvases use `object-fit: contain`, which
+  // preserves the content's aspect ratio — when the CSS box has a
+  // different aspect ratio than the backing buffer, the content is
+  // displayed with LETTERBOX bars on the top/bottom (or sides).
+  //
+  // This happens often: the screenshot is captured at the primary
+  // monitor's raw PHYSICAL pixel resolution (e.g. 1920×1080), but
+  // the Tauri window the overlay lives in might be a non-maximized
+  // CSS rectangle with a slightly different aspect (e.g. 1200×800).
+  // `object-fit: contain` then shows the image at 1200×675 CSS px
+  // with 62.5 CSS px of black letterbox on top and bottom.
+  //
+  // The OLD math `(e.clientX - r.left) * buffer.w / r.width`
+  // assumed the content filled `r.width × r.height`, which is only
+  // true when the aspect ratios match. In the letterbox case it
+  // produced a steady vertical/horizontal offset between where the
+  // crosshair cursor visually points and where the selection
+  // rectangle actually starts — exactly the "crosshair off by N
+  // pixels" bug the user reported.
+  //
+  // The fix is to compute the displayed-content rectangle inside
+  // the element (with the letterbox offsets) and then do the
+  // buffer conversion relative to THAT rectangle.
+  //
+  // Returns `null` if the click is inside the letterbox bars — not
+  // strictly necessary for correctness (we clamp to the displayed
+  // area below) but nice to document.
+  function rectToBufferCoords(
+    e: { clientX: number; clientY: number },
+    r: DOMRect,
+    bufferW: number,
+    bufferH: number,
+  ): { x: number; y: number } {
+    if (bufferW <= 0 || bufferH <= 0 || r.width <= 0 || r.height <= 0) {
+      return { x: 0, y: 0 };
+    }
+    const bufferAspect = bufferW / bufferH;
+    const elementAspect = r.width / r.height;
+    let displayedW: number;
+    let displayedH: number;
+    let offsetX: number;
+    let offsetY: number;
+    if (bufferAspect > elementAspect) {
+      // Buffer is WIDER than element → full width, letterbox top/bottom
+      displayedW = r.width;
+      displayedH = r.width / bufferAspect;
+      offsetX = 0;
+      offsetY = (r.height - displayedH) / 2;
+    } else {
+      // Buffer is TALLER (or equal) → full height, letterbox sides
+      displayedH = r.height;
+      displayedW = r.height * bufferAspect;
+      offsetX = (r.width - displayedW) / 2;
+      offsetY = 0;
+    }
+    // Translate into the displayed-content box, then clamp so that
+    // clicks in the letterbox bars stick to the edge of the
+    // displayed area instead of yielding negative or out-of-range
+    // buffer positions.
+    const localX = Math.max(0, Math.min(displayedW, e.clientX - r.left - offsetX));
+    const localY = Math.max(0, Math.min(displayedH, e.clientY - r.top - offsetY));
+    return {
+      x: (localX * bufferW) / displayedW,
+      y: (localY * bufferH) / displayedH,
+    };
   }
 
-  function annoPos(e: MouseEvent): { x: number; y: number } {
+  function bgPos(e: { clientX: number; clientY: number }): { x: number; y: number } {
+    if (!bgCanvasRef || !bgImage) return { x: 0, y: 0 };
+    const r = bgCanvasRef.getBoundingClientRect();
+    return rectToBufferCoords(e, r, bgImage.width, bgImage.height);
+  }
+
+  function annoPos(e: { clientX: number; clientY: number }): { x: number; y: number } {
     if (!annotateCanvasRef) return { x: 0, y: 0 };
     const r = annotateCanvasRef.getBoundingClientRect();
-    return { x: (e.clientX - r.left) * annotateCanvasRef.width / r.width, y: (e.clientY - r.top) * annotateCanvasRef.height / r.height };
+    return rectToBufferCoords(e, r, annotateCanvasRef.width, annotateCanvasRef.height);
+  }
+
+  /**
+   * For the visible crosshair guide lines: compute the current
+   * displayed-content rectangle of `bgCanvasRef` so the guide lines
+   * can be clamped to that area (they shouldn't extend into the
+   * letterbox bars — those aren't part of the actual screenshot).
+   * Returns `null` if the canvas isn't mounted yet.
+   */
+  function bgDisplayedRect(): DOMRect | null {
+    if (!bgCanvasRef || !bgImage) return null;
+    const r = bgCanvasRef.getBoundingClientRect();
+    if (bgImage.width <= 0 || bgImage.height <= 0) return r;
+    const bufferAspect = bgImage.width / bgImage.height;
+    const elementAspect = r.width / r.height;
+    let displayedW: number;
+    let displayedH: number;
+    let offsetX: number;
+    let offsetY: number;
+    if (bufferAspect > elementAspect) {
+      displayedW = r.width;
+      displayedH = r.width / bufferAspect;
+      offsetX = 0;
+      offsetY = (r.height - displayedH) / 2;
+    } else {
+      displayedH = r.height;
+      displayedW = r.height * bufferAspect;
+      offsetX = (r.width - displayedW) / 2;
+      offsetY = 0;
+    }
+    return new DOMRect(
+      r.left + offsetX,
+      r.top + offsetY,
+      displayedW,
+      displayedH,
+    );
   }
 
   // ═══════════════════════════════════════════════════════════════════
@@ -174,6 +291,38 @@ export const ScreenshotOverlay: Component<ScreenshotOverlayProps> = (props) => {
   }
 
   function onSelMouseMove(e: MouseEvent) {
+    // Update the full-screen crosshair guide lines. Only fire when
+    // we're NOT mid-drag — once the user commits a selection the
+    // guide lines disappear and standard resize/move cursor takes
+    // over. We compute BOTH the viewport coords (for positioning
+    // the lines) AND the buffer coords (for the tiny `(x, y)`
+    // coord label next to the cursor) via the same letterbox-
+    // aware `rectToBufferCoords` helper that `bgPos` uses, so the
+    // guide lines are pixel-perfect aligned with the underlying
+    // screenshot content.
+    if (phase() === "select" && !selection() && !dragging() && !movingSelection()) {
+      const displayed = bgDisplayedRect();
+      if (
+        displayed &&
+        e.clientX >= displayed.left &&
+        e.clientX <= displayed.right &&
+        e.clientY >= displayed.top &&
+        e.clientY <= displayed.bottom
+      ) {
+        const buf = bgPos(e);
+        setCrosshairPos({
+          x: e.clientX,
+          y: e.clientY,
+          bufferX: Math.round(buf.x),
+          bufferY: Math.round(buf.y),
+        });
+      } else {
+        setCrosshairPos(null);
+      }
+    } else if (crosshairPos()) {
+      setCrosshairPos(null);
+    }
+
     if (movingSelection()) {
       const pos = bgPos(e);
       const sel = selection()!;
@@ -185,6 +334,13 @@ export const ScreenshotOverlay: Component<ScreenshotOverlayProps> = (props) => {
     if (!dragging()) return;
     setDragEnd(bgPos(e));
     drawSelectionOverlay();
+  }
+
+  function onSelMouseLeave() {
+    // Hide the guide lines when the cursor leaves the canvas area.
+    // Without this they'd be stuck at the last known position,
+    // which looks broken.
+    if (crosshairPos()) setCrosshairPos(null);
   }
 
   function onSelMouseUp(_e: MouseEvent) {
@@ -457,7 +613,67 @@ export const ScreenshotOverlay: Component<ScreenshotOverlayProps> = (props) => {
       {/* Phase 1: Selection */}
       <Show when={phase() === "select"}>
         <canvas ref={bgCanvasRef} style={{ position: "absolute", inset: "0", width: "100%", height: "100%", "object-fit": "contain" }}
-          onMouseDown={onSelMouseDown} onMouseMove={onSelMouseMove} onMouseUp={onSelMouseUp} onDblClick={onSelDoubleClick} />
+          onMouseDown={onSelMouseDown} onMouseMove={onSelMouseMove} onMouseUp={onSelMouseUp} onDblClick={onSelDoubleClick} onMouseLeave={onSelMouseLeave} />
+
+        {/* Full-screen crosshair guide lines — follow the mouse
+            during the select phase so the user can see EXACTLY
+            which pixel they're about to anchor the selection at.
+            We draw two 1px fixed-position divs (horizontal +
+            vertical) rather than using the browser's native
+            `cursor: crosshair` icon, which is small and hard to
+            see on a dimmed screenshot. A small coordinate label
+            next to the cursor shows the current buffer pixel for
+            pixel-perfect positioning. Hidden once the user has
+            committed a selection (they no longer need it). */}
+        <Show when={crosshairPos() && !selection() && !dragging()}>
+          {(() => {
+            const p = crosshairPos()!;
+            return (
+              <>
+                <div style={{
+                  position: "fixed",
+                  left: "0",
+                  right: "0",
+                  top: `${p.y}px`,
+                  height: "1px",
+                  background: "rgba(0, 170, 255, 0.8)",
+                  "box-shadow": "0 0 0 1px rgba(0, 0, 0, 0.4)",
+                  "pointer-events": "none",
+                  "z-index": "100000",
+                }} />
+                <div style={{
+                  position: "fixed",
+                  top: "0",
+                  bottom: "0",
+                  left: `${p.x}px`,
+                  width: "1px",
+                  background: "rgba(0, 170, 255, 0.8)",
+                  "box-shadow": "0 0 0 1px rgba(0, 0, 0, 0.4)",
+                  "pointer-events": "none",
+                  "z-index": "100000",
+                }} />
+                <div style={{
+                  position: "fixed",
+                  left: `${p.x + 14}px`,
+                  top: `${p.y + 14}px`,
+                  padding: "3px 8px",
+                  background: "rgba(0, 170, 255, 0.9)",
+                  color: "#fff",
+                  "font-size": "11px",
+                  "font-family": "Consolas, Menlo, monospace",
+                  "border-radius": "3px",
+                  "pointer-events": "none",
+                  "z-index": "100001",
+                  "white-space": "nowrap",
+                  "box-shadow": "0 2px 6px rgba(0, 0, 0, 0.4)",
+                }}>
+                  {p.bufferX}, {p.bufferY}
+                </div>
+              </>
+            );
+          })()}
+        </Show>
+
         {/* Confirm button appears after selection */}
         <Show when={selection()}>
           <div style={{ position: "absolute", bottom: "20px", left: "50%", transform: "translateX(-50%)", display: "flex", gap: "8px" }}>

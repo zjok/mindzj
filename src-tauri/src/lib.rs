@@ -171,17 +171,23 @@ async fn open_vault_window(
 
     // Read saved geometry BEFORE building the window so we can apply it
     // before the window is shown (avoids flash at the default size).
+    //
+    // The fallback `(1080.0, 720.0)` matches the main window's
+    // `inner_size` in `tauri.conf.json` — a compact, centered-
+    // friendly default for the very first time the user opens a
+    // new vault window (no persisted state yet). Matches the
+    // first-launch behavior in `setup()` below.
     let saved_state = load_window_state_sync(&app);
     let (w, h) = saved_state
         .as_ref()
         .and_then(|s| s.width.zip(s.height))
         .map(|(w, h)| (w as f64, h as f64))
-        .unwrap_or((1280.0, 800.0));
+        .unwrap_or((1080.0, 720.0));
 
     let mut builder = WebviewWindowBuilder::new(&app, &label, tauri::WebviewUrl::App(url_path.into()))
         .title(format!("MindZJ — {}", vault_name))
         .inner_size(w, h)
-        .min_inner_size(100.0, 100.0)
+        .min_inner_size(480.0, 320.0)
         .resizable(true)
         .decorations(false)
         // Paint the native window AND webview backbuffer dark to match
@@ -203,6 +209,11 @@ async fn open_vault_window(
     // Apply full state (handles maximized flag and finalizes size/position)
     if let Some(ref s) = saved_state {
         apply_window_state(&window, s);
+    } else {
+        // No saved state → center on the current monitor. Same
+        // rationale as the main-window setup hook: first launch
+        // shouldn't pin the window to the top-left corner.
+        let _ = window.center();
     }
     let _ = window.show();
     let _ = window.set_focus();
@@ -506,6 +517,25 @@ pub fn run() {
                 apply_hires_icon(&main_window);
                 if let Some(state) = load_window_state_sync(&app.handle()) {
                     apply_window_state(&main_window, &state);
+                } else {
+                    // No persisted window state — this is either
+                    // the very first launch after install, or
+                    // `.mindzj/window-state.json` was wiped. Place
+                    // the window at the center of the primary
+                    // monitor so the user doesn't see it pinned
+                    // to the top-left corner on first run. The
+                    // inner_size comes from tauri.conf.json
+                    // (currently 1080×720, deliberately smaller
+                    // than a typical screen so the centered
+                    // window has plenty of desktop visible
+                    // around it — the user explicitly asked for
+                    // a more compact first-launch window).
+                    //
+                    // `WebviewWindow::center` uses the current
+                    // monitor's geometry and accounts for DPI
+                    // scaling; we don't have to compute positions
+                    // manually.
+                    let _ = main_window.center();
                 }
                 let _ = main_window.show();
             }
