@@ -153,6 +153,11 @@ async fn open_vault_window(
         .min_inner_size(100.0, 100.0)
         .resizable(true)
         .decorations(false)
+        // Paint the native window AND webview backbuffer dark to match
+        // the theme. Without this, there's a brief white flash both on
+        // startup (before WebView2's first paint) and during window
+        // resize (where WebView2 lags the window geometry by a frame).
+        .background_color(tauri::window::Color(30, 30, 30, 255))
         .visible(false);
     if let Some(ref s) = saved_state {
         if let (Some(x), Some(y)) = (s.x, s.y) {
@@ -303,6 +308,9 @@ async fn open_file_in_split_window(
     .min_inner_size(320.0, 240.0)
     .resizable(true)
     .decorations(false)
+    // Match the main window — dark native backbuffer to eliminate
+    // white flash during startup and resize.
+    .background_color(tauri::window::Color(30, 30, 30, 255))
     .visible(false)
     .build()
     .map_err(|e| e.to_string())?;

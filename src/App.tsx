@@ -66,6 +66,30 @@ const App: Component = () => {
     const startupUiZoom = startupUiZoomParam ? Number(startupUiZoomParam) : null;
     const [startupPayloadApplied, setStartupPayloadApplied] = createSignal(false);
     const isTransientWindow = () => startupParams.get("split") === "1";
+
+    // When the app restarts with a previously-opened vault saved in
+    // localStorage, onMount will asynchronously restore it. Between the
+    // first SolidJS render and that restore completing, the render
+    // logic would otherwise show <WelcomeScreen/> for ~100ms — a
+    // visible "welcome page flash" the user complained about.
+    //
+    // The fix: detect at construction time whether we're about to
+    // restore a vault (either from URL params or from localStorage)
+    // and start in a `bootstrapping` state that renders a blank dark
+    // canvas instead of either welcome or main UI. Once onMount
+    // finishes the restore attempt — successfully or not — we drop
+    // out of bootstrapping and the normal <Show when={vaultInfo()}>
+    // render takes over. If there's nothing to restore, we skip
+    // bootstrapping entirely and go straight to the welcome screen.
+    const hasRestorableVault = (() => {
+        if (startupParams.get("vault_path") && startupParams.get("vault_name")) return true;
+        try {
+            return !!localStorage.getItem("mindzj-last-vault");
+        } catch {
+            return false;
+        }
+    })();
+    const [isBootstrapping, setIsBootstrapping] = createSignal(hasRestorableVault);
     const uiScale = createMemo(() => editorStore.uiZoom() / 100);
     const activePanePath = createMemo(() =>
         activePaneSlot() === "secondary"
@@ -507,6 +531,11 @@ const App: Component = () => {
                 // Ignore — show welcome screen
             }
         }
+        // Restore attempt finished (success or failure). Drop out of
+        // the bootstrapping blank-canvas state so the render logic can
+        // now show either the main vault UI or the welcome screen
+        // based on whether vaultInfo() ended up truthy.
+        setIsBootstrapping(false);
     });
 
     createEffect(() => {
@@ -1112,7 +1141,16 @@ const App: Component = () => {
                 {/* ===== MAIN AREA ===== */}
                 <main style={{ flex: "1", "min-width": "0", "min-height": "0", display: "flex", "flex-direction": "column", overflow: "hidden", background: "var(--mz-bg-primary)" }}>
                     <Show when={vaultStore.vaultInfo()} fallback={
-                        <>
+                        <Show
+                            when={!isBootstrapping()}
+                            fallback={
+                                // Blank dark canvas while we're still trying to
+                                // restore a saved vault. Prevents the welcome
+                                // screen from flashing for ~100ms before the
+                                // restored vault replaces it.
+                                <div style={{ flex: "1", background: "var(--mz-bg-primary)" }} />
+                            }
+                        >
                             {/* Drag region + window controls for welcome screen */}
                             <div data-tauri-drag-region style={{
                                 display: "flex", "align-items": "center", "justify-content": "flex-end",
@@ -1125,7 +1163,7 @@ const App: Component = () => {
                                 </div>
                             </div>
                             <WelcomeScreen />
-                        </>
+                        </Show>
                     }>
                         {/* Tab bar (also acts as drag region for frameless window).
                             Use -webkit-app-region: drag on the bar itself so clicking ANY
