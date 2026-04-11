@@ -100,6 +100,34 @@ function buildZoomTheme(pxSize: number) {
     });
 }
 
+function normalizeHotkeyKey(key: string): string {
+    const normalized = key.length === 1 ? key.toUpperCase() : key;
+    if (normalized === "+" || normalized === "ADD" || normalized === "Plus") return "=";
+    if (normalized === "SUBTRACT" || normalized === "Minus") return "-";
+    if (normalized === "ArrowLeft") return "Left";
+    if (normalized === "ArrowRight") return "Right";
+    if (normalized === "ArrowUp") return "Up";
+    if (normalized === "ArrowDown") return "Down";
+    if (normalized === " ") return "Space";
+    return normalized;
+}
+
+function matchesHotkey(event: KeyboardEvent, combo: string): boolean {
+    const parts = combo.split("+");
+    const keyPart = parts[parts.length - 1];
+    const needCtrl = parts.includes("Ctrl");
+    const needShift = parts.includes("Shift");
+    const needAlt = parts.includes("Alt");
+    const needMeta = parts.includes("Meta");
+
+    if (needCtrl !== (event.ctrlKey || event.metaKey)) return false;
+    if (needShift !== event.shiftKey) return false;
+    if (needAlt !== event.altKey) return false;
+    if (needMeta && !event.metaKey) return false;
+
+    return normalizeHotkeyKey(event.key) === normalizeHotkeyKey(keyPart);
+}
+
 export const Editor: Component<EditorProps> = (props) => {
     let containerRef: HTMLDivElement | undefined;
     let editorView: EditorView | null = null;
@@ -173,6 +201,37 @@ export const Editor: Component<EditorProps> = (props) => {
     function getActiveViewMode(): ViewMode {
         const path = currentFilePath ?? resolvedFile()?.path ?? null;
         return props.viewMode ?? editorStore.getViewModeForFile(path);
+    }
+
+    function getHotkey(command: string, defaultKeys: string): string {
+        const overrides = settingsStore.settings().hotkey_overrides || {};
+        return overrides[command] || defaultKeys;
+    }
+
+    function switchTabFromEditor(direction: "prev" | "next"): boolean {
+        const switchOpenTab = (window as any).__mindzj_switch_open_tab as
+            | ((dir: "prev" | "next") => boolean)
+            | undefined;
+        if (switchOpenTab) return switchOpenTab(direction);
+
+        const files = vaultStore.openFiles();
+        if (files.length === 0) return false;
+        const currentPath = vaultStore.activeFile()?.path ?? null;
+        const idx = currentPath
+            ? files.findIndex((file) => file.path === currentPath)
+            : -1;
+        const newIdx = direction === "prev"
+            ? idx <= 0
+                ? files.length - 1
+                : idx - 1
+            : idx < 0 || idx >= files.length - 1
+                ? 0
+                : idx + 1;
+        const next = files[newIdx];
+        if (!next) return false;
+
+        vaultStore.switchToFile(next.path);
+        return true;
     }
 
     function activatePane() {
@@ -764,38 +823,6 @@ export const Editor: Component<EditorProps> = (props) => {
                 // other. If somehow both fired, they'd both just set
                 // the active file to the same `files[newIdx]`, so
                 // there's no double-step bug.
-                {
-                    key: "Ctrl-Alt-ArrowLeft",
-                    run: () => {
-                        const files = vaultStore.openFiles();
-                        if (files.length === 0) return false;
-                        const cur = vaultStore.activeFile()?.path ?? null;
-                        const idx = cur
-                            ? files.findIndex((f) => f.path === cur)
-                            : -1;
-                        const prev =
-                            idx <= 0 ? files.length - 1 : idx - 1;
-                        vaultStore.switchToFile(files[prev].path);
-                        return true;
-                    },
-                },
-                {
-                    key: "Ctrl-Alt-ArrowRight",
-                    run: () => {
-                        const files = vaultStore.openFiles();
-                        if (files.length === 0) return false;
-                        const cur = vaultStore.activeFile()?.path ?? null;
-                        const idx = cur
-                            ? files.findIndex((f) => f.path === cur)
-                            : -1;
-                        const next =
-                            idx < 0 || idx >= files.length - 1
-                                ? 0
-                                : idx + 1;
-                        vaultStore.switchToFile(files[next].path);
-                        return true;
-                    },
-                },
             ]),
 
             EditorView.updateListener.of((update) => {
@@ -817,6 +844,19 @@ export const Editor: Component<EditorProps> = (props) => {
             }),
 
             EditorView.domEventHandlers({
+                keydown(event) {
+                    if (matchesHotkey(event, getHotkey("tab-prev", "Ctrl+Alt+Left"))) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        return switchTabFromEditor("prev");
+                    }
+                    if (matchesHotkey(event, getHotkey("tab-next", "Ctrl+Alt+Right"))) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        return switchTabFromEditor("next");
+                    }
+                    return false;
+                },
                 wheel(event) {
                     if (event.ctrlKey) {
                         event.preventDefault();

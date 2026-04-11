@@ -267,6 +267,29 @@ const App: Component = () => {
         vaultStore.switchToFile(path);
     }
 
+    function switchOpenTab(direction: "prev" | "next"): boolean {
+        const files = vaultStore.openFiles();
+        if (files.length === 0) return false;
+
+        const currentPath =
+            activePanePath() ?? vaultStore.activeFile()?.path ?? null;
+        const idx = currentPath
+            ? files.findIndex((file) => file.path === currentPath)
+            : -1;
+        const newIdx = direction === "prev"
+            ? idx <= 0
+                ? files.length - 1
+                : idx - 1
+            : idx < 0 || idx >= files.length - 1
+                ? 0
+                : idx + 1;
+        const next = files[newIdx];
+        if (!next) return false;
+
+        handleTabSelect(next.path);
+        return true;
+    }
+
     function handleTabClose(path: string) {
         // Snapshot the open files BEFORE closing so we can compute
         // which tab to focus next based on the closed tab's position.
@@ -475,6 +498,7 @@ const App: Component = () => {
 
     onMount(async () => {
         (window as any).__mindzj_flush_workspace = flushWorkspaceNow;
+        (window as any).__mindzj_switch_open_tab = switchOpenTab;
         document.body.style.removeProperty("zoom");
         document.documentElement.style.removeProperty("font-size");
 
@@ -495,6 +519,11 @@ const App: Component = () => {
         };
         document.addEventListener("contextmenu", suppressNativeContextMenu, false);
         onCleanup(() => document.removeEventListener("contextmenu", suppressNativeContextMenu, false));
+        onCleanup(() => {
+            if ((window as any).__mindzj_switch_open_tab === switchOpenTab) {
+                (window as any).__mindzj_switch_open_tab = null;
+            }
+        });
 
         // NOTE: the global screenshot shortcut is registered by the
         // dedicated `createEffect` further below — we used to ALSO
@@ -1047,36 +1076,16 @@ const App: Component = () => {
         // re-reads the file from disk on every press and only updates
         // the vault-level active file, which can leave the pane slot
         // out of sync with the tab.
-        if (
-            (e.ctrlKey || e.metaKey) &&
-            e.altKey &&
-            !e.shiftKey &&
-            (e.key === "ArrowLeft" ||
-                e.key === "Left" ||
-                e.key === "ArrowRight" ||
-                e.key === "Right")
-        ) {
+        if (matchesHotkey(e, getHotkey("tab-prev", "Ctrl+Alt+Left"))) {
             e.preventDefault();
             e.stopPropagation();
-            const files = vaultStore.openFiles();
-            if (files.length === 0) return;
-            const currentPath =
-                activePanePath() ?? vaultStore.activeFile()?.path ?? null;
-            const idx = currentPath
-                ? files.findIndex((f) => f.path === currentPath)
-                : -1;
-            const goLeft = e.key === "ArrowLeft" || e.key === "Left";
-            let newIdx: number;
-            if (goLeft) {
-                newIdx = idx <= 0 ? files.length - 1 : idx - 1;
-            } else {
-                newIdx =
-                    idx < 0 || idx >= files.length - 1 ? 0 : idx + 1;
-            }
-            const next = files[newIdx];
-            if (next) {
-                handleTabSelect(next.path);
-            }
+            switchOpenTab("prev");
+            return;
+        }
+        if (matchesHotkey(e, getHotkey("tab-next", "Ctrl+Alt+Right"))) {
+            e.preventDefault();
+            e.stopPropagation();
+            switchOpenTab("next");
             return;
         }
         // Ctrl+Shift+C → insert a fenced code block in markdown.

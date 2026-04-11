@@ -13,7 +13,7 @@
  */
 
 import { EditorView, ViewPlugin, keymap } from "@codemirror/view";
-import { Extension } from "@codemirror/state";
+import { Extension, Prec } from "@codemirror/state";
 import { invoke } from "@tauri-apps/api/core";
 import {
     autocompletion,
@@ -509,9 +509,11 @@ const linkAnchorHandler = EditorView.domEventHandlers({
 // returns false, so binding it to Tab here doesn't clobber the normal
 // Tab-inserts-indent behavior — CM6 falls through to the next key
 // handler in the keymap chain.
-const completionAcceptKeymap = keymap.of([
-    { key: "Tab", run: acceptCompletion },
-]);
+const completionAcceptKeymap = Prec.highest(
+    keymap.of([
+        { key: "Tab", run: acceptCompletion },
+    ]),
+);
 
 // ---------------------------------------------------------------------------
 // Export
