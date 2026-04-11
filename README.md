@@ -280,5 +280,5 @@ This project is licensed under the [GNU Affero General Public License v3.0](LICE
 ---
 
 <p align="center">
-  Made with ❤️ by <strong>SuperJohn</strong> · 2026
+  Made with ❤️ by <strong>SuperJohn</strong> · 2026.04
 </p>
