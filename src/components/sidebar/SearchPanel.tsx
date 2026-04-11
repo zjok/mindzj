@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { t } from "../../i18n";
 import { displayName } from "../../utils/displayName";
 import { openFileRouted } from "../../utils/openFileRouted";
+import { vaultStore } from "../../stores/vault";
 
 interface SearchResult {
   path: string;
@@ -56,35 +57,39 @@ export const SearchPanel: Component = () => {
 
   /**
    * Open a search result and reveal (scroll + flash highlight) the
-   * matched text on a specific line. The flow is:
+   * matched text on a specific line.
    *
-   *   1. `openFileRouted(path)` — if the file isn't already the
-   *      active tab, this opens/switches to it. Async.
-   *   2. Wait ~150ms so the Editor component has time to mount
-   *      and CodeMirror has finished applying its initial
-   *      viewport / decorations. Without this the dispatched
-   *      command fires BEFORE the editor is ready and the scroll
-   *      is silently dropped.
-   *   3. Dispatch a `mindzj:editor-command` CustomEvent with
-   *      `command: "search-reveal", line, query`. The Editor
-   *      component listens for this at the document level and
-   *      its handler in `Editor.tsx:dispatchEditorCommand` scrolls
-   *      to the line, selects the match, and fires the 1.5s
-   *      flash-highlight effect via `searchFlashField`.
+   * Two code paths:
    *
-   * If the file was already open, the 150ms wait is pure
-   * latency; still negligible vs the user's click-to-feedback
-   * budget, and keeps the code path uniform.
+   * (a) File is ALREADY the active file
+   *     → skip `openFileRouted` entirely and dispatch the reveal
+   *       immediately. Re-opening the same file would call
+   *       `vault.openFile` → re-read from disk → `setActiveFile`
+   *       with a brand-new FileContent object → `ReadingView`'s
+   *       `createEffect(on(resolvedFile, ...))` re-fires → it
+   *       sets `visibility: hidden`, wipes `containerRef.innerHTML`,
+   *       re-renders the markdown, awaits mermaid/highlighting,
+   *       restores scroll, then `visibility: visible`. That
+   *       sequence is visible as a flicker AND the final scroll
+   *       restore undoes our flash's "scroll-to-center", leaving
+   *       the highlight off-screen. Skipping the re-open avoids
+   *       both problems.
+   *
+   * (b) File is NOT the active file (different tab, or not yet
+   *     open)
+   *     → `openFileRouted` → wait 150ms for the Editor /
+   *       ReadingView component to mount and render → dispatch.
+   *       The 150ms is enough for typical files; the ReadingView
+   *       handler also retries internally for up to 1 second if
+   *       the container still has no content.
+   *
+   * Both paths dispatch the same `search-reveal` editor command;
+   * whichever view is currently mounted (Editor or ReadingView)
+   * picks it up and runs its own flash logic.
    */
   const openAndReveal = async (path: string, line: number) => {
     const q = query();
-    try {
-      await openFileRouted(path);
-    } catch (e) {
-      console.warn("[search] openFileRouted failed:", e);
-      return;
-    }
-    setTimeout(() => {
+    const dispatchReveal = () => {
       document.dispatchEvent(
         new CustomEvent("mindzj:editor-command", {
           detail: {
@@ -94,7 +99,25 @@ export const SearchPanel: Component = () => {
           },
         }),
       );
-    }, 150);
+    };
+
+    const alreadyActive = vaultStore.activeFile()?.path === path;
+    if (alreadyActive) {
+      // Path (a): same file, fire immediately. No network / disk
+      // roundtrip, no re-render, no flicker. The existing
+      // ReadingView / Editor picks up the command synchronously.
+      dispatchReveal();
+      return;
+    }
+
+    // Path (b): different file, open then delay-fire.
+    try {
+      await openFileRouted(path);
+    } catch (e) {
+      console.warn("[search] openFileRouted failed:", e);
+      return;
+    }
+    setTimeout(dispatchReveal, 150);
   };
 
   return (
