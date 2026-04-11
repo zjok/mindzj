@@ -50,6 +50,16 @@ export const Calendar: Component = () => {
   // today on first mount so the bottom button does something useful
   // even before the user clicks anything.
   const [selectedDate, setSelectedDate] = createSignal<string>(todayStr());
+  // Currently-hovered date. Tracked as a signal so the background
+  // style is computed reactively instead of being mutated imperatively
+  // via `event.currentTarget.style`. Imperative mutation has a bug:
+  // when the user hovers a day, then clicks it, the day re-renders
+  // with `selectedDate === day.dateStr`, and the subsequent mouseLeave
+  // is gated on `!isSelected()` and silently no-ops — leaving the
+  // hover background stuck on the cell forever. With a signal-driven
+  // approach, the background is recomputed on every relevant signal
+  // change and there's no stale inline style to forget about.
+  const [hoveredDate, setHoveredDate] = createSignal<string | null>(null);
   // Year/month picker popup state
   const [showPicker, setShowPicker] = createSignal(false);
   const [pickerYear, setPickerYear] = createSignal(new Date().getFullYear());
@@ -369,10 +379,27 @@ export const Calendar: Component = () => {
         <For each={calendarDays()}>
           {(day) => {
             const isSelected = () => selectedDate() === day.dateStr;
+            const isHovered = () => hoveredDate() === day.dateStr;
+            // Background priority: today > hover (when not selected) >
+            // transparent. Selection is shown via the border, NOT the
+            // background, so a selected-and-hovered cell still gets
+            // the hover tint to confirm pointer is over it.
+            const bgColor = () => {
+              if (day.isToday) return "var(--mz-accent)";
+              if (isHovered()) return "var(--mz-bg-hover)";
+              return "transparent";
+            };
             return (
               <button
                 onClick={() => handleDayClick(day)}
                 onContextMenu={(event) => handleDayContextMenu(event, day)}
+                onMouseEnter={() => setHoveredDate(day.dateStr)}
+                onMouseLeave={() => {
+                    // Only clear if we're still the hovered cell —
+                    // protects against out-of-order enter/leave events
+                    // when SolidJS re-renders the For mid-hover.
+                    if (hoveredDate() === day.dateStr) setHoveredDate(null);
+                }}
                 title={day.dateStr}
                 style={{
                   width: "100%",
@@ -380,7 +407,7 @@ export const Calendar: Component = () => {
                   border: isSelected() && !day.isToday
                     ? "1px solid var(--mz-accent)"
                     : "1px solid transparent",
-                  background: day.isToday ? "var(--mz-accent)" : "transparent",
+                  background: bgColor(),
                   color: day.isToday
                     ? "var(--mz-text-on-accent)"
                     : day.isCurrentMonth
@@ -400,16 +427,6 @@ export const Calendar: Component = () => {
                   "justify-content": "center",
                   opacity: day.isCurrentMonth ? "1" : "0.4",
                   "box-sizing": "border-box",
-                }}
-                onMouseEnter={(event) => {
-                  if (!day.isToday && !isSelected()) {
-                    event.currentTarget.style.background = "var(--mz-bg-hover)";
-                  }
-                }}
-                onMouseLeave={(event) => {
-                  if (!day.isToday && !isSelected()) {
-                    event.currentTarget.style.background = "transparent";
-                  }
                 }}
               >
                 {day.day}
@@ -497,6 +514,7 @@ export const Calendar: Component = () => {
             style={{
               display: "flex",
               "align-items": "center",
+              "justify-content": "center",
               gap: "8px",
               "margin-bottom": "12px",
             }}
@@ -509,15 +527,36 @@ export const Calendar: Component = () => {
             >
               ‹
             </button>
+            {/*
+              Use type="text" instead of type="number" so the browser
+              does NOT render the up/down spinner buttons inside the
+              input. We do numeric validation ourselves in onInput by
+              stripping non-digits and parsing the result. Fixed-width
+              (90px) instead of flex:1 so the input doesn't grow and
+              push the `›` next-year button outside the popup body.
+              The popup is only ~280px wide on the default sidebar,
+              and a flex:1 input ate too much horizontal space.
+            */}
             <input
-              type="number"
+              type="text"
+              inputMode="numeric"
               value={pickerYear()}
               onInput={(e) => {
-                const v = parseInt((e.currentTarget as HTMLInputElement).value, 10);
+                const target = e.currentTarget as HTMLInputElement;
+                // Strip anything that isn't a digit, then parse.
+                const cleaned = target.value.replace(/[^0-9]/g, "");
+                if (cleaned.length === 0) return;
+                const v = parseInt(cleaned, 10);
                 if (!Number.isNaN(v)) setPickerYear(v);
+                // If the user typed a non-digit, write the cleaned
+                // value back so the cursor stays at the right place.
+                if (cleaned !== target.value) {
+                    target.value = cleaned;
+                }
               }}
               style={{
-                flex: "1",
+                width: "90px",
+                "flex-shrink": "0",
                 background: "var(--mz-bg-primary)",
                 color: "var(--mz-text-primary)",
                 border: "1px solid var(--mz-border)",
@@ -526,6 +565,7 @@ export const Calendar: Component = () => {
                 "font-size": "var(--mz-font-size-sm)",
                 "font-family": "var(--mz-font-sans)",
                 "text-align": "center",
+                "box-sizing": "border-box",
               }}
             />
             <button
