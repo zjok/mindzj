@@ -13,12 +13,104 @@ import { editorStore, type ViewMode } from "../../stores/editor";
 import type { FileContent } from "../../stores/vault";
 import { displayName } from "../../utils/displayName";
 
-// Default tab width in pixels. Bumped 90 → 102 → 114 (each step adds
-// 12px to give the filename a bit more breathing room before getting
-// truncated with `…`).
-const TAB_WIDTH = 114;
-const TAB_MIN_WIDTH = 50;
+// Tab width bounds. Each tab sizes itself to its filename via
+// `computeTabWidth` below; these constants just cap the result.
+//
+//   - MIN_WIDTH: short names (`a`, `b`) still get a usable click
+//     target.
+//   - MAX_WIDTH: very long names ("A Very Long Filename That Would
+//     Overflow Everything Else.md") stop growing past this and
+//     start truncating with `…` via `text-overflow: ellipsis` on
+//     the inner span.
+const TAB_MIN_WIDTH = 80;
+const TAB_MAX_WIDTH = 240;
 const TAB_TOOLTIP_DELAY_MS = 1000;
+
+// Fixed padding budget for the non-text parts of the tab:
+//   10px left + 10px right padding  = 20
+//   16px close button               = 16
+//    6px gap between text & close   =  6
+//   14px breathing room / slop      = 14
+//                                   = 56
+// The extra 14px "slop" exists because browser text rendering adds
+// small amounts of sub-pixel padding and kerning-slack that a
+// naive `measureText`/`offsetWidth` call doesn't always capture.
+// Without it, filenames like `2026-04-11` lose their trailing `1`
+// to text-overflow because the tab is 1-2px too narrow.
+//
+// When the file is dirty, also budget for the unsaved dot:
+//   6px unsaved dot + 6px gap = 12
+const TAB_PADDING_BASE = 56;
+const TAB_PADDING_DIRTY = 12;
+
+// Hidden measuring span. Created lazily on first `measureTabText`
+// call, reused for every subsequent measurement. It lives in the
+// document body with the same inherited font as the real tab bar
+// so `getBoundingClientRect()` reports the exact rendered width.
+let _measureSpan: HTMLSpanElement | null = null;
+
+function ensureMeasureSpan(): HTMLSpanElement | null {
+    if (_measureSpan && _measureSpan.isConnected) return _measureSpan;
+    if (typeof document === "undefined") return null;
+    try {
+        const span = document.createElement("span");
+        // The tab inner span doesn't set its own font-family, so it
+        // inherits from <body>. Copy the body's COMPUTED font so our
+        // measurement span renders with the exact same resolved font
+        // stack Windows picked for the actual tabs (which is usually
+        // Segoe UI on Windows, but could be Inter if that loads, or
+        // PingFang SC for CJK fallback, etc.). Font size is fixed to
+        // 13px to match `--mz-font-size-sm`.
+        const bodyStyle = getComputedStyle(document.body);
+        span.style.cssText = [
+            "position: absolute",
+            "top: -9999px",
+            "left: -9999px",
+            "visibility: hidden",
+            "pointer-events: none",
+            "white-space: nowrap",
+            "font-size: 13px",
+            `font-family: ${bodyStyle.fontFamily}`,
+            `font-weight: ${bodyStyle.fontWeight}`,
+            "letter-spacing: normal",
+        ].join(";");
+        document.body.appendChild(span);
+        _measureSpan = span;
+        return span;
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Measure the rendered pixel width of a filename in the tab bar's
+ * actual font. Uses an offscreen <span> + `getBoundingClientRect`
+ * so the measurement matches what the browser will actually draw,
+ * including CJK fallback font metrics (Segoe UI → PingFang SC).
+ *
+ * Falls back to a crude `length * 9` estimate if the DOM isn't
+ * available (shouldn't happen in Tauri but costs nothing to guard).
+ */
+function measureTabText(text: string): number {
+    const span = ensureMeasureSpan();
+    if (!span) return text.length * 9;
+    span.textContent = text;
+    // `getBoundingClientRect` gives fractional widths; round up so
+    // the tab is never 0.3px short of fitting its text.
+    return Math.ceil(span.getBoundingClientRect().width);
+}
+
+/**
+ * Compute the tab width for a given filename. Measures the text
+ * via the hidden span above, adds a fixed padding budget, and
+ * clamps to [`TAB_MIN_WIDTH`, `TAB_MAX_WIDTH`].
+ */
+function computeTabWidth(name: string, isDirty: boolean): number {
+    const textWidth = measureTabText(name);
+    const padding = TAB_PADDING_BASE + (isDirty ? TAB_PADDING_DIRTY : 0);
+    const raw = textWidth + padding;
+    return Math.max(TAB_MIN_WIDTH, Math.min(TAB_MAX_WIDTH, raw));
+}
 
 type SplitDirection = "left" | "right" | "up" | "down";
 
@@ -352,6 +444,17 @@ export const TabBar: Component<TabBarProps> = (props) => {
         <For each={props.files}>
           {(file, index) => {
             const isActive = () => props.activeFile?.path === file.path;
+            // Dynamic per-tab width: recomputed whenever the filename
+            // OR the dirty state changes. Wrapped as an arrow fn so
+            // Solid's fine-grained reactivity re-runs it on signal
+            // updates (both `fileName(...)` which depends on the
+            // path and `editorStore.isDirtyPath(...)` which is a
+            // reactive store accessor).
+            const tabWidth = () =>
+              computeTabWidth(
+                fileName(file.path),
+                editorStore.isDirtyPath(file.path),
+              );
 
             return (
               <div
@@ -372,9 +475,9 @@ export const TabBar: Component<TabBarProps> = (props) => {
                   gap: "6px",
                   padding: "0 10px",
                   height: "100%",
-                  width: `${TAB_WIDTH}px`,
+                  width: `${tabWidth()}px`,
                   "min-width": `${TAB_MIN_WIDTH}px`,
-                  "max-width": `${TAB_WIDTH}px`,
+                  "max-width": `${TAB_MAX_WIDTH}px`,
                   "font-size": "var(--mz-font-size-sm)",
                   color: isActive()
                     ? "var(--mz-text-primary)"
