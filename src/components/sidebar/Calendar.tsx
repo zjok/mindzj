@@ -2,7 +2,6 @@ import { Component, For, Show, createMemo, createSignal, onCleanup } from "solid
 import { invoke } from "@tauri-apps/api/core";
 import { formatMonthYear, getMonthLabels, getWeekdayLabels, t } from "../../i18n";
 import { vaultStore, type VaultEntry } from "../../stores/vault";
-import { ContextMenu, type MenuItem } from "../common/ContextMenu";
 
 interface CalendarDay {
   day: number;
@@ -64,13 +63,9 @@ export const Calendar: Component = () => {
   const [showPicker, setShowPicker] = createSignal(false);
   const [pickerYear, setPickerYear] = createSignal(new Date().getFullYear());
   const [pickerMonth, setPickerMonth] = createSignal(new Date().getMonth());
-  // Right-click context menu state
-  const [contextMenu, setContextMenu] = createSignal<{
-    show: boolean;
-    x: number;
-    y: number;
-    items: MenuItem[];
-  }>({ show: false, x: 0, y: 0, items: [] });
+  // (No right-click context menu state any more — date right-click
+  // creates the note immediately, year/month right-click goes to today,
+  // both are imperative one-shot actions with no popup.)
 
   const existingNotes = createMemo(() => {
     const result = new Set<string>();
@@ -222,6 +217,14 @@ export const Calendar: Component = () => {
     }
   };
 
+  // Right-click on a calendar date now ALWAYS creates-or-opens that
+  // date's daily note immediately. The previous behaviour was to pop
+  // up a one-item context menu first ("Create note for this date" or
+  // "Open note for this date"), which the user pointed out is one
+  // click of friction for no benefit — the menu only ever has one
+  // option anyway, since the action is determined entirely by whether
+  // the date already has a note. So we skip the menu and just call
+  // the same handler the bottom button uses.
   const handleDayContextMenu = (event: MouseEvent, day: CalendarDay) => {
     event.preventDefault();
     event.stopPropagation();
@@ -231,21 +234,7 @@ export const Calendar: Component = () => {
       setYear(y);
       setMonth(m - 1);
     }
-    const items: MenuItem[] = [];
-    if (day.hasNote) {
-      items.push({
-        label: t("calendar.openNoteForDate"),
-        icon: "📄",
-        action: () => void openDailyNote(day.dateStr),
-      });
-    } else {
-      items.push({
-        label: t("calendar.newNoteForDate"),
-        icon: "✏️",
-        action: () => void createOrOpenDailyNote(day.dateStr),
-      });
-    }
-    setContextMenu({ show: true, x: event.clientX, y: event.clientY, items });
+    void createOrOpenDailyNote(day.dateStr);
   };
 
   // --- Year/month picker popup -------------------------------------
@@ -297,12 +286,24 @@ export const Calendar: Component = () => {
           ‹
         </button>
 
-        {/* Year/month label is now a clickable button that opens a
-            picker popup. Quick-jump to any year/month without having
-            to click ‹ / › repeatedly. */}
+        {/*
+          Year/month label has TWO actions on the same button:
+            - LEFT click  → open the year/month picker popup
+            - RIGHT click → jump back to today
+          The previous design had a separate ⊙ icon button next to
+          this label, but the user prefers consolidating both
+          behaviours onto the label so the calendar header has fewer
+          icons to scan. The tooltip shows both actions so the
+          right-click affordance is discoverable.
+        */}
         <button
           onClick={openPicker}
-          title={t("calendar.pickYearMonth")}
+          onContextMenu={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            goToday();
+          }}
+          title={`${t("calendar.pickYearMonth")} · ${t("calendar.backToToday")}`}
           style={{
             border: "none",
             background: "transparent",
@@ -319,19 +320,6 @@ export const Calendar: Component = () => {
           onMouseLeave={hoverOut}
         >
           {formatMonthYear(year(), month())}
-        </button>
-
-        {/* Dedicated "back to today" button — separate from prev/next
-            and from the year/month label so it's always one click
-            away regardless of how far the user has wandered. */}
-        <button
-          onClick={goToday}
-          title={t("calendar.backToToday")}
-          style={navButtonStyle}
-          onMouseEnter={hoverIn}
-          onMouseLeave={hoverOut}
-        >
-          ⊙
         </button>
 
         <button
@@ -684,14 +672,6 @@ export const Calendar: Component = () => {
         </div>
       </Show>
 
-      <Show when={contextMenu().show}>
-        <ContextMenu
-          x={contextMenu().x}
-          y={contextMenu().y}
-          items={contextMenu().items}
-          onClose={() => setContextMenu((current) => ({ ...current, show: false }))}
-        />
-      </Show>
     </div>
   );
 };
