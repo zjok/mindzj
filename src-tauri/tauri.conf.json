@@ -40,6 +40,12 @@
     "bundle": {
         "active": true,
         "targets": ["msi", "nsis", "deb", "appimage", "rpm", "app", "dmg"],
+        "publisher": "SuperJohn",
+        "copyright": "Copyright (c) 2026 SuperJohn. Licensed under AGPL-3.0-or-later.",
+        "category": "Productivity",
+        "shortDescription": "AI-native, CLI-first, local note-taking",
+        "longDescription": "MindZJ is an AI-native, CLI-first, open-source local note-taking system built on Tauri 2 + SolidJS + CodeMirror 6. Licensed under AGPL-3.0-or-later with an optional commercial license.",
+        "licenseFile": "../LICENSE",
         "resources": ["resources/default_plugins/"],
         "icon": [
             "icons/32x32.png",
