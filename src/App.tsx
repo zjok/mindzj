@@ -36,6 +36,8 @@ import { register, unregister, isRegistered } from "@tauri-apps/plugin-global-sh
 import { ScreenshotOverlay } from "./components/screenshot/ScreenshotOverlay";
 import { promptDialog } from "./components/common/ConfirmDialog";
 import { openFileRouted } from "./utils/openFileRouted";
+import { openSearchPanel } from "@codemirror/search";
+import type { EditorView } from "@codemirror/view";
 import { t } from "./i18n";
 
 type SidebarTab = "files" | "outline" | "search" | "calendar";
@@ -494,25 +496,85 @@ const App: Component = () => {
     /** Save annotated screenshot to vault and insert markdown link */
     async function handleScreenshotSave(base64Png: string) {
         try {
-            const timestamp = new Date().toISOString().replace(/[-:T]/g, "").slice(0, 15);
-            const filename = `screenshot_${timestamp}.png`;
-            const s = settingsStore.settings();
-            const folder = s.attachment_folder || ".mindzj/images";
-            const relativePath = `${folder}/${filename}`;
+            // Copy the screenshot to the system clipboard instead
+            // of writing it directly into `.mindzj/images/` + inserting
+            // markdown. The user wanted a two-step flow: snip → appear
+            // on clipboard → paste with Ctrl+V into whichever note they
+            // choose, at whichever position they want.
+            //
+            // The existing CM6 `paste` dom-event handler
+            // (`src/components/editor/Editor.tsx`) already intercepts
+            // image items from `clipboardData.items`, generates a
+            // filename like `Pasted image YYYYMMDDHHmmss.png`, saves
+            // to the attachment folder, and inserts the markdown
+            // reference. So by putting the PNG on the clipboard here,
+            // pressing Ctrl+V in an editor re-uses that whole
+            // infrastructure for free.
+            //
+            // We use the browser Clipboard API (`navigator.clipboard
+            // .write`) with a `ClipboardItem` carrying the PNG blob.
+            // Tauri's custom protocol origin counts as a secure
+            // context in WebView2, so this API is available.
+            //
+            // (Tauri's own `writeImage` from `plugin-clipboard-manager`
+            // expects a `Uint8Array` of RGBA pixels, not a PNG byte
+            // stream, so we'd have to decode the PNG first — lots of
+            // extra code. The Blob path is simpler and works.)
 
-            // Save to vault
-            await invoke("write_binary_file", {
-                relativePath,
-                base64Data: base64Png,
-            });
+            // Decode base64 → Uint8Array → Blob(image/png)
+            const binary = atob(base64Png);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) {
+                bytes[i] = binary.charCodeAt(i);
+            }
+            const blob = new Blob([bytes], { type: "image/png" });
 
-            // Insert markdown image reference at cursor in the active file
-            const activeFile = vaultStore.activeFile();
-            if (activeFile) {
-                const imgMarkdown = `![${filename}](${relativePath})`;
-                document.dispatchEvent(
-                    new CustomEvent("mindzj:insert-text", { detail: { text: imgMarkdown } }),
+            // Write to the system clipboard. The `ClipboardItem`
+            // MIME → Blob map is how `navigator.clipboard.write`
+            // signals "this item is an image/png". Any paste
+            // target — including MindZJ's own editor paste handler,
+            // which reads `clipboardData.items` — will see this as
+            // an image.
+            try {
+                await navigator.clipboard.write([
+                    new ClipboardItem({ "image/png": blob }),
+                ]);
+            } catch (clipErr) {
+                // If Clipboard API is unavailable for any reason
+                // (e.g. secure-context check failed, browser
+                // policy blocked it), fall back to the old save-
+                // to-vault behavior so the screenshot isn't lost.
+                console.warn(
+                    "[Screenshot] clipboard.write failed, falling back to disk:",
+                    clipErr,
                 );
+                // Build a filename. NOTE: `.slice(0, 15)` used to
+                // keep the `.` that separates seconds from
+                // milliseconds in ISO 8601 ("20260411194532.123Z"),
+                // producing filenames like `screenshot_20260411194532..png`
+                // (double dot). `.slice(0, 14)` trims to exactly
+                // `YYYYMMDDHHmmss` (14 chars).
+                const timestamp = new Date()
+                    .toISOString()
+                    .replace(/[-:T]/g, "")
+                    .slice(0, 14);
+                const filename = `screenshot_${timestamp}.png`;
+                const s = settingsStore.settings();
+                const folder = s.attachment_folder || ".mindzj/images";
+                const relativePath = `${folder}/${filename}`;
+                await invoke("write_binary_file", {
+                    relativePath,
+                    base64Data: base64Png,
+                });
+                const activeFile = vaultStore.activeFile();
+                if (activeFile) {
+                    const imgMarkdown = `![${filename}](${relativePath})`;
+                    document.dispatchEvent(
+                        new CustomEvent("mindzj:insert-text", {
+                            detail: { text: imgMarkdown },
+                        }),
+                    );
+                }
             }
         } catch (err) {
             console.error("[Screenshot] save failed:", err);
@@ -1001,6 +1063,30 @@ const App: Component = () => {
      * Match a KeyboardEvent against a hotkey combo string like "Alt+G", "Ctrl+Shift+S".
      * Returns true if the event matches the combo.
      */
+    // Platform detection: on macOS the `Cmd` key (aka Meta) is the
+    // primary modifier, so a hotkey string of "Ctrl+X" should match
+    // Cmd+X. On Windows/Linux the Meta key is the Win/Super key and
+    // is RESERVED for system use — "Ctrl+X" must match Ctrl+X ONLY,
+    // never Win+X. Folding them together (the previous behavior of
+    // `needCtrl !== (e.ctrlKey || e.metaKey)`) caused Win+F to
+    // accidentally trigger our Ctrl+F handlers AND prevented
+    // Windows' own Win+F (Feedback Hub) from firing properly.
+    const _isMacPlatform = /mac|iphone|ipod|ipad/i.test(
+        typeof navigator !== "undefined" ? navigator.platform : "",
+    );
+
+    /** Returns true when the primary "Ctrl-like" modifier is held.
+     *  On Mac that's Cmd (metaKey); on Windows/Linux it's strictly
+     *  Ctrl, NEVER the Win key. */
+    function isCtrlHeld(e: KeyboardEvent): boolean {
+        if (_isMacPlatform) return e.ctrlKey || e.metaKey;
+        // Windows/Linux: require Ctrl AND require metaKey to NOT be
+        // down — otherwise Win+X would flow through as if it were
+        // Ctrl+X, breaking Windows-reserved combos like Win+F /
+        // Win+S / Win+R.
+        return e.ctrlKey && !e.metaKey;
+    }
+
     function matchesHotkey(e: KeyboardEvent, combo: string): boolean {
         const parts = combo.split("+");
         const keyPart = parts[parts.length - 1];
@@ -1009,9 +1095,23 @@ const App: Component = () => {
         const needAlt = parts.includes("Alt");
         const needMeta = parts.includes("Meta");
 
-        if (needCtrl !== (e.ctrlKey || e.metaKey)) return false;
+        // On Mac, the Ctrl slot is satisfied by Cmd (metaKey). On
+        // Windows/Linux it's strictly the real Ctrl key — holding
+        // the Win key alone must NOT count as Ctrl.
+        const ctrlHeld = _isMacPlatform
+            ? e.ctrlKey || e.metaKey
+            : e.ctrlKey;
+        if (needCtrl !== ctrlHeld) return false;
         if (needShift !== e.shiftKey) return false;
         if (needAlt !== e.altKey) return false;
+        // Windows: if metaKey is down and we DIDN'T ask for it in
+        // the combo, bail out. This is the other half of the
+        // Win+F fix: it stops e.g. Win+S from firing our Ctrl+S
+        // save handler (because needCtrl=true but ctrlHeld=false,
+        // we'd return early anyway — but this guards cases like
+        // "just F" hotkeys where the user has Win held down as
+        // they start typing something).
+        if (!_isMacPlatform && !needMeta && e.metaKey) return false;
         if (needMeta && !e.metaKey) return false;
 
         const eventKey = normalizeHotkeyKey(e.key);
@@ -1077,7 +1177,7 @@ const App: Component = () => {
         // the console so we can see exactly what the webview is
         // sending.
         if (
-            (e.ctrlKey || e.metaKey) &&
+            isCtrlHeld(e) &&
             e.altKey &&
             !e.shiftKey &&
             (e.code === "ArrowLeft" ||
@@ -1119,7 +1219,50 @@ const App: Component = () => {
         // Check if the editor (CodeMirror) is focused
         const editorFocused = !!(document.activeElement?.closest(".cm-editor"));
 
-        if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "r") {
+        // Ctrl+F (NOT Ctrl+Shift+F, NOT with Alt) → open the CM6
+        // in-editor find panel. We intercept this GLOBALLY rather
+        // than letting CM6's own searchKeymap handle it only-when-
+        // editor-focused because:
+        //
+        //   (a) WebView2 has its own built-in "Find in page" UI
+        //       that pops over the app whenever Ctrl+F fires and
+        //       isn't consumed by a DOM handler. After the user
+        //       presses Win+F (which shifts focus away from the
+        //       editor), the next Ctrl+F would hit that WebView2
+        //       default instead of our search — the exact bug
+        //       the user reported.
+        //   (b) Blocking it unconditionally and re-dispatching to
+        //       CM6 makes the behavior consistent regardless of
+        //       where focus currently is.
+        //
+        // We explicitly check `e.ctrlKey` (not `e.ctrlKey ||
+        // e.metaKey`) on Windows so Win+F still flows to the OS
+        // as Windows Feedback Hub — see the platform check in
+        // `matchesHotkey` above.
+        if (
+            isCtrlHeld(e) &&
+            !e.altKey &&
+            !e.shiftKey &&
+            (e.key === "f" || e.key === "F")
+        ) {
+            e.preventDefault();
+            e.stopPropagation();
+            // Grab the active EditorView from the plugin API
+            // surface that Editor.tsx keeps up-to-date.
+            const api = (window as any).__mindzj_plugin_editor_api;
+            const cmView = api?.cm as EditorView | undefined;
+            if (cmView) {
+                try {
+                    openSearchPanel(cmView);
+                    cmView.focus();
+                } catch (err) {
+                    console.warn("[ctrl-f] openSearchPanel failed:", err);
+                }
+            }
+            return;
+        }
+
+        if (isCtrlHeld(e) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "r") {
             e.preventDefault();
             e.stopPropagation();
             return;
@@ -1140,7 +1283,7 @@ const App: Component = () => {
         //
         // Ctrl+Shift+J is ALSO mapped here (Chrome muscle memory).
         if (
-            ((e.ctrlKey || e.metaKey) &&
+            (isCtrlHeld(e) &&
                 e.shiftKey &&
                 !e.altKey &&
                 (e.key === "I" ||
@@ -1164,7 +1307,7 @@ const App: Component = () => {
         // to the window handle — the pure-JS path has occasionally
         // been lost when pressed while the editor DOM is busy.
         if (
-            (e.ctrlKey || e.metaKey) &&
+            isCtrlHeld(e) &&
             !e.shiftKey &&
             !e.altKey &&
             (e.key === "m" || e.key === "M")
@@ -1373,7 +1516,7 @@ const App: Component = () => {
         }
 
         // Ctrl+Shift+F: switch to sidebar search panel
-        if (e.ctrlKey && e.shiftKey && e.key === "F") {
+        if (isCtrlHeld(e) && e.shiftKey && !e.altKey && e.key === "F") {
             e.preventDefault();
             e.stopPropagation();
             setSidebarTab("search");

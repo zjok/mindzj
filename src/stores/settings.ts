@@ -72,6 +72,12 @@ export interface AppSettings {
   heading_color: string | null;
   link_color: string | null;
   highlight_color: string | null;
+  /** Text selection background color. Applied to both CM6
+   *  `.cm-selectionBackground` and the generic `::selection`
+   *  pseudo-element via the `--mz-bg-selection` CSS variable.
+   *  `null` means "use the theme default" (rgba blue in dark,
+   *  rgba blue-grey in light). */
+  selection_color: string | null;
   css_snippet: string | null;
   /**
    * List of enabled CSS snippet filenames from `.mindzj/snippets/`.
@@ -128,6 +134,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   heading_color: null,
   link_color: null,
   highlight_color: null,
+  selection_color: null,
   css_snippet: null,
   enabled_css_snippets: [],
   attachment_folder: DEFAULT_ATTACHMENT_FOLDER,
@@ -265,6 +272,18 @@ function createSettingsStore() {
       document.documentElement.style.setProperty("--mz-syntax-highlight-bg", color);
     } else {
       document.documentElement.style.removeProperty("--mz-syntax-highlight-bg");
+    }
+  });
+  createEffect(() => {
+    // Text selection background. `--mz-bg-selection` is consumed
+    // by `::selection` in variables.css AND by the CM6 inline
+    // theme in Editor.tsx (`.cm-selectionBackground`), so setting
+    // it once here lives everywhere at once.
+    const color = settings().selection_color;
+    if (color) {
+      document.documentElement.style.setProperty("--mz-bg-selection", color);
+    } else {
+      document.documentElement.style.removeProperty("--mz-bg-selection");
     }
   });
 

@@ -437,6 +437,13 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
                 onChange={(v) => set("highlight_color", v)}
                 onClear={() => set("highlight_color", null)}
               />
+              <SettingColor
+                label={t("settings.selectionColor")}
+                description={t("settings.selectionColorDescription")}
+                value={s().selection_color || "#528bff"}
+                onChange={(v) => set("selection_color", v)}
+                onClear={() => set("selection_color", null)}
+              />
               <SettingSelect
                 label={t("common.interfaceLanguage")}
                 description={t("settings.interfaceLanguageDescription")}

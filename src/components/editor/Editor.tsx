@@ -33,7 +33,7 @@ import {
     indentUnit,
 } from "@codemirror/language";
 import { tags as t_ } from "@lezer/highlight";
-import { searchKeymap, highlightSelectionMatches } from "@codemirror/search";
+import { searchKeymap } from "@codemirror/search";
 import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
 import { invoke } from "@tauri-apps/api/core";
 import { vaultStore } from "../../stores/vault";
@@ -719,11 +719,13 @@ export const Editor: Component<EditorProps> = (props) => {
             drawSelection(),
             bracketMatching(),
             closeBrackets(),
-            // Only highlight matching words in source mode. In LivePreview
-            // the visual noise of highlight-on-select is distracting and
-            // the user explicitly asked for it to be disabled — searches
-            // should use the dedicated search panel (Ctrl+F) instead.
-            ...(isSourceMode ? [highlightSelectionMatches()] : []),
+            // NOTE: `highlightSelectionMatches()` is NOT installed in
+            // any mode. We used to enable it in source mode, but the
+            // user explicitly asked that selecting text should NOT
+            // auto-paint every other occurrence of the same text —
+            // that's what the dedicated search panel (Ctrl+F) is for.
+            // Selection highlighting is left to the native browser
+            // `.cm-selectionBackground` style only.
             ...(showGutter ? [foldGutter(), lineNumbers()] : []),
             markdown({ base: markdownLanguage }),
             // Custom highlight style MUST come first so it overrides the
