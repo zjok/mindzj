@@ -1159,17 +1159,16 @@ const livePreviewTheme = EditorView.baseTheme({
     },
     ".mz-lp-link": {
         color: "var(--mz-syntax-link)",
-        // Underline is declared in editor.css via `text-decoration`.
-        // We used to ALSO set `borderBottom: "1px solid ..."` here,
-        // which combined with the CSS `text-decoration: underline`
-        // produced a visible DOUBLE underline — one line from the
-        // border and another from the text-decoration. Both are
-        // removed from this inline theme so only the CSS rule
-        // draws the single underline.
         cursor: "pointer",
-        "&:hover": {
-            opacity: "0.8",
-        },
+        // NOTE: underline, hover background, and hover opacity are
+        // ALL declared in editor.css (`.cm-editor .mz-lp-link` +
+        // `:hover`). They used to also be here — combining a
+        // `borderBottom` + `text-decoration: underline` produced a
+        // double underline, and the `&:hover { opacity: ... }` had
+        // higher CSS specificity than the CSS file's hover rule
+        // (CM6 generates an extra `.ͱN` class prefix) so the CSS
+        // hover never won. Both moved out to keep a single source
+        // of truth in editor.css.
     },
     ".mz-lp-link-url": {
         color: "var(--mz-text-muted)",

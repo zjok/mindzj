@@ -1628,7 +1628,7 @@ const App: Component = () => {
                         <div style={{
                             display: "flex", "align-items": "center",
                             "justify-content": "space-between",
-                            padding: "8px 12px",
+                            padding: "4px 12px",
                             "border-top": "1px solid var(--mz-border)",
                             position: "relative",
                         }}>

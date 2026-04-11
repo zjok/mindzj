@@ -301,16 +301,26 @@ html[data-theme="light"] .cm-editor .cm-panels-bottom {
    in live preview. The underline color matches the link color so
    it reads as a "styled" link rather than an accessibility default.
    `text-underline-offset` pushes the line a touch below the
-   baseline so descenders like `y`, `g`, `p` don't collide. */
+   baseline so descenders like `y`, `g`, `p` don't collide.
+
+   Hover feedback uses a subtle background tint (same
+   `--mz-accent-subtle` the tag pills use) PLUS a small opacity
+   nudge on the text itself. We deliberately DO NOT touch the
+   underline on hover — the default state already has one, and
+   thickening or re-drawing it on hover looks like a jitter
+   artifact rather than interactive feedback. */
 .cm-editor .mz-lp-link {
   color: var(--mz-syntax-link);
   text-decoration: underline;
   text-decoration-color: var(--mz-syntax-link);
   text-underline-offset: 2px;
   cursor: pointer;
+  border-radius: 2px;
+  transition: background-color 120ms ease, opacity 120ms ease;
 }
 .cm-editor .mz-lp-link:hover {
-  text-decoration-thickness: 2px;
+  background-color: var(--mz-accent-subtle);
+  opacity: 0.85;
 }
 
 /* Blockquote and horizontal rule line styles live in livePreview.ts's
@@ -471,7 +481,14 @@ html[data-theme="light"] .cm-editor .cm-panels-bottom {
    Underlined by default in reading view so they match the live
    preview styling and stand out from plain body text. The
    underline color matches the link color so the effect reads as
-   "styled link" rather than the browser's default blue underline. */
+   "styled link" rather than the browser's default blue underline.
+
+   Hover feedback uses a subtle background tint + small opacity
+   nudge — matches the live-preview hover. We deliberately DO NOT
+   touch the underline on hover (no thickness change, no
+   re-drawing): the default state already has one, and any tweak
+   there looks like a jitter artifact rather than interactive
+   feedback. */
 .mz-reading-view .mz-rv-link,
 .mz-reading-view .mz-rv-wikilink {
   color: var(--mz-syntax-link);
@@ -479,12 +496,14 @@ html[data-theme="light"] .cm-editor .cm-panels-bottom {
   text-decoration-color: var(--mz-syntax-link);
   text-underline-offset: 2px;
   cursor: pointer;
-  transition: text-decoration-thickness 120ms ease;
+  border-radius: 2px;
+  transition: background-color 120ms ease, opacity 120ms ease;
 }
 
 .mz-reading-view .mz-rv-link:hover,
 .mz-reading-view .mz-rv-wikilink:hover {
-  text-decoration-thickness: 2px;
+  background-color: var(--mz-accent-subtle);
+  opacity: 0.85;
 }
 
 /* Images */
