@@ -378,16 +378,14 @@ const App: Component = () => {
         document.addEventListener("contextmenu", suppressNativeContextMenu, false);
         onCleanup(() => document.removeEventListener("contextmenu", suppressNativeContextMenu, false));
 
-        // ── Register global screenshot shortcut (works even when app is in background) ──
-        try {
-            const screenshotCombo = getHotkey("screenshot", "Alt+G");
-            await register(screenshotCombo, (e) => {
-                if (e.state === "Pressed") startScreenshot();
-            });
-            onCleanup(() => { unregister(screenshotCombo).catch(() => {}); });
-        } catch (err) {
-            console.warn("[GlobalShortcut] Failed to register screenshot shortcut:", err);
-        }
+        // NOTE: the global screenshot shortcut is registered by the
+        // dedicated `createEffect` further below — we used to ALSO
+        // register it here, which caused the OS to see two register()
+        // calls in the same boot and emit "HotKey already registered:
+        // KeyG" warnings on every startup. The createEffect handles
+        // both the initial registration AND re-registration when the
+        // user changes the hotkey in Settings, so this onMount block
+        // is now redundant and removed.
 
         // ── Listen for plugin settings open requests ──
         const handleOpenSettings = (e: Event) => {
@@ -531,36 +529,85 @@ const App: Component = () => {
                 // Ignore — show welcome screen
             }
         }
-        // Restore attempt finished (success or failure). Drop out of
-        // the bootstrapping blank-canvas state so the render logic can
-        // now show either the main vault UI or the welcome screen
-        // based on whether vaultInfo() ended up truthy.
-        setIsBootstrapping(false);
+        // Fail-safe: if the vault open didn't actually succeed (file
+        // gone, permission denied, missing from list, etc.) the
+        // workspace-restore createEffect won't fire and would leave
+        // us stuck on the dark canvas forever. In that case drop the
+        // gate now so the welcome screen shows.
+        //
+        // The HAPPY path — vaultInfo() became truthy — leaves
+        // bootstrapping ON; the workspace-restore createEffect will
+        // drop the gate AFTER it has loaded the workspace, opened all
+        // saved tabs, switched to the active tab and mounted plugin
+        // views. That avoids the visible "empty main area → tabs
+        // appear one by one → final settled state" flicker the user
+        // was reporting.
+        if (!vaultStore.vaultInfo()) {
+            setIsBootstrapping(false);
+        }
     });
 
-    createEffect(() => {
-        const screenshotCombo = getHotkey("screenshot", "Alt+G");
-        let released = false;
+    // Screenshot hotkey lifecycle.
+    //
+    // We need to:
+    //   1. Register the hotkey once on app boot.
+    //   2. Re-register if the user changes the hotkey in Settings.
+    //   3. Unregister on app exit so a stale OS-level binding doesn't
+    //      survive into the next launch.
+    //
+    // The previous version naively wrapped a `createEffect` around
+    // `getHotkey(...)`. Because settings is reactive and gets
+    // RE-WRITTEN at boot (defaults → loadSettings() result), the
+    // effect would fire twice in the same second — both times calling
+    // unregister() then register(). The OS doesn't release the
+    // binding fast enough between the two calls and we got
+    // "HotKey already registered" warnings on every startup.
+    //
+    // The fix: track the LAST registered combo manually and skip
+    // re-registration if the value didn't actually change.
+    {
+        let lastCombo: string | null = null;
+        let pending: Promise<void> = Promise.resolve();
 
-        const syncShortcut = async () => {
-            try {
-                await unregister(screenshotCombo).catch(() => {});
-                if (released) return;
-                await register(screenshotCombo, (event) => {
-                    if (event.state === "Pressed") startScreenshot();
-                });
-            } catch (err) {
-                console.warn("[GlobalShortcut] Failed to sync screenshot shortcut:", err);
-            }
+        const syncShortcut = (nextCombo: string) => {
+            if (nextCombo === lastCombo) return;
+            const previousCombo = lastCombo;
+            lastCombo = nextCombo;
+            // Chain off the previous in-flight register/unregister so
+            // we never have two flows touching the OS hotkey table
+            // concurrently.
+            pending = pending.then(async () => {
+                if (previousCombo) {
+                    try { await unregister(previousCombo); } catch {}
+                }
+                try {
+                    await register(nextCombo, (event) => {
+                        if (event.state === "Pressed") startScreenshot();
+                    });
+                } catch (err) {
+                    console.warn(
+                        "[GlobalShortcut] Failed to (re)register screenshot shortcut:",
+                        err,
+                    );
+                    // Roll back so the next change attempt can retry.
+                    lastCombo = previousCombo;
+                }
+            });
         };
 
-        void syncShortcut();
+        createEffect(() => {
+            const combo = getHotkey("screenshot", "Alt+G");
+            syncShortcut(combo);
+        });
 
         onCleanup(() => {
-            released = true;
-            unregister(screenshotCombo).catch(() => {});
+            const combo = lastCombo;
+            if (combo) {
+                pending = pending.then(() => unregister(combo).catch(() => {}));
+                lastCombo = null;
+            }
         });
-    });
+    }
 
     // Update window title when vault changes
     createEffect(() => {
@@ -574,7 +621,16 @@ const App: Component = () => {
         }
     });
 
-    // Restore workspace and load plugins when vault opens
+    // Restore workspace and load plugins when vault opens.
+    //
+    // CRITICAL: `defer: true` is required. Without it, this effect
+    // fires on initial mount with `vaultInfo() === null` (because
+    // onMount hasn't started the openVault call yet), hits the else
+    // branch and would drop the bootstrapping gate prematurely — the
+    // user would see a one-frame flash of the welcome screen before
+    // the real vault loads. With `defer: true`, the effect only runs
+    // when vaultInfo() ACTUALLY transitions (null → vault, or
+    // vault → null). The initial null state is silently skipped.
     createEffect(on(() => vaultStore.vaultInfo()?.path ?? null, async () => {
         const info = vaultStore.vaultInfo();
         resetFolderVisibilityState();
@@ -652,13 +708,39 @@ const App: Component = () => {
                 }
                 setStartupPayloadApplied(true);
             }
+            // Workspace fully restored: tabs are open, the active
+            // tab is selected, plugins are loaded. Drop the
+            // bootstrapping gate so the UI becomes visible. We
+            // wait two animation frames first because:
+            //   1. Solid still has pending effects to flush
+            //      (PluginViewHost's mount effect, Editor's scroll
+            //      restoration createEffect, etc.).
+            //   2. The webview itself needs one paint to draw the
+            //      mounted DOM before we reveal it — otherwise the
+            //      user sees the dark canvas → flash of unstyled
+            //      content → settled state.
+            //
+            // Two RAFs is the minimum delay that guarantees both the
+            // microtask queue AND a full layout/paint cycle have
+            // completed. Total wait is ~32ms at 60 Hz which is
+            // imperceptible to the user.
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    setIsBootstrapping(false);
+                });
+            });
         } else {
-            // Vault closed — unload all plugins
+            // Vault closed — unload all plugins. With defer: true on
+            // the on() above, this branch only ever runs when the
+            // user actively closes a vault (truthy → null transition),
+            // never on initial mount. So we DO NOT touch the
+            // bootstrapping gate here; it's handled exclusively by
+            // onMount (fail-safe path) and the truthy branch above.
             settingsStore.resetSettings();
             editorStore.resetWorkspaceState();
             await pluginStore.unloadAllPlugins();
         }
-    }));
+    }, { defer: true }));
 
     // Save workspace on changes (debounced)
     createEffect(() => {
@@ -907,7 +989,36 @@ const App: Component = () => {
             transform: `scale(${uiScale()})`,
             "transform-origin": "top left",
             overflow: "hidden",
+            background: "var(--mz-bg-primary)",
         }}>
+            {/*
+                Bootstrapping gate (OUTER level).
+
+                When the app starts up with a saved vault to restore,
+                we render NOTHING but a flat dark canvas covering the
+                whole window until:
+                  1. the vault has been opened
+                  2. workspace.json has been read
+                  3. all saved tabs have been loaded into openFiles
+                  4. the active tab has been selected
+                  5. plugin views have mounted into their hosts
+                  6. CodeMirror has had a paint cycle to restore the
+                     scroll position of the active editor
+
+                Without this gate the user sees an obvious flicker:
+                empty editor → tabs appear one by one → final tab +
+                scroll position settle. With this gate they only see
+                the dark canvas → fully-loaded UI in one transition.
+            */}
+            <Show
+                when={!isBootstrapping()}
+                fallback={
+                    <div style={{
+                        flex: "1",
+                        background: "var(--mz-bg-primary)",
+                    }} />
+                }
+            >
             <div style={{ display: "flex", flex: "1", overflow: "hidden" }}>
                 {/* ===== SIDEBAR ===== */}
                 <Show when={vaultStore.vaultInfo()}>
@@ -1141,16 +1252,11 @@ const App: Component = () => {
                 {/* ===== MAIN AREA ===== */}
                 <main style={{ flex: "1", "min-width": "0", "min-height": "0", display: "flex", "flex-direction": "column", overflow: "hidden", background: "var(--mz-bg-primary)" }}>
                     <Show when={vaultStore.vaultInfo()} fallback={
-                        <Show
-                            when={!isBootstrapping()}
-                            fallback={
-                                // Blank dark canvas while we're still trying to
-                                // restore a saved vault. Prevents the welcome
-                                // screen from flashing for ~100ms before the
-                                // restored vault replaces it.
-                                <div style={{ flex: "1", background: "var(--mz-bg-primary)" }} />
-                            }
-                        >
+                        // Bootstrapping is gated at the OUTER level (right
+                        // after the root <div> opens), so by the time we
+                        // hit this fallback we already know we want to
+                        // show the welcome screen — no inner gate needed.
+                        <>
                             {/* Drag region + window controls for welcome screen */}
                             <div data-tauri-drag-region style={{
                                 display: "flex", "align-items": "center", "justify-content": "flex-end",
@@ -1163,7 +1269,7 @@ const App: Component = () => {
                                 </div>
                             </div>
                             <WelcomeScreen />
-                        </Show>
+                        </>
                     }>
                         {/* Tab bar (also acts as drag region for frameless window).
                             Use -webkit-app-region: drag on the bar itself so clicking ANY
@@ -1279,6 +1385,7 @@ const App: Component = () => {
             </div>
 
             <StatusBar />
+            </Show>
             <Show when={showCommandPalette()}>
                 <CommandPalette onClose={() => setShowCommandPalette(false)} />
             </Show>
