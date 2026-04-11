@@ -27,6 +27,7 @@ import katex from "katex";
 import { invoke } from "@tauri-apps/api/core";
 import { resolveImageAssetUrl } from "../../../utils/vaultPaths";
 import { attachWheelZoom, attachCtrlClick, getResizePresets, applyResizePreset } from "../../../utils/imageInteraction";
+import { parseImageSize, formatImageAlt } from "../../../utils/imageSize";
 import {
     getContinuationInfo,
     LIST_INDENT_EXTRA_PX,
@@ -51,6 +52,13 @@ function showImageContextMenu(
     imageSrc: string,
     currentFilePath: string,
     imgElement?: HTMLImageElement,
+    // Optional persister called after the resize preset runs —
+    // lets the caller write the new width back into the markdown
+    // source so it survives across reloads. Passed by both the
+    // live-preview ImageWidget AND the reading-view image post-
+    // processor; if it's omitted the DOM change is ephemeral and
+    // lost on the next render.
+    onResize?: (newWidth: number) => void,
 ) {
     // Remove any existing context menu
     document.querySelectorAll(".mz-image-context-menu").forEach((el) => el.remove());
@@ -164,7 +172,7 @@ function showImageContextMenu(
             addSeparator();
             for (const preset of presets) {
                 addMenuItem(t("livePreview.resizeTo", { preset }), () => {
-                    applyResizePreset(imgElement, preset);
+                    applyResizePreset(imgElement, preset, onResize);
                 });
             }
         }
@@ -290,11 +298,19 @@ class ImageWidget extends WidgetType {
         super();
     }
 
-    toDOM(): HTMLElement {
+    toDOM(view: EditorView): HTMLElement {
+        // Parse the `|width` or `|widthxheight` suffix out of the
+        // alt text so (a) the displayed alt text is clean and (b)
+        // we can apply the persisted display size. The raw alt
+        // (including suffix) is still kept in `this.alt` so the
+        // wheel-zoom onResize below can find the original string
+        // to rewrite.
+        const { altText, width, height } = parseImageSize(this.alt);
+
         const wrapper = document.createElement("div");
         wrapper.className = "mz-lp-image image-embed internal-embed is-loaded";
         wrapper.setAttribute("src", this.src);
-        wrapper.setAttribute("alt", this.alt);
+        wrapper.setAttribute("alt", altText);
         wrapper.style.cssText =
             "padding: 8px 0; max-width: 100%; cursor: pointer;";
 
@@ -306,16 +322,24 @@ class ImageWidget extends WidgetType {
             this.vaultRoot,
             this.currentFilePath,
         );
-        img.alt = this.alt;
+        img.alt = altText;
         img.className = "mz-embed-image";
         // Do NOT set max-width/max-height inline — use CSS class instead.
         // This allows plugins (pixel-perfect-image) to freely resize via inline style.width.
         img.style.cssText =
             "border-radius: 6px; display: block;";
+        // Apply persisted display size from the markdown alt. We
+        // set the width BEFORE the image finishes loading so there's
+        // no reflow jitter when the natural size comes in.
+        if (width != null) {
+            img.style.width = `${width}px`;
+            img.style.height = height != null ? `${height}px` : "auto";
+            img.setAttribute("data-ppi-wheel-inline-width", String(width));
+        }
         img.onerror = () => {
             img.style.display = "none";
             const fallback = document.createElement("span");
-            fallback.textContent = `[${t("livePreview.imageFallback")}: ${this.alt || this.src}]`;
+            fallback.textContent = `[${t("livePreview.imageFallback")}: ${altText || this.src}]`;
             fallback.style.cssText =
                 "color: var(--mz-text-muted); font-size: 12px; font-style: italic;";
             wrapper.appendChild(fallback);
@@ -323,22 +347,79 @@ class ImageWidget extends WidgetType {
 
         wrapper.appendChild(img);
 
+        // Build a source-rewriter closure used by both wheel zoom
+        // and right-click resize presets. On a size change it:
+        //  1. Finds the image's current source position via
+        //     `view.posAtDOM(img)` (robust to stale widgets — we
+        //     always ask CM6 where this DOM node now lives in the
+        //     document, so inserts/deletes elsewhere don't shift
+        //     the target out from under us).
+        //  2. Scans the line for the `![...](...)` whose src
+        //     matches this widget's src (disambiguates when
+        //     multiple images are on the same line).
+        //  3. Dispatches a CM6 change replacing the match with
+        //     the new `![alt|newWidth](src)`.
+        // The widget will be rebuilt automatically on the next
+        // build-decorations pass because `eq()` now includes alt,
+        // so CM6 re-creates the DOM with the new parsed size.
+        const persistSize = (newWidth: number) => {
+            try {
+                const pos = view.posAtDOM(img);
+                if (pos < 0) return;
+                const line = view.state.doc.lineAt(pos);
+                const lineText = line.text;
+                const imgRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
+                let m: RegExpExecArray | null;
+                while ((m = imgRegex.exec(lineText)) !== null) {
+                    if (m[2] !== this.src) continue;
+                    const mStart = line.from + m.index;
+                    const mEnd = mStart + m[0].length;
+                    // Only rewrite the FIRST match with this src on
+                    // the line that actually overlaps this widget's
+                    // current position. If the same image appears
+                    // multiple times on the line, the position lookup
+                    // picks out the specific occurrence.
+                    if (pos < mStart || pos > mEnd) continue;
+                    const currentAltText = parseImageSize(m[1]).altText;
+                    const newAlt = formatImageAlt(currentAltText, newWidth, null);
+                    const newMd = `![${newAlt}](${this.src})`;
+                    if (newMd === m[0]) return;
+                    view.dispatch({
+                        changes: { from: mStart, to: mEnd, insert: newMd },
+                    });
+                    return;
+                }
+            } catch (err) {
+                // eslint-disable-next-line no-console
+                console.warn("[image-resize] persist failed:", err);
+            }
+        };
+
         // Alt+wheel zoom & Ctrl+click
-        attachWheelZoom(img);
+        attachWheelZoom(img, { onResize: persistSize });
         attachCtrlClick(img, this.src, this.currentFilePath);
 
-        // Right-click context menu for image operations
+        // Right-click context menu for image operations. Pass the
+        // same `persistSize` callback so that picking a size preset
+        // from the menu also writes back to the markdown source
+        // (not just the live wheel-zoom path).
         wrapper.addEventListener("contextmenu", (e) => {
             e.preventDefault();
             e.stopPropagation();
-            showImageContextMenu(e, this.src, this.currentFilePath, img);
+            showImageContextMenu(e, this.src, this.currentFilePath, img, persistSize);
         });
 
         return wrapper;
     }
 
     eq(other: ImageWidget): boolean {
-        return this.src === other.src;
+        // IMPORTANT: include `alt` in the equality check so CM6
+        // rebuilds the widget when the alt (and therefore the
+        // parsed size) changes. Without this, a wheel-zoom that
+        // rewrites the markdown source would leave the old widget
+        // in place with its pre-zoom size, and CM6 would only
+        // refresh on the next unrelated edit.
+        return this.src === other.src && this.alt === other.alt;
     }
 }
 

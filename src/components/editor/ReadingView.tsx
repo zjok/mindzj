@@ -37,6 +37,8 @@ import { openFileRouted } from "../../utils/openFileRouted";
 import { showImageContextMenu } from "./extensions/livePreview";
 import { LIST_INDENT_EXTRA_PX, LIST_RENDER_TAB_SIZE } from "./extensions/listUtils";
 import { attachWheelZoom, attachCtrlClick } from "../../utils/imageInteraction";
+import { parseImageSize, formatImageAlt } from "../../utils/imageSize";
+import { invoke } from "@tauri-apps/api/core";
 import { t } from "../../i18n";
 
 // ---------------------------------------------------------------------------
@@ -470,7 +472,9 @@ function renderInline(text: string, ctx: RenderContext): string {
         }
     });
 
-    // Images: ![alt](src)
+    // Images: ![alt](src) — with optional `|width` / `|widthxheight`
+    // suffix in the alt text for persisted display size (see
+    // `utils/imageSize.ts`).
     result = result.replace(
         /!\[([^\]]*)\]\(([^)]+)\)/g,
         (_, alt, src) => {
@@ -480,8 +484,21 @@ function renderInline(text: string, ctx: RenderContext): string {
                 ctx.vaultRoot,
                 ctx.currentFilePath,
             );
-            const escapedAlt = escapeAttr(alt);
-            return `<span class="image-embed internal-embed is-loaded"><img src="${resolvedSrc}" data-src="${escapeAttr(rawSrc)}" alt="${escapedAlt}" class="mz-rv-image" loading="lazy" /></span>`;
+            // Split `alt|width[xheight]` so the rendered alt text
+            // doesn't include the size suffix, and the inline
+            // style gets the persisted dimensions.
+            const { altText, width, height } = parseImageSize(alt);
+            const escapedAlt = escapeAttr(altText);
+            const styleBits: string[] = [];
+            if (width != null) {
+                styleBits.push(`width:${width}px`);
+                styleBits.push(height != null ? `height:${height}px` : "height:auto");
+            }
+            const styleAttr =
+                styleBits.length > 0 ? ` style="${styleBits.join(";")}"` : "";
+            const dataWidthAttr =
+                width != null ? ` data-ppi-wheel-inline-width="${width}"` : "";
+            return `<span class="image-embed internal-embed is-loaded"><img src="${resolvedSrc}" data-src="${escapeAttr(rawSrc)}" alt="${escapedAlt}" class="mz-rv-image"${styleAttr}${dataWidthAttr} loading="lazy" /></span>`;
         },
     );
 
@@ -1299,17 +1316,152 @@ export const ReadingView: Component<ReadingViewProps> = (props) => {
                         });
                     });
 
-                // Handle image interactions: context menu, wheel zoom, ctrl+click
+                // Handle image interactions: context menu, wheel zoom, ctrl+click.
+                //
+                // `ordinal` disambiguates duplicate `src` references in
+                // the same file — e.g. if the user embeds `logo.png`
+                // three times, the first <img> has ordinal=0, the
+                // second ordinal=1, etc. `persistImageSize` below
+                // uses this to find the nth matching markdown image
+                // and rewrite ONLY that occurrence.
+                const ordinals = new Map<string, number>();
                 containerRef
                     .querySelectorAll<HTMLImageElement>(".mz-rv-image")
                     .forEach((img) => {
                         const rawSrc = img.getAttribute("data-src") ?? "";
+                        const ordinal = ordinals.get(rawSrc) ?? 0;
+                        ordinals.set(rawSrc, ordinal + 1);
+
+                        // Persist a new display size to the markdown
+                        // source AND avoid triggering a re-render.
+                        //
+                        // Why we don't go through `vaultStore.saveFile`:
+                        // `saveFile` calls `setActiveFile(...)` with
+                        // a new FileContent object, which emits on
+                        // the `resolvedFile` memo → fires this very
+                        // `createEffect(on(resolvedFile, ...))` →
+                        // rebuilds `containerRef.innerHTML` from
+                        // scratch. The visible result is a hard
+                        // flicker every time the user flicks the
+                        // wheel, which is the exact bug we went
+                        // through hell fixing for the search-click
+                        // reveal in an earlier session.
+                        //
+                        // Instead we: (a) invoke the Rust `write_file`
+                        // command directly so the disk has the new
+                        // content, and (b) mutate the existing
+                        // `activeFile.content` string IN PLACE so
+                        // any consumer that later reads
+                        // `vaultStore.activeFile()?.content` sees
+                        // the new value. The in-place mutation
+                        // does NOT trigger Solid reactivity —
+                        // `activeFile` still holds the same object
+                        // reference, so the memo doesn't re-emit,
+                        // so the createEffect doesn't re-run.
+                        //
+                        // Consistency guarantees:
+                        //  - Disk is always correct.
+                        //  - In-memory `activeFile.content` is kept
+                        //    in sync by the in-place mutation, so
+                        //    switching to edit mode after a
+                        //    wheel-zoom shows the same content.
+                        //  - The DOM shows the new width instantly
+                        //    because `attachWheelZoom` already
+                        //    applied `img.style.width` before we
+                        //    even get here (rAF batch).
+                        const persistImageSize = (newWidth: number) => {
+                            try {
+                                const f = resolvedFile();
+                                if (!f || f.path !== activeFile.path) return;
+                                const src = rawSrc;
+                                // Find the nth `![...](src)` match in
+                                // the source where the src portion
+                                // matches and the index == ordinal.
+                                const escapedSrc = src.replace(
+                                    /[.*+?^${}()|[\]\\]/g,
+                                    "\\$&",
+                                );
+                                const regex = new RegExp(
+                                    `!\\[([^\\]]*)\\]\\(${escapedSrc}\\)`,
+                                    "g",
+                                );
+                                // Walk through every `![...](src)`
+                                // match on this file and capture the
+                                // one whose 0-based index equals the
+                                // DOM ordinal of the clicked image.
+                                // We can't just break on the first
+                                // match because that would always
+                                // rewrite the first image even when
+                                // the user resized the second one.
+                                let target: {
+                                    index: number;
+                                    length: number;
+                                    alt: string;
+                                } | null = null;
+                                let iterMatch: RegExpExecArray | null;
+                                let count = 0;
+                                while ((iterMatch = regex.exec(f.content)) !== null) {
+                                    if (count === ordinal) {
+                                        target = {
+                                            index: iterMatch.index,
+                                            length: iterMatch[0].length,
+                                            alt: iterMatch[1],
+                                        };
+                                        break;
+                                    }
+                                    count++;
+                                }
+                                if (!target) return;
+                                const currentAlt = parseImageSize(target.alt).altText;
+                                const newAlt = formatImageAlt(
+                                    currentAlt,
+                                    newWidth,
+                                    null,
+                                );
+                                const newMd = `![${newAlt}](${src})`;
+                                const mStart = target.index;
+                                const mEnd = mStart + target.length;
+                                if (f.content.slice(mStart, mEnd) === newMd) return;
+                                const newContent =
+                                    f.content.slice(0, mStart) +
+                                    newMd +
+                                    f.content.slice(mEnd);
+                                // Persist to disk
+                                void invoke("write_file", {
+                                    relativePath: activeFile.path,
+                                    content: newContent,
+                                }).catch((err) => {
+                                    console.warn(
+                                        "[reading image-resize] write_file failed:",
+                                        err,
+                                    );
+                                });
+                                // Mutate in place — no reactive trigger.
+                                (f as any).content = newContent;
+                                img.setAttribute(
+                                    "alt",
+                                    currentAlt,
+                                );
+                            } catch (err) {
+                                console.warn(
+                                    "[reading image-resize] persist failed:",
+                                    err,
+                                );
+                            }
+                        };
+
                         img.addEventListener("contextmenu", (e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            showImageContextMenu(e, rawSrc, activeFile.path, img);
+                            showImageContextMenu(
+                                e,
+                                rawSrc,
+                                activeFile.path,
+                                img,
+                                persistImageSize,
+                            );
                         });
-                        attachWheelZoom(img);
+                        attachWheelZoom(img, { onResize: persistImageSize });
                         attachCtrlClick(img, rawSrc, activeFile.path);
                     });
 

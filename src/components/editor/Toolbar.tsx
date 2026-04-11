@@ -94,8 +94,21 @@ export const Toolbar: Component = () => {
 
   const currentViewMode = () =>
     editorStore.getViewModeForFile(vaultStore.activeFile()?.path ?? null);
-  const cycleToolbarViewMode = () =>
+  const cycleToolbarViewMode = () => {
+    // Force-flush any pending CM6 edits to disk BEFORE switching
+    // mode. Ctrl+S and the "close tab" handler use this same
+    // `mindzj:force-save` event to guarantee the on-disk content
+    // matches the in-memory buffer. Without this step, clicking
+    // the mode button right after typing (during the 2-second
+    // auto-save debounce window) would swap to reading / live-
+    // preview with the LAST-SAVED content and silently drop the
+    // unsaved edits — the user would see their changes "revert"
+    // which is both confusing and data-lossy. The listener in
+    // Editor.tsx calls `saveFileNow()` synchronously so this is
+    // an immediate, not deferred, save.
+    document.dispatchEvent(new CustomEvent("mindzj:force-save"));
     editorStore.cycleViewMode(vaultStore.activeFile()?.path ?? undefined);
+  };
   const viewModeLabel = () => {
     switch (currentViewMode()) {
       case "source":

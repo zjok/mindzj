@@ -85,6 +85,27 @@ function resolveImagePath(
 // ---------------------------------------------------------------------------
 
 /**
+ * Options for `attachWheelZoom`.
+ */
+export interface AttachWheelZoomOptions {
+    /**
+     * Called each time the handler commits a new width (once per
+     * rAF tick, NOT per wheel event). Used to persist the size to
+     * the markdown source so it survives reloads. The caller is
+     * responsible for finding the right image in the source and
+     * rewriting its alt suffix — this library doesn't know what
+     * source positions mean.
+     *
+     * The callback is debounced INTERNALLY by the rAF batching —
+     * spinning the wheel fires at most ~60 onResize calls/second.
+     * Callers that want to debounce further (e.g. only persist
+     * after the user stops wheeling) should layer their own
+     * `setTimeout` on top.
+     */
+    onResize?: (newWidth: number) => void;
+}
+
+/**
  * Attach a wheel listener to an individual <img> element.
  *
  * Key design decisions that fix the scroll bug:
@@ -104,14 +125,27 @@ function resolveImagePath(
  *     fast scroll wheel doesn't force synchronous layout on every
  *     single wheel tick.
  *
+ *  4. `opts.onResize` is called with the new committed width after
+ *     each rAF batch — the caller can persist the size to the
+ *     markdown source. A separate debounce layer lives on top so
+ *     we only actually write to disk once the wheel stops.
+ *
  * Returns a cleanup function to remove the listener.
  */
-export function attachWheelZoom(img: HTMLImageElement): (() => void) | null {
+export function attachWheelZoom(
+  img: HTMLImageElement,
+  opts: AttachWheelZoomOptions = {},
+): (() => void) | null {
   const s = settingsStore.settings();
   if (!s.image_wheel_zoom) return null;
 
   let rafId = 0;
   let pendingDelta = 0;
+  // Debounce the onResize persistence so a rapid wheel spin
+  // doesn't fire 60 source-edits per second. We commit the size
+  // to the source ~200ms after the last wheel event.
+  let persistTimer: ReturnType<typeof setTimeout> | null = null;
+  let lastCommittedWidth = 0;
 
   function handler(e: WheelEvent) {
     const settings = settingsStore.settings();
@@ -148,6 +182,18 @@ export function attachWheelZoom(img: HTMLImageElement): (() => void) | null {
       img.style.width = newWidth + "px";
       img.style.height = "auto";
       img.setAttribute("data-ppi-wheel-inline-width", String(newWidth));
+      lastCommittedWidth = newWidth;
+
+      // Schedule a debounced persist. We ALWAYS reset the timer
+      // on every rAF tick so a continuous wheel spin keeps
+      // deferring the commit until the user lets go.
+      if (opts.onResize) {
+        if (persistTimer) clearTimeout(persistTimer);
+        persistTimer = setTimeout(() => {
+          persistTimer = null;
+          opts.onResize!(lastCommittedWidth);
+        }, 200);
+      }
     });
   }
 
@@ -158,6 +204,10 @@ export function attachWheelZoom(img: HTMLImageElement): (() => void) | null {
     if (rafId) {
       cancelAnimationFrame(rafId);
       rafId = 0;
+    }
+    if (persistTimer) {
+      clearTimeout(persistTimer);
+      persistTimer = null;
     }
   };
 }
@@ -216,8 +266,16 @@ export function attachCtrlClick(
  * Supports:
  * - Percentage values like "50%" — relative to natural width
  * - Pixel values like "600px" — absolute pixel width
+ *
+ * If `onResize` is provided it's called once with the committed
+ * pixel width so the caller can persist the size to the markdown
+ * source (same path as the wheel-zoom persistence).
  */
-export function applyResizePreset(img: HTMLImageElement, preset: string) {
+export function applyResizePreset(
+  img: HTMLImageElement,
+  preset: string,
+  onResize?: (newWidth: number) => void,
+) {
   const trimmed = preset.trim();
   let newWidth: number;
 
@@ -236,6 +294,7 @@ export function applyResizePreset(img: HTMLImageElement, preset: string) {
   img.style.width = newWidth + "px";
   img.style.height = "auto";
   img.setAttribute("data-ppi-wheel-inline-width", String(newWidth));
+  if (onResize) onResize(newWidth);
 }
 
 /**
