@@ -59,6 +59,12 @@ export const CommandPalette: Component<CommandPaletteProps> = (props) => {
   const [query, setQuery] = createSignal("");
   const [selectedIndex, setSelectedIndex] = createSignal(0);
   let inputRef: HTMLInputElement | undefined;
+  // Ref to the scrollable results list so arrow-key navigation can
+  // scroll the selected item into view even when it's beyond the
+  // visible area. Without this the selection would jump off-screen
+  // and the user would have no idea why `Enter` opened a file they
+  // couldn't see.
+  let listRef: HTMLDivElement | undefined;
 
   const commands = createMemo<PaletteItem[]>(() => [
     {
@@ -114,8 +120,15 @@ export const CommandPalette: Component<CommandPaletteProps> = (props) => {
     const q = query().toLowerCase().trim();
     const items = [...commands(), ...flattenEntries(vaultStore.fileTree())];
 
+    // Previously capped at 20 unconditionally. That made the arrow
+    // keys unable to reach item #21+ even though the scroll area
+    // could hold them, so I relaxed the cap: show the first 50 when
+    // there's no query (so the palette doesn't take seconds to
+    // render on vaults with thousands of files), and the first 200
+    // filtered matches when the user is typing — that's plenty of
+    // fuzzy-match results in practice.
     if (!q) {
-      return items.slice(0, 20);
+      return items.slice(0, 50);
     }
 
     return items
@@ -123,7 +136,7 @@ export const CommandPalette: Component<CommandPaletteProps> = (props) => {
         const target = `${item.label} ${item.description || ""}`.toLowerCase();
         return q.split("").every((char) => target.includes(char));
       })
-      .slice(0, 20);
+      .slice(0, 200);
   });
 
   const runSelected = async () => {
@@ -136,6 +149,23 @@ export const CommandPalette: Component<CommandPaletteProps> = (props) => {
   onMount(() => {
     inputRef?.focus();
 
+    const scrollSelectedIntoView = () => {
+      // Defer to next frame so the DOM has rendered the new
+      // selection highlight before we ask the browser to scroll.
+      requestAnimationFrame(() => {
+        if (!listRef) return;
+        const el = listRef.querySelector<HTMLElement>(
+          `[data-palette-index="${selectedIndex()}"]`,
+        );
+        if (!el) return;
+        // Use block: "nearest" so we only scroll the minimum amount
+        // needed — never scroll if the element is already visible,
+        // only scroll just enough to get it inside the viewport.
+        // This matches the behaviour of VS Code's command palette.
+        el.scrollIntoView({ block: "nearest", inline: "nearest" });
+      });
+    };
+
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
@@ -146,10 +176,35 @@ export const CommandPalette: Component<CommandPaletteProps> = (props) => {
       const items = filteredItems();
       if (event.key === "ArrowDown") {
         event.preventDefault();
-        setSelectedIndex((current) => Math.min(current + 1, items.length - 1));
+        // Wrap around at the bottom so pressing Down at the last
+        // item jumps to the first. This is what power users expect
+        // and is cheap to implement.
+        setSelectedIndex((current) =>
+          items.length === 0
+            ? 0
+            : current >= items.length - 1
+              ? 0
+              : current + 1,
+        );
+        scrollSelectedIntoView();
       } else if (event.key === "ArrowUp") {
         event.preventDefault();
-        setSelectedIndex((current) => Math.max(current - 1, 0));
+        setSelectedIndex((current) =>
+          items.length === 0
+            ? 0
+            : current <= 0
+              ? items.length - 1
+              : current - 1,
+        );
+        scrollSelectedIntoView();
+      } else if (event.key === "Home") {
+        event.preventDefault();
+        setSelectedIndex(0);
+        scrollSelectedIntoView();
+      } else if (event.key === "End") {
+        event.preventDefault();
+        setSelectedIndex(Math.max(0, items.length - 1));
+        scrollSelectedIntoView();
       } else if (event.key === "Enter") {
         event.preventDefault();
         void runSelected();
@@ -167,8 +222,17 @@ export const CommandPalette: Component<CommandPaletteProps> = (props) => {
         inset: "0",
         "z-index": "9999",
         display: "flex",
-        "justify-content": "center",
-        "padding-top": "15vh",
+        "flex-direction": "column",
+        "align-items": "center",
+        // Use percentages instead of fixed vh/px so the palette
+        // tracks window resizes live. At the tiniest sensible size
+        // (320px window) the palette still has ~280px of usable
+        // width thanks to the margin, and at 4K the 720px max cap
+        // stops it from stretching ridiculously wide.
+        "padding-top": "10vh",
+        "padding-bottom": "10vh",
+        "padding-left": "20px",
+        "padding-right": "20px",
       }}
     >
       <div
@@ -183,13 +247,22 @@ export const CommandPalette: Component<CommandPaletteProps> = (props) => {
       <div
         style={{
           position: "relative",
-          width: "540px",
-          "max-width": "90vw",
+          // Adaptive width: grows to fill the available horizontal
+          // space minus the 20px padding on each side, up to a
+          // reasonable max that keeps long paths readable.
+          width: "min(720px, 100%)",
+          // Adaptive height: the outer flex column sets a total of
+          // 80vh (100 - 10 - 10) available to the palette; let it
+          // fill that, with a min of 300px so it never collapses.
+          "max-height": "80vh",
+          "min-height": "200px",
           background: "var(--mz-bg-secondary)",
           border: "1px solid var(--mz-border-strong)",
           "border-radius": "var(--mz-radius-lg)",
           "box-shadow": "0 16px 48px rgba(0, 0, 0, 0.3)",
           overflow: "hidden",
+          display: "flex",
+          "flex-direction": "column",
         }}
       >
         <div
@@ -222,8 +295,15 @@ export const CommandPalette: Component<CommandPaletteProps> = (props) => {
         </div>
 
         <div
+          ref={listRef}
           style={{
-            "max-height": "320px",
+            // Flex-grow the result list so it fills all remaining
+            // vertical space inside the 80vh-capped palette. This is
+            // what makes the palette adaptive — small windows get a
+            // short list, big windows get a tall list, but we always
+            // honor the viewport without hard-coding pixels.
+            flex: "1",
+            "min-height": "0",
             overflow: "auto",
             padding: "var(--mz-space-1) 0",
           }}
@@ -231,6 +311,7 @@ export const CommandPalette: Component<CommandPaletteProps> = (props) => {
           <For each={filteredItems()}>
             {(item, index) => (
               <div
+                data-palette-index={index()}
                 onClick={async () => {
                   await item.action();
                   props.onClose();

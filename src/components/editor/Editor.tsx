@@ -669,7 +669,8 @@ export const Editor: Component<EditorProps> = (props) => {
             
             searchCounterExtension(),
 
-            // Link handler (Ctrl+Click, wiki link autocomplete)
+            // Link handler (Ctrl+Click, wiki link autocomplete,
+            // Ctrl+Alt+C/V link-anchor copy/paste)
             linkHandlerExtension(),
 
             // Source mode only: tag heading lines with mz-src-h1…h6
@@ -750,6 +751,51 @@ export const Editor: Component<EditorProps> = (props) => {
                 { key: "Mod-/", run: (v) => toggleComment(v) },
                 // Ctrl+Shift+.: toggle callout/blockquote
                 { key: "Mod-Shift-.", run: (v) => toggleBlockquote(v) },
+                // Ctrl+Alt+Left / Ctrl+Alt+Right → switch tabs. The
+                // same shortcut is ALSO handled by the capture-phase
+                // keydown in App.tsx, but keeping a CM6 binding here
+                // is a safety net for the case where the webview
+                // doesn't deliver the event to the document listener
+                // (which has bitten us in the past on certain
+                // keyboard layouts and on Tauri focus transitions).
+                //
+                // The two paths are idempotent: whichever one fires
+                // first calls preventDefault, which suppresses the
+                // other. If somehow both fired, they'd both just set
+                // the active file to the same `files[newIdx]`, so
+                // there's no double-step bug.
+                {
+                    key: "Ctrl-Alt-ArrowLeft",
+                    run: () => {
+                        const files = vaultStore.openFiles();
+                        if (files.length === 0) return false;
+                        const cur = vaultStore.activeFile()?.path ?? null;
+                        const idx = cur
+                            ? files.findIndex((f) => f.path === cur)
+                            : -1;
+                        const prev =
+                            idx <= 0 ? files.length - 1 : idx - 1;
+                        vaultStore.switchToFile(files[prev].path);
+                        return true;
+                    },
+                },
+                {
+                    key: "Ctrl-Alt-ArrowRight",
+                    run: () => {
+                        const files = vaultStore.openFiles();
+                        if (files.length === 0) return false;
+                        const cur = vaultStore.activeFile()?.path ?? null;
+                        const idx = cur
+                            ? files.findIndex((f) => f.path === cur)
+                            : -1;
+                        const next =
+                            idx < 0 || idx >= files.length - 1
+                                ? 0
+                                : idx + 1;
+                        vaultStore.switchToFile(files[next].path);
+                        return true;
+                    },
+                },
             ]),
 
             EditorView.updateListener.of((update) => {

@@ -287,6 +287,7 @@ html[data-theme="light"] .cm-editor .cm-panels-bottom {
 .cm-editor .mz-lp-italic { font-style: italic; color: var(--mz-syntax-italic); }
 .cm-editor .mz-lp-strikethrough { text-decoration: line-through; color: var(--mz-syntax-strikethrough); }
 .cm-editor .mz-lp-highlight { background: var(--mz-syntax-highlight-bg); border-radius: 2px; padding: 1px 2px; }
+
 .cm-editor .mz-lp-inline-code {
   font-family: var(--mz-font-mono);
   font-size: 0.9em;

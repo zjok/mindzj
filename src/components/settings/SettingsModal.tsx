@@ -404,6 +404,39 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
                 onChange={(v) => set("accent_color", v)}
                 onClear={() => set("accent_color", "#1aad3f")}
               />
+              {/*
+                Per-element color overrides. Each one has `onClear`
+                pointing to `null` which removes the override and
+                lets the theme default come through. `SettingColor`
+                already renders a "reset" button next to the input
+                whenever `onClear` is provided, so the UX "setting
+                前面显示一个恢复默认按钮" is satisfied by the existing
+                control. The `value` prop uses the theme's default
+                hex when the override is null, so the color picker
+                shows the "currently effective" color rather than an
+                empty box.
+              */}
+              <SettingColor
+                label={t("settings.headingColor")}
+                description={t("settings.headingColorDescription")}
+                value={s().heading_color || "#e5c07b"}
+                onChange={(v) => set("heading_color", v)}
+                onClear={() => set("heading_color", null)}
+              />
+              <SettingColor
+                label={t("settings.linkColor")}
+                description={t("settings.linkColorDescription")}
+                value={s().link_color || "#528bff"}
+                onChange={(v) => set("link_color", v)}
+                onClear={() => set("link_color", null)}
+              />
+              <SettingColor
+                label={t("settings.highlightColor")}
+                description={t("settings.highlightColorDescription")}
+                value={s().highlight_color || "#fff59d"}
+                onChange={(v) => set("highlight_color", v)}
+                onClear={() => set("highlight_color", null)}
+              />
               <SettingSelect
                 label={t("common.interfaceLanguage")}
                 description={t("settings.interfaceLanguageDescription")}
@@ -1019,9 +1052,18 @@ interface HotkeyDef {
 
 const DEFAULT_HOTKEYS: HotkeyDef[] = [
   { command: "save", labelKey: "hotkeys.saveFile", defaultKeys: "Ctrl+S" },
+  { command: "new-note", labelKey: "hotkeys.newNote", defaultKeys: "Ctrl+N" },
   { command: "command-palette", labelKey: "hotkeys.commandPalette", defaultKeys: "Ctrl+P" },
+  { command: "command-palette-alt", labelKey: "hotkeys.commandPaletteAlt", defaultKeys: "Ctrl+O" },
+  { command: "close-tab", labelKey: "hotkeys.closeTab", defaultKeys: "Ctrl+W" },
+  { command: "reopen-tab", labelKey: "hotkeys.reopenTab", defaultKeys: "Ctrl+Shift+T" },
+  { command: "tab-prev", labelKey: "hotkeys.tabPrev", defaultKeys: "Ctrl+Alt+Left" },
+  { command: "tab-next", labelKey: "hotkeys.tabNext", defaultKeys: "Ctrl+Alt+Right" },
+  { command: "toggle-window-visible", labelKey: "hotkeys.toggleWindowVisible", defaultKeys: "Ctrl+J" },
   { command: "toggle-sidebar", labelKey: "hotkeys.toggleSidebar", defaultKeys: "Ctrl+`" },
   { command: "toggle-view-mode", labelKey: "hotkeys.toggleViewMode", defaultKeys: "Ctrl+E" },
+  { command: "task-list", labelKey: "hotkeys.taskList", defaultKeys: "Ctrl+L" },
+  { command: "code-block", labelKey: "hotkeys.codeBlock", defaultKeys: "Ctrl+Shift+C" },
   { command: "settings", labelKey: "hotkeys.openSettings", defaultKeys: "Ctrl+," },
   { command: "zoom-in", labelKey: "hotkeys.zoomIn", defaultKeys: "Ctrl+=" },
   { command: "zoom-out", labelKey: "hotkeys.zoomOut", defaultKeys: "Ctrl+-" },

@@ -204,6 +204,15 @@ pub struct AppSettings {
     // Appearance
     #[serde(default)]
     pub accent_color: Option<String>,
+    // Per-element color overrides. None = use the theme default.
+    // Set via Settings → Appearance → Custom colors, each with a
+    // reset-to-default button.
+    #[serde(default)]
+    pub heading_color: Option<String>,
+    #[serde(default)]
+    pub link_color: Option<String>,
+    #[serde(default)]
+    pub highlight_color: Option<String>,
     #[serde(default)]
     pub css_snippet: Option<String>,
     /// Names of enabled CSS snippet files under `.mindzj/snippets/`.
@@ -269,6 +278,9 @@ impl Default for AppSettings {
             // DEFAULT_SETTINGS.locale on the JS side.
             locale: "en".to_string(),
             accent_color: None,
+            heading_color: None,
+            link_color: None,
+            highlight_color: None,
             css_snippet: None,
             enabled_css_snippets: Vec::new(),
             attachment_folder: ".mindzj/images".to_string(),

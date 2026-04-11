@@ -64,6 +64,14 @@ export interface AppSettings {
   default_view_mode: string;
   locale: string;
   accent_color: string | null;
+  // Per-element color overrides. When null, the theme's built-in
+  // CSS variable is used; when set, it replaces the variable on
+  // `document.documentElement` via a reactive effect further down.
+  // Each one has a corresponding "reset" button in Settings →
+  // Appearance that clears the override back to null.
+  heading_color: string | null;
+  link_color: string | null;
+  highlight_color: string | null;
   css_snippet: string | null;
   /**
    * List of enabled CSS snippet filenames from `.mindzj/snippets/`.
@@ -117,6 +125,9 @@ const DEFAULT_SETTINGS: AppSettings = {
   // or from Settings → Appearance once a vault is open.
   locale: "en",
   accent_color: "#1aad3f",
+  heading_color: null,
+  link_color: null,
+  highlight_color: null,
   css_snippet: null,
   enabled_css_snippets: [],
   attachment_folder: DEFAULT_ATTACHMENT_FOLDER,
@@ -218,6 +229,42 @@ function createSettingsStore() {
       document.documentElement.style.setProperty("--mz-accent", color);
     } else {
       document.documentElement.style.removeProperty("--mz-accent");
+    }
+  });
+
+  // Apply per-element color overrides (heading / link / highlight)
+  // to the DOM via CSS custom properties. When a setting is null,
+  // the variable is removed so the theme's default shines through.
+  //
+  // Highlight is trickier: the base theme uses an rgba() for the
+  // highlight background (so the colored block is translucent over
+  // the page background). We can't trivially convert a #RRGGBB hex
+  // override into rgba, so we just set the value verbatim — the user
+  // picks the color they want and gets that color at full opacity.
+  // That's the behaviour most users expect from a "highlight color"
+  // picker anyway.
+  createEffect(() => {
+    const color = settings().heading_color;
+    if (color) {
+      document.documentElement.style.setProperty("--mz-syntax-heading", color);
+    } else {
+      document.documentElement.style.removeProperty("--mz-syntax-heading");
+    }
+  });
+  createEffect(() => {
+    const color = settings().link_color;
+    if (color) {
+      document.documentElement.style.setProperty("--mz-syntax-link", color);
+    } else {
+      document.documentElement.style.removeProperty("--mz-syntax-link");
+    }
+  });
+  createEffect(() => {
+    const color = settings().highlight_color;
+    if (color) {
+      document.documentElement.style.setProperty("--mz-syntax-highlight-bg", color);
+    } else {
+      document.documentElement.style.removeProperty("--mz-syntax-highlight-bg");
     }
   });
 

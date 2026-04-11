@@ -192,6 +192,16 @@ const App: Component = () => {
         const normalized = key.length === 1 ? key.toUpperCase() : key;
         if (normalized === "+" || normalized === "ADD" || normalized === "Plus") return "=";
         if (normalized === "SUBTRACT" || normalized === "Minus") return "-";
+        // Normalise arrow keys so hotkey strings like "Ctrl+Alt+Left"
+        // actually match DOM events whose `e.key` is `"ArrowLeft"`.
+        // The HotkeysPanel capture UI already uses the short form
+        // (Up / Down / Left / Right / Space) when saving overrides,
+        // so we must match that when comparing.
+        if (normalized === "ArrowLeft") return "Left";
+        if (normalized === "ArrowRight") return "Right";
+        if (normalized === "ArrowUp") return "Up";
+        if (normalized === "ArrowDown") return "Down";
+        if (normalized === " ") return "Space";
         return normalized;
     }
 
@@ -924,6 +934,56 @@ const App: Component = () => {
             return;
         }
 
+        // Ctrl+Shift+I / F12 / Ctrl+Shift+J / Ctrl+Shift+C → block
+        // browser-default devtools openers. Tauri v2 enables the
+        // `devtools` Cargo feature in release for our own diagnosis,
+        // but we don't want the user's muscle memory to accidentally
+        // pop it. Ctrl+Shift+C is ALSO rebound below to "insert code
+        // block" so users can still get to that function.
+        if (
+            (e.ctrlKey || e.metaKey) &&
+            e.shiftKey &&
+            !e.altKey &&
+            (e.key === "I" || e.key === "J" || e.key === "i" || e.key === "j")
+        ) {
+            e.preventDefault();
+            e.stopPropagation();
+            return;
+        }
+        if (e.key === "F12") {
+            e.preventDefault();
+            e.stopPropagation();
+            return;
+        }
+
+        // Ctrl+J (no shift/alt) → toggle MindZJ window visibility
+        // (show/hide from the taskbar). Browsers bind Ctrl+J to the
+        // Downloads popup by default — this both intercepts that
+        // behaviour AND gives the user a way to quickly hide the
+        // window without reaching for the titlebar minimize button.
+        // Configurable via `toggle-window-visible` hotkey.
+        if (matchesHotkey(e, getHotkey("toggle-window-visible", "Ctrl+J"))) {
+            e.preventDefault();
+            e.stopPropagation();
+            void (async () => {
+                try {
+                    const w = getCurrentWindow();
+                    const visible = await w.isVisible();
+                    const minimized = await w.isMinimized();
+                    if (visible && !minimized) {
+                        await w.hide();
+                    } else {
+                        await w.unminimize().catch(() => {});
+                        await w.show();
+                        await w.setFocus().catch(() => {});
+                    }
+                } catch (err) {
+                    console.warn("[toggle-window-visible] failed:", err);
+                }
+            })();
+            return;
+        }
+
         // Screenshot (default Alt+G, configurable)
         if (matchesHotkey(e, getHotkey("screenshot", "Alt+G"))) {
             e.preventDefault();
@@ -950,12 +1010,96 @@ const App: Component = () => {
             return;
         }
 
-        if (matchesHotkey(e, getHotkey("command-palette", "Ctrl+P"))) {
+        if (
+            matchesHotkey(e, getHotkey("command-palette", "Ctrl+P")) ||
+            // Ctrl+O is an alias — some users instinctively reach for
+            // "Ctrl+O" (the browser/OS "Open file…" shortcut) and we
+            // route that to the command palette's fuzzy file search
+            // since it does the same job better than a native dialog.
+            matchesHotkey(e, getHotkey("command-palette-alt", "Ctrl+O"))
+        ) {
             e.preventDefault();
             e.stopPropagation();
             setShowCommandPalette(v => !v);
             return;
         }
+        // Ctrl+N → create a new markdown note. Uses the existing
+        // handleNewTab() flow (same prompt, same default location).
+        if (matchesHotkey(e, getHotkey("new-note", "Ctrl+N"))) {
+            e.preventDefault();
+            e.stopPropagation();
+            void handleNewTab();
+            return;
+        }
+        // Ctrl+Alt+Left / Ctrl+Alt+Right → switch to previous / next
+        // tab in the same pane, wrapping around at the ends.
+        //
+        // IMPORTANT: we don't go through `matchesHotkey(getHotkey(...))`
+        // here because a hotkey override save from an older version of
+        // the app may have stored the key as `Ctrl+Alt+ArrowLeft` (the
+        // raw DOM name) instead of the normalized `Ctrl+Alt+Left`, and
+        // debugging why a particular user's override wouldn't match was
+        // eating real time. Hard-coding the key check guarantees the
+        // tab switch fires regardless of what's in settings.
+        //
+        // We also call `handleTabSelect(path)` (what a TabBar click
+        // would do) instead of `openFileRouted(path)` — the latter
+        // re-reads the file from disk on every press and only updates
+        // the vault-level active file, which can leave the pane slot
+        // out of sync with the tab.
+        if (
+            (e.ctrlKey || e.metaKey) &&
+            e.altKey &&
+            !e.shiftKey &&
+            (e.key === "ArrowLeft" ||
+                e.key === "Left" ||
+                e.key === "ArrowRight" ||
+                e.key === "Right")
+        ) {
+            e.preventDefault();
+            e.stopPropagation();
+            const files = vaultStore.openFiles();
+            if (files.length === 0) return;
+            const currentPath =
+                activePanePath() ?? vaultStore.activeFile()?.path ?? null;
+            const idx = currentPath
+                ? files.findIndex((f) => f.path === currentPath)
+                : -1;
+            const goLeft = e.key === "ArrowLeft" || e.key === "Left";
+            let newIdx: number;
+            if (goLeft) {
+                newIdx = idx <= 0 ? files.length - 1 : idx - 1;
+            } else {
+                newIdx =
+                    idx < 0 || idx >= files.length - 1 ? 0 : idx + 1;
+            }
+            const next = files[newIdx];
+            if (next) {
+                handleTabSelect(next.path);
+            }
+            return;
+        }
+        // Ctrl+Shift+C → insert a fenced code block in markdown.
+        // Browsers bind this to "Inspect element" in devtools — we
+        // intercept + preventDefault earlier above, but we ALSO
+        // dispatch the editor command so the key is useful instead
+        // of dead. Reuses the existing `codeblock` editor command
+        // which wraps the selection in ``` fences.
+        if (matchesHotkey(e, getHotkey("code-block", "Ctrl+Shift+C"))) {
+            e.preventDefault();
+            e.stopPropagation();
+            document.dispatchEvent(new CustomEvent("mindzj:editor-command", {
+                detail: { command: "codeblock" },
+            }));
+            return;
+        }
+        // Ctrl+Alt+C / Ctrl+Alt+V are NOT intercepted here. The
+        // `linkHandlerExtension` in the editor installs a CM6
+        // bubble-phase keydown handler (`linkAnchorHandler`) that
+        // copies the current line/selection as a `filename#anchor`
+        // reference and pastes it back as a `[[filename#anchor]]`
+        // wiki link. Letting the event fall through from this global
+        // capture handler is exactly what allows CM6 to see it.
         if (matchesHotkey(e, getHotkey("save", "Ctrl+S"))) {
             e.preventDefault();
             e.stopPropagation();
@@ -978,12 +1122,16 @@ const App: Component = () => {
             }
             return;
         }
-        // Ctrl+T: reopen the most recently closed tab. Mirrors the
-        // browser/VS Code shortcut. The closed-tabs history is a
-        // bounded LIFO stack pushed by `handleTabClose`. Pressing
-        // Ctrl+T multiple times in a row reopens tabs in
-        // reverse-close order (most recent first).
-        if (matchesHotkey(e, getHotkey("reopen-tab", "Ctrl+T"))) {
+        // Ctrl+Shift+T: reopen the most recently closed tab. Mirrors
+        // the Chrome/Firefox "reopen closed tab" shortcut. Moved
+        // from plain Ctrl+T because Ctrl+T on its own tends to clash
+        // with other editor bindings (e.g. "transpose chars") and
+        // the Shift variant is what most users already have in
+        // muscle memory from their browser. The closed-tabs history
+        // is a bounded LIFO stack pushed by `handleTabClose`.
+        // Pressing the shortcut multiple times in a row reopens tabs
+        // in reverse-close order (most recent first).
+        if (matchesHotkey(e, getHotkey("reopen-tab", "Ctrl+Shift+T"))) {
             e.preventDefault();
             e.stopPropagation();
             reopenLastClosedTab();

@@ -7,15 +7,18 @@
  *    - Markdown links [text](url) → open file or external URL
  *    - Footnote refs [^id] → jump to footnote definition
  * 2. [[ autocomplete for wiki links (file name suggestions)
+ *    - Tab accepts the currently-selected completion
  * 3. Visual feedback: underline links on Ctrl hover
+ * 4. Ctrl+Alt+C / Ctrl+Alt+V — copy/paste a wiki link anchor
  */
 
-import { EditorView, ViewPlugin } from "@codemirror/view";
+import { EditorView, ViewPlugin, keymap } from "@codemirror/view";
 import { Extension } from "@codemirror/state";
 import { invoke } from "@tauri-apps/api/core";
 import {
     autocompletion,
     startCompletion,
+    acceptCompletion,
     CompletionContext,
     CompletionResult,
     Completion,
@@ -385,12 +388,15 @@ function wikiLinkCompletions(context: CompletionContext): CompletionResult | nul
             return { from: headingFrom, options: [{ label: t("common.loading"), type: "text", apply: "" }], validFor: /^[^\]#]*$/ };
         }
 
+        // Heading completions: plain text, no icon and no `detail` label.
+        // CodeMirror shows a small icon next to each completion based on
+        // its `type` field (e.g. `property` renders a task-like square),
+        // and the `detail` is shown to the right of the label. The user
+        // wants headings to be just the text, so we omit both fields.
         const options: Completion[] = cached.headings
             .filter((h) => !headingQuery || h.toLowerCase().includes(headingQuery))
             .map((h) => ({
                 label: h,
-                type: "property",
-                detail: t("linkHandler.heading"),
                 apply: h,
             }))
             .slice(0, 50);
@@ -404,11 +410,16 @@ function wikiLinkCompletions(context: CompletionContext): CompletionResult | nul
     const entries = vaultStore.fileTree();
     const allPaths = flattenEntries(entries);
 
+    // File completions: single option per file, no `.md` suffix in either
+    // the label OR the `detail`. Previously the entry had `detail: p` which
+    // made CodeMirror render `filename   filename.md` on the same row —
+    // the user perceived the trailing `.md` path as a second competing
+    // option, so we omit it entirely and show just the pretty file name.
     const options: Completion[] = allPaths
         .filter((p) => p.endsWith(".md"))
         .map((p) => {
             const name = p.replace(/\.md$/, "");
-            return { label: name, type: "file", detail: p };
+            return { label: name, type: "file" };
         })
         .filter((opt) => query === "" || opt.label.toLowerCase().includes(query))
         .slice(0, 50);
@@ -425,13 +436,24 @@ function wikiLinkCompletions(context: CompletionContext): CompletionResult | nul
 // ---------------------------------------------------------------------------
 // Ctrl+Alt+C / Ctrl+Alt+V — link anchor copy/paste
 // ---------------------------------------------------------------------------
+//
+// This is the original "3 versions ago" behavior the user asked us to
+// restore:
+//
+//   Ctrl+Alt+C  → store `<filename>#<anchor>` in a session variable.
+//     `<anchor>` is the current heading text when the cursor is on a
+//     heading, else the currently-selected text, else the current
+//     line's trimmed text. `<filename>` is the active file's path
+//     with the `.md` extension stripped.
+//
+//   Ctrl+Alt+V  → insert `[[<stored value>]]` at the cursor. A
+//     second press without a preceding copy inserts nothing.
+//
+// The handler runs on the CM6 bubble phase via EditorView.domEventHandlers.
+// The old `anchor-copy`/`anchor-paste` handlers in App.tsx's global
+// keydown (capture phase) have been removed, so Ctrl+Alt+C/V now fall
+// through to this handler when the editor has focus.
 
-/**
- * Ctrl+Alt+C: copy the selected text as a link anchor reference.
- *   Stores `filename#heading` or `filename#line-text` in a session var.
- *
- * Ctrl+Alt+V: paste a wiki link to the previously copied anchor.
- */
 let _linkAnchorClipboard: string | null = null;
 
 const linkAnchorHandler = EditorView.domEventHandlers({
@@ -439,7 +461,7 @@ const linkAnchorHandler = EditorView.domEventHandlers({
         if (!(event.ctrlKey || event.metaKey) || !event.altKey) return false;
 
         if (event.key === "c" || event.key === "C") {
-            // Copy: take the current selection (or the line text) as anchor
+            // Copy: take the current heading / selection / line as anchor
             const sel = view.state.selection.main;
             const line = view.state.doc.lineAt(sel.head);
             const activeFile = vaultStore.activeFile();
@@ -448,15 +470,12 @@ const linkAnchorHandler = EditorView.domEventHandlers({
             const fileName = activeFile.path.replace(/\.md$/, "");
             let anchor: string;
 
-            // Check if the line is a heading
             const headingMatch = line.text.match(/^(#{1,6})\s+(.+)$/);
             if (headingMatch) {
                 anchor = headingMatch[2].trim();
             } else if (sel.from !== sel.to) {
-                // Use selected text
                 anchor = view.state.sliceDoc(sel.from, sel.to).trim();
             } else {
-                // Use full line text
                 anchor = line.text.trim();
             }
 
@@ -467,7 +486,6 @@ const linkAnchorHandler = EditorView.domEventHandlers({
 
         if (event.key === "v" || event.key === "V") {
             if (!_linkAnchorClipboard) return false;
-            // Insert wiki link at cursor
             const link = `[[${_linkAnchorClipboard}]]`;
             const { head } = view.state.selection.main;
             view.dispatch({
@@ -483,6 +501,19 @@ const linkAnchorHandler = EditorView.domEventHandlers({
 });
 
 // ---------------------------------------------------------------------------
+// Tab key → accept wikilink completion
+// ---------------------------------------------------------------------------
+//
+// `acceptCompletion` is a CodeMirror command that commits the currently
+// selected autocomplete item. When no completion popup is open it
+// returns false, so binding it to Tab here doesn't clobber the normal
+// Tab-inserts-indent behavior — CM6 falls through to the next key
+// handler in the keymap chain.
+const completionAcceptKeymap = keymap.of([
+    { key: "Tab", run: acceptCompletion },
+]);
+
+// ---------------------------------------------------------------------------
 // Export
 // ---------------------------------------------------------------------------
 
@@ -492,6 +523,7 @@ export function linkHandlerExtension(): Extension {
         ctrlHoverStyle,
         ctrlHoverPlugin,
         linkAnchorHandler,
+        completionAcceptKeymap,
         autocompletion({
             override: [wikiLinkCompletions],
             activateOnTyping: true,
