@@ -1,0 +1,222 @@
+# MindZJ release workflow
+#
+# Builds Windows (.msi + NSIS .exe), Linux (.deb + .rpm + AppImage),
+# and macOS (.dmg universal) installers in parallel on native GitHub
+# Actions runners, then attaches them all to a DRAFT GitHub Release.
+#
+# How to use:
+#
+#   1. Bump versions in these three files to match (e.g. 0.1.1):
+#        src-tauri/Cargo.toml         version = "0.1.1"
+#        src-tauri/tauri.conf.json    "version": "0.1.1"
+#        package.json                 "version": "0.1.1"
+#      All three MUST be identical or Tauri will produce mis-named
+#      installer files.
+#
+#   2. Tag + push:
+#        git tag v0.1.1
+#        git push origin v0.1.1
+#
+#   3. Watch the build at github.com/zjok/mindzj/actions
+#      (~15 min cold cache, ~5 min warm cache)
+#
+#   4. When all three matrix jobs are green, go to
+#      github.com/zjok/mindzj/releases, find the draft
+#      "MindZJ v0.1.1", verify the 6 artifacts are attached,
+#      edit release notes if needed, and click Publish release.
+#
+# You can also trigger this manually from the Actions tab via
+# "Run workflow", providing the tag name as an input — useful for
+# re-running a failed matrix leg without creating a new git tag.
+
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Release tag name (e.g. v0.1.0). Required only when running manually from the Actions tab — on a `git push --tags` this is filled in automatically.'
+        required: true
+        type: string
+        default: 'v0.1.0'
+
+# Minimum permissions needed to create releases and upload assets.
+# Matches GitHub's "least privilege" guidance — the workflow cannot
+# modify branches, write packages, or touch anything else in the repo.
+permissions:
+  contents: write
+
+# Cancel any in-progress run for the same tag if a new push arrives.
+# Prevents double-publishing if someone force-pushes a tag.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ────────────────────────────────────────────────────────────────
+  #  Job 1: create the draft GitHub Release (runs once, not matrix)
+  # ────────────────────────────────────────────────────────────────
+  #
+  # We create the draft release BEFORE any build so the matrix jobs
+  # know which numeric release ID to upload to. If any matrix job
+  # fails, the draft release stays around with partial artifacts —
+  # the user can inspect it, fix the issue, and re-run the failed
+  # platform via workflow_dispatch.
+  create-release:
+    name: Create draft release
+    runs-on: ubuntu-22.04
+    outputs:
+      release_id: ${{ steps.create-release.outputs.result }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create draft GitHub Release
+        id: create-release
+        uses: actions/github-script@v7
+        env:
+          # `github.ref_name` gives "v0.1.0" for tag pushes but "main"
+          # for workflow_dispatch runs on the default branch — so for
+          # manual runs we prefer the user-supplied `inputs.tag_name`.
+          TAG_NAME: ${{ inputs.tag_name || github.ref_name }}
+        with:
+          result-encoding: string
+          script: |
+            const tagName = process.env.TAG_NAME;
+            const { data } = await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: tagName,
+              name: `MindZJ ${tagName}`,
+              body: [
+                `## MindZJ ${tagName}`,
+                ``,
+                `Draft release — artifacts uploaded by the GitHub Actions`,
+                `\`release\` workflow. Review the installers below and`,
+                `publish this release when you're ready.`,
+                ``,
+                `### Downloads`,
+                ``,
+                `- **Windows**: \`*-setup.exe\` (NSIS) or \`*.msi\` (MSI)`,
+                `- **macOS**: \`*_universal.dmg\` (Intel + Apple Silicon)`,
+                `- **Linux**: \`*.deb\`, \`*.rpm\`, or \`*.AppImage\``,
+                ``,
+                `### Known notes`,
+                ``,
+                `- Installers are **unsigned**. Windows SmartScreen will`,
+                `  show "Unknown publisher" — click *More info* →`,
+                `  *Run anyway*. macOS Gatekeeper will block first launch —`,
+                `  right-click the app → *Open* → *Open* in the dialog.`,
+                `- Licensed under AGPL-3.0-or-later. See \`LICENSE\` in the`,
+                `  source repo for the full dual-license terms.`,
+              ].join("\n"),
+              draft: true,
+              prerelease: false,
+              generate_release_notes: true,
+            });
+            core.setOutput("release_id", data.id);
+            return data.id;
+
+  # ────────────────────────────────────────────────────────────────
+  #  Job 2: build + upload installers (matrix across 3 platforms)
+  # ────────────────────────────────────────────────────────────────
+  #
+  # `include`-style matrix so each leg can carry its own `args`
+  # string. macOS needs `--target universal-apple-darwin` to produce
+  # a fat DMG that runs on both Intel and Apple Silicon Macs.
+  #
+  # `fail-fast: false` lets the three platforms build independently —
+  # a failure on macOS shouldn't abort the Linux and Windows builds
+  # that have already started.
+  build-tauri:
+    name: Build on ${{ matrix.platform }}
+    needs: create-release
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: 'macos-latest'
+            args: '--target universal-apple-darwin'
+            # `macos-latest` is Apple Silicon. We add the x86_64
+            # target below so the universal build can link both archs.
+          - platform: 'ubuntu-22.04'
+            args: ''
+            # Pinned to 22.04 because ubuntu-24.04 has had intermittent
+            # `libwebkit2gtk-4.1-dev` packaging issues reported in
+            # Tauri GitHub issues. Bump when upstream confirms stable.
+          - platform: 'windows-latest'
+            args: ''
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          # Only macOS needs the extra darwin targets — on Linux and
+          # Windows this expression evaluates to an empty string, which
+          # dtolnay/rust-toolchain treats as "no additional targets".
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - name: Cache Rust build
+        uses: swatinem/rust-cache@v2
+        with:
+          # The `path -> target_dir` syntax tells the action where the
+          # workspace root and its `target/` directory live. Caching
+          # cuts subsequent cold starts from ~10 min to ~3 min for
+          # the Rust portion of the build.
+          workspaces: './src-tauri -> target'
+          # Use a platform-scoped key so each OS caches its own build
+          # artifacts (Linux/Windows/macOS produce incompatible
+          # pre-built crates).
+          key: ${{ matrix.platform }}
+
+      - name: Install Linux system dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libxdo-dev \
+            libssl-dev \
+            libayatana-appindicator3-dev
+          # This is the full Tauri 2 Linux dep list (WebKitGTK for the
+          # webview, libxdo for text-injection plugins, appindicator
+          # for system-tray support, librsvg for SVG rendering in icons,
+          # patchelf for fixing AppImage RPATHs).
+
+      - name: Install frontend dependencies
+        run: npm ci
+        # `npm ci` instead of `npm install` — reproducible, respects
+        # package-lock.json exactly, fails if lock and package.json
+        # disagree.
+
+      - name: Build and upload via tauri-action
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # GITHUB_TOKEN is auto-provided by GH Actions. No secrets
+          # need to be set up manually.
+        with:
+          # Attach artifacts to the draft release created in Job 1.
+          releaseId: ${{ needs.create-release.outputs.release_id }}
+          # Pass the matrix-specific args (macOS universal target etc.)
+          args: ${{ matrix.args }}
