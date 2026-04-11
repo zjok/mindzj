@@ -329,15 +329,49 @@ async fn open_file_in_split_window(
 /// It registers all Tauri commands, plugins, and initializes the application state.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // Initialize logging
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "mindzj=info".into()),
-        )
-        .init();
+    // Initialize logging.
+    //
+    // Windows release builds are GUI-subsystem apps with no stdout, so
+    // `tracing_subscriber::fmt()` would write into the void. We instead
+    // tee logs into a rolling file under the per-user data directory
+    // so that when the release exe misbehaves we can read the log
+    // post-mortem without rebuilding.
+    //
+    // Debug builds keep stdout so `tauri dev` still shows logs live.
+    let log_dir = dirs::data_local_dir()
+        .map(|p| p.join("MindZJ").join("logs"))
+        .unwrap_or_else(|| std::path::PathBuf::from("."));
+    let _ = std::fs::create_dir_all(&log_dir);
+    let file_appender = tracing_appender::rolling::daily(&log_dir, "mindzj.log");
+    // Leak the guard on purpose — we want the appender to live for the
+    // entire process lifetime. The alternative (storing it in AppState)
+    // fights the borrow checker for no practical benefit here.
+    let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
+    std::mem::forget(guard);
 
-    tracing::info!("MindZJ v{} starting", env!("CARGO_PKG_VERSION"));
+    let env_filter = tracing_subscriber::EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| "mindzj=info,mindzj_lib=info".into());
+
+    #[cfg(debug_assertions)]
+    {
+        use tracing_subscriber::layer::SubscriberExt;
+        use tracing_subscriber::util::SubscriberInitExt;
+        tracing_subscriber::registry()
+            .with(env_filter)
+            .with(tracing_subscriber::fmt::layer())
+            .with(tracing_subscriber::fmt::layer().with_writer(non_blocking).with_ansi(false))
+            .init();
+    }
+    #[cfg(not(debug_assertions))]
+    {
+        tracing_subscriber::fmt()
+            .with_env_filter(env_filter)
+            .with_writer(non_blocking)
+            .with_ansi(false)
+            .init();
+    }
+
+    tracing::info!("MindZJ v{} starting — logs at {}", env!("CARGO_PKG_VERSION"), log_dir.display());
 
     // Install a Ctrl+C handler so pressing Ctrl+C in the terminal running
     // `tauri dev` (or otherwise receiving SIGINT) exits cleanly instead of

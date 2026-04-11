@@ -29,11 +29,11 @@ import {
   snippetCompletion,
   snippetKeymap,
   startCompletion
-} from "./chunk-DFO5JAII.js";
-import "./chunk-3O34XFN6.js";
+} from "./chunk-KAPNYKUJ.js";
+import "./chunk-H2XYI4PW.js";
+import "./chunk-ACQYUMUE.js";
 import "./chunk-BROIUVGM.js";
 import "./chunk-DOUO75AZ.js";
-import "./chunk-ACQYUMUE.js";
 import "./chunk-YNBBAPQR.js";
 export {
   CompletionContext,

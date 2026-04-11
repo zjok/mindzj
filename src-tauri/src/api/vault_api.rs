@@ -4,15 +4,76 @@ use crate::kernel::watcher::VaultWatcher;
 use crate::kernel::AppState;
 use base64::Engine;
 use serde_json::Value;
+use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 use tauri::Manager;
 use tauri::State;
 
-fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), CommandError> {
-    std::fs::create_dir_all(dst).map_err(|e| CommandError {
+struct EmbeddedDefaultPluginFile {
+    plugin_dir: &'static str,
+    relative_path: &'static str,
+    bytes: &'static [u8],
+}
+
+const EMBEDDED_DEFAULT_PLUGIN_FILES: &[EmbeddedDefaultPluginFile] = &[
+    EmbeddedDefaultPluginFile {
+        plugin_dir: "mindzj",
+        relative_path: "data.json",
+        bytes: include_bytes!("../../resources/default_plugins/mindzj/data.json"),
+    },
+    EmbeddedDefaultPluginFile {
+        plugin_dir: "mindzj",
+        relative_path: "main.js",
+        bytes: include_bytes!("../../resources/default_plugins/mindzj/main.js"),
+    },
+    EmbeddedDefaultPluginFile {
+        plugin_dir: "mindzj",
+        relative_path: "manifest.json",
+        bytes: include_bytes!("../../resources/default_plugins/mindzj/manifest.json"),
+    },
+    EmbeddedDefaultPluginFile {
+        plugin_dir: "mindzj",
+        relative_path: "styles.css",
+        bytes: include_bytes!("../../resources/default_plugins/mindzj/styles.css"),
+    },
+    EmbeddedDefaultPluginFile {
+        plugin_dir: "timestamp_header",
+        relative_path: "main.js",
+        bytes: include_bytes!("../../resources/default_plugins/timestamp_header/main.js"),
+    },
+    EmbeddedDefaultPluginFile {
+        plugin_dir: "timestamp_header",
+        relative_path: "manifest.json",
+        bytes: include_bytes!("../../resources/default_plugins/timestamp_header/manifest.json"),
+    },
+];
+
+fn create_dir_if_needed(path: &Path) -> Result<(), CommandError> {
+    std::fs::create_dir_all(path).map_err(|e| CommandError {
         code: "IO_ERROR".into(),
-        message: format!("Failed to create directory '{}': {}", dst.display(), e),
-    })?;
+        message: format!("Failed to create directory '{}': {}", path.display(), e),
+    })
+}
+
+fn read_plugin_manifest_info_from_bytes(bytes: &[u8]) -> Option<(String, String)> {
+    let manifest = serde_json::from_slice::<Value>(bytes).ok()?;
+    let id = manifest.get("id")?.as_str()?.to_string();
+    let version = manifest
+        .get("version")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string();
+    Some((id, version))
+}
+
+fn read_plugin_manifest_info(plugin_dir: &Path) -> Option<(String, String)> {
+    let manifest_path = plugin_dir.join("manifest.json");
+    let content = std::fs::read(&manifest_path).ok()?;
+    read_plugin_manifest_info_from_bytes(&content)
+}
+
+fn sync_plugin_dir_recursive(src: &Path, dst: &Path, preserve_data_json: bool) -> Result<(), CommandError> {
+    create_dir_if_needed(dst)?;
 
     for entry in std::fs::read_dir(src).map_err(|e| CommandError {
         code: "IO_ERROR".into(),
@@ -25,13 +86,20 @@ fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), CommandError> {
         let source_path = entry.path();
         let target_path = dst.join(entry.file_name());
         if source_path.is_dir() {
-            copy_dir_recursive(&source_path, &target_path)?;
+            sync_plugin_dir_recursive(&source_path, &target_path, preserve_data_json)?;
         } else {
+            if preserve_data_json
+                && source_path
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .map(|name| name.eq_ignore_ascii_case("data.json"))
+                    .unwrap_or(false)
+                && target_path.exists()
+            {
+                continue;
+            }
             if let Some(parent) = target_path.parent() {
-                std::fs::create_dir_all(parent).map_err(|e| CommandError {
-                    code: "IO_ERROR".into(),
-                    message: format!("Failed to create directory '{}': {}", parent.display(), e),
-                })?;
+                create_dir_if_needed(parent)?;
             }
             std::fs::copy(&source_path, &target_path).map_err(|e| CommandError {
                 code: "IO_ERROR".into(),
@@ -46,13 +114,6 @@ fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), CommandError> {
     }
 
     Ok(())
-}
-
-fn read_plugin_manifest_id(plugin_dir: &Path) -> Option<String> {
-    let manifest_path = plugin_dir.join("manifest.json");
-    let content = std::fs::read_to_string(manifest_path).ok()?;
-    let manifest = serde_json::from_str::<Value>(&content).ok()?;
-    manifest.get("id")?.as_str().map(|id| id.to_string())
 }
 
 fn bundled_default_plugins_dir(app: &tauri::AppHandle) -> Option<PathBuf> {
@@ -71,45 +132,32 @@ fn bundled_default_plugins_dir(app: &tauri::AppHandle) -> Option<PathBuf> {
     None
 }
 
-fn install_default_plugins_if_needed(
-    app: &tauri::AppHandle,
-    vault_root: &Path,
-) -> Result<(), CommandError> {
-    let mindzj_dir = vault_root.join(".mindzj");
-    let plugins_dir = mindzj_dir.join("plugins");
-    let enabled_plugins_path = mindzj_dir.join("plugins.json");
-
-    let has_installed_plugins = plugins_dir.exists()
-        && std::fs::read_dir(&plugins_dir)
-            .ok()
-            .map(|mut entries| entries.any(|entry| entry.ok().map(|e| e.path().is_dir()).unwrap_or(false)))
-            .unwrap_or(false);
-
-    let enabled_plugins = if enabled_plugins_path.exists() {
-        std::fs::read_to_string(&enabled_plugins_path)
-            .ok()
-            .and_then(|content| serde_json::from_str::<Vec<String>>(&content).ok())
-            .unwrap_or_default()
-    } else {
-        Vec::new()
-    };
-
-    if has_installed_plugins || !enabled_plugins.is_empty() {
-        return Ok(());
+fn read_enabled_plugins(path: &Path) -> Vec<String> {
+    if !path.exists() {
+        return Vec::new();
     }
 
-    let source_root = match bundled_default_plugins_dir(app) {
-        Some(path) => path,
-        None => return Ok(()),
-    };
+    std::fs::read_to_string(path)
+        .ok()
+        .and_then(|content| serde_json::from_str::<Vec<String>>(&content).ok())
+        .unwrap_or_default()
+}
 
-    std::fs::create_dir_all(&plugins_dir).map_err(|e| CommandError {
-        code: "IO_ERROR".into(),
-        message: format!("Failed to create plugins directory '{}': {}", plugins_dir.display(), e),
+fn write_enabled_plugins(path: &Path, plugin_ids: &[String]) -> Result<(), CommandError> {
+    let json = serde_json::to_string_pretty(plugin_ids).map_err(|e| CommandError {
+        code: "SERIALIZE_ERROR".into(),
+        message: format!("Failed to serialize default plugin list: {}", e),
     })?;
+    std::fs::write(path, json).map_err(|e| CommandError {
+        code: "IO_ERROR".into(),
+        message: format!("Failed to write default plugin config '{}': {}", path.display(), e),
+    })
+}
 
-    let mut installed_plugin_ids = Vec::new();
-    for entry in std::fs::read_dir(&source_root).map_err(|e| CommandError {
+fn sync_default_plugins_from_dir(source_root: &Path, plugins_dir: &Path) -> Result<Vec<String>, CommandError> {
+    let mut plugin_ids = BTreeSet::new();
+
+    for entry in std::fs::read_dir(source_root).map_err(|e| CommandError {
         code: "IO_ERROR".into(),
         message: format!(
             "Failed to read default plugins directory '{}': {}",
@@ -125,32 +173,81 @@ fn install_default_plugins_if_needed(
         if !source_path.is_dir() {
             continue;
         }
+
+        let bundled_info = match read_plugin_manifest_info(&source_path) {
+            Some(info) => info,
+            None => continue,
+        };
         let target_path = plugins_dir.join(entry.file_name());
-        if target_path.exists() {
+        let installed_info = read_plugin_manifest_info(&target_path);
+        let should_sync = !target_path.exists()
+            || installed_info.is_none()
+            || installed_info
+                .as_ref()
+                .map(|(_, version)| version.as_str())
+                != Some(bundled_info.1.as_str())
+            || !target_path.join("main.js").exists()
+            || !target_path.join("manifest.json").exists();
+
+        if should_sync {
+            sync_plugin_dir_recursive(&source_path, &target_path, true)?;
+        }
+        plugin_ids.insert(bundled_info.0);
+    }
+
+    Ok(plugin_ids.into_iter().collect())
+}
+
+fn sync_default_plugins_from_embedded(plugins_dir: &Path) -> Result<Vec<String>, CommandError> {
+    let mut plugin_ids = BTreeSet::new();
+
+    for file in EMBEDDED_DEFAULT_PLUGIN_FILES {
+        let target_dir = plugins_dir.join(file.plugin_dir);
+        create_dir_if_needed(&target_dir)?;
+
+        if file.relative_path.eq_ignore_ascii_case("manifest.json") {
+            if let Some((plugin_id, _)) = read_plugin_manifest_info_from_bytes(file.bytes) {
+                plugin_ids.insert(plugin_id);
+            }
+        }
+
+        let target_path = target_dir.join(file.relative_path);
+        if file.relative_path.eq_ignore_ascii_case("data.json") && target_path.exists() {
             continue;
         }
-        copy_dir_recursive(&source_path, &target_path)?;
-        if let Some(plugin_id) = read_plugin_manifest_id(&target_path) {
-            installed_plugin_ids.push(plugin_id);
-        }
+        std::fs::write(&target_path, file.bytes).map_err(|e| CommandError {
+            code: "IO_ERROR".into(),
+            message: format!(
+                "Failed to write embedded default plugin file '{}': {}",
+                target_path.display(),
+                e
+            ),
+        })?;
     }
 
-    if installed_plugin_ids.is_empty() {
-        return Ok(());
-    }
+    Ok(plugin_ids.into_iter().collect())
+}
 
-    let enabled_json = serde_json::to_string_pretty(&installed_plugin_ids).map_err(|e| CommandError {
-        code: "SERIALIZE_ERROR".into(),
-        message: format!("Failed to serialize default plugin list: {}", e),
-    })?;
-    std::fs::write(&enabled_plugins_path, enabled_json).map_err(|e| CommandError {
-        code: "IO_ERROR".into(),
-        message: format!(
-            "Failed to write default plugin config '{}': {}",
-            enabled_plugins_path.display(),
-            e
-        ),
-    })?;
+fn install_default_plugins_if_needed(app: &tauri::AppHandle, vault_root: &Path) -> Result<(), CommandError> {
+    let mindzj_dir = vault_root.join(".mindzj");
+    let plugins_dir = mindzj_dir.join("plugins");
+    let enabled_plugins_path = mindzj_dir.join("plugins.json");
+
+    create_dir_if_needed(&mindzj_dir)?;
+    create_dir_if_needed(&plugins_dir)?;
+
+    let enabled_plugins = read_enabled_plugins(&enabled_plugins_path);
+    let should_seed_enabled_list = enabled_plugins.is_empty();
+
+    let bundled_plugin_ids = if let Some(source_root) = bundled_default_plugins_dir(app) {
+        sync_default_plugins_from_dir(&source_root, &plugins_dir)?
+    } else {
+        sync_default_plugins_from_embedded(&plugins_dir)?
+    };
+
+    if should_seed_enabled_list && !bundled_plugin_ids.is_empty() {
+        write_enabled_plugins(&enabled_plugins_path, &bundled_plugin_ids)?;
+    }
 
     Ok(())
 }

@@ -33,7 +33,7 @@
                     "requireLiteralLeadingDot": false
                 }
             },
-            "csp": "default-src 'self' ipc: http://ipc.localhost; connect-src 'self' ipc: http://ipc.localhost https://ipc.localhost asset: http://asset.localhost https://asset.localhost http://tauri.localhost https://tauri.localhost data: blob:; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' asset: http://asset.localhost https://asset.localhost http://tauri.localhost https://tauri.localhost data: blob:; font-src 'self' data:; media-src 'self' asset: http://asset.localhost https://asset.localhost data: blob:; worker-src 'self' blob:; frame-src 'self' blob:"
+            "csp": null
         }
     },
     "bundle": {

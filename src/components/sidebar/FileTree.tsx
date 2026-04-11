@@ -114,7 +114,7 @@ let _renameOriginalDisplay = "";
 /** Start inline rename for a file/folder entry */
 function startInlineRename(path: string, isDir: boolean) {
     const name = path.split("/").pop() || path;
-    const hiddenSuffixes = [".md", ".mindzj"];
+    const hiddenSuffixes = [".markdown", ".md", ".mindzj"];
     const lower = name.toLowerCase();
     _renameHiddenSuffix = isDir
         ? null

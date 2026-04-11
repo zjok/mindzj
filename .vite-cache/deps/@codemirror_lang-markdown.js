@@ -3,7 +3,7 @@ import {
   completeFromList,
   ifNotIn,
   snippetCompletion
-} from "./chunk-DFO5JAII.js";
+} from "./chunk-KAPNYKUJ.js";
 import {
   LRLanguage,
   Language,
@@ -23,17 +23,7 @@ import {
   languageDataProp,
   sublanguageProp,
   syntaxTree
-} from "./chunk-3O34XFN6.js";
-import {
-  EditorView,
-  keymap
-} from "./chunk-BROIUVGM.js";
-import {
-  EditorSelection,
-  EditorState,
-  Prec,
-  countColumn
-} from "./chunk-DOUO75AZ.js";
+} from "./chunk-H2XYI4PW.js";
 import {
   DefaultBufferLength,
   IterMode,
@@ -48,6 +38,16 @@ import {
   styleTags,
   tags
 } from "./chunk-ACQYUMUE.js";
+import {
+  EditorView,
+  keymap
+} from "./chunk-BROIUVGM.js";
+import {
+  EditorSelection,
+  EditorState,
+  Prec,
+  countColumn
+} from "./chunk-DOUO75AZ.js";
 import "./chunk-YNBBAPQR.js";
 
 // node_modules/@lezer/markdown/dist/index.js

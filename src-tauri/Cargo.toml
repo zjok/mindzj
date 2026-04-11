@@ -16,7 +16,7 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 # Tauri core
-tauri = { version = "2", features = ["protocol-asset", "image-png"] }
+tauri = { version = "2", features = ["protocol-asset", "image-png", "devtools"] }
 tauri-plugin-fs = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-shell = "2"
@@ -43,6 +43,10 @@ rusqlite = { version = "0.32", features = ["bundled"] }
 # Logging
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+# File-based tracing output (Windows release builds are GUI-subsystem
+# and have no stdout, so we tee logs to %LOCALAPPDATA%/MindZJ/logs/
+# for post-mortem diagnosis).
+tracing-appender = "0.2"
 
 # Error handling
 thiserror = "2"

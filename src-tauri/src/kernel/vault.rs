@@ -813,7 +813,8 @@ impl Vault {
 
         let is_markdown = abs_path
             .extension()
-            .map(|e| e == "md")
+            .and_then(|e| e.to_str())
+            .map(|e| matches!(e.to_ascii_lowercase().as_str(), "md" | "markdown"))
             .unwrap_or(false);
 
         let word_count = content.split_whitespace().count() as u32;

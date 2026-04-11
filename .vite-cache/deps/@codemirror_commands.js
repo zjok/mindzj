@@ -6,7 +6,10 @@ import {
   indentUnit,
   matchBrackets,
   syntaxTree
-} from "./chunk-3O34XFN6.js";
+} from "./chunk-H2XYI4PW.js";
+import {
+  NodeProp
+} from "./chunk-ACQYUMUE.js";
 import {
   Direction,
   EditorView
@@ -26,9 +29,6 @@ import {
   countColumn,
   findClusterBreak
 } from "./chunk-DOUO75AZ.js";
-import {
-  NodeProp
-} from "./chunk-ACQYUMUE.js";
 import "./chunk-YNBBAPQR.js";
 
 // node_modules/@codemirror/commands/dist/index.js

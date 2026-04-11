@@ -1558,9 +1558,11 @@ function createAppObject(pluginId: string, obsidianModule?: any) {
                 walk(vaultStore.fileTree());
                 return result;
             },
-            /** Return all .md files. */
+            /** Return all markdown files. */
             getMarkdownFiles() {
-                return this.getFiles().filter((f: any) => f.extension === "md");
+                return this.getFiles().filter((f: any) =>
+                    f.extension === "md" || f.extension === "markdown",
+                );
             },
             getAllLoadedFiles() {
                 return this.getFiles();

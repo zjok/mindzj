@@ -1,7 +1,7 @@
 /**
  * Filename display helpers.
  *
- * The user-facing convention is: strip the `.md` and `.mindzj` suffixes
+ * The user-facing convention is: strip the `.md`, `.markdown`, and `.mindzj` suffixes
  * from files in every piece of UI (tabs, file tree, search results,
  * outline, backlinks, command palette, etc.) while keeping the real
  * filename on disk so Windows Explorer still shows `foo.md` / `foo.mindzj`.
@@ -11,7 +11,7 @@
  */
 
 /** Extension suffixes (including the leading dot) that the UI hides. */
-const HIDDEN_SUFFIXES = [".md", ".mindzj"];
+const HIDDEN_SUFFIXES = [".markdown", ".md", ".mindzj"];
 
 /** Extract just the file name part from a vault-relative path. */
 export function baseName(path: string): string {

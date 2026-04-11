@@ -3,6 +3,7 @@ import solidPlugin from "vite-plugin-solid";
 import UnoCSS from "unocss/vite";
 
 const host = process.env.TAURI_DEV_HOST;
+const isTauriBuild = Boolean(process.env.TAURI_ENV_PLATFORM);
 
 export default defineConfig(async () => ({
   plugins: [UnoCSS(), solidPlugin()],
@@ -48,7 +49,7 @@ export default defineConfig(async () => ({
 
   build: {
     target: "esnext",
-    minify: "esbuild",
+    minify: isTauriBuild ? false : "esbuild",
     sourcemap: true,
   },
 
