@@ -22,6 +22,7 @@ import {
 } from "@codemirror/autocomplete";
 import { t } from "../../../i18n";
 import { vaultStore, type VaultEntry } from "../../../stores/vault";
+import { openFileRouted } from "../../../utils/openFileRouted";
 
 // ---------------------------------------------------------------------------
 // Helper: get the current EditorView from the global plugin API
@@ -103,7 +104,10 @@ async function navigateToFile(target: string): Promise<void> {
 
     try {
         if (filePath) {
-            await vaultStore.openFile(filePath);
+            // Route via openFileRouted so an editor wikilink to an
+            // image / .doc / .pdf opens in the right viewer rather
+            // than feeding raw bytes to the markdown editor.
+            await openFileRouted(filePath);
         }
 
         // After opening (or if same file), jump to anchor

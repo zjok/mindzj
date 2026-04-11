@@ -33,6 +33,7 @@ import { settingsStore } from "../../stores/settings";
 import { ContextMenu, type MenuItem } from "../common/ContextMenu";
 import katex from "katex";
 import { resolveImageAssetUrl } from "../../utils/vaultPaths";
+import { openFileRouted } from "../../utils/openFileRouted";
 import { showImageContextMenu } from "./extensions/livePreview";
 import { LIST_INDENT_EXTRA_PX, LIST_RENDER_TAB_SIZE } from "./extensions/listUtils";
 import { attachWheelZoom, attachCtrlClick } from "../../utils/imageInteraction";
@@ -1056,7 +1057,10 @@ export const ReadingView: Component<ReadingViewProps> = (props) => {
                                 if (!path.includes(".")) path += ".md";
                                 try {
                                     activatePane();
-                                    await vaultStore.openFile(path);
+                                    // Route via openFileRouted so wikilinks
+                                    // pointing at images / office docs /
+                                    // PDFs open in their proper viewer.
+                                    await openFileRouted(path);
                                     editorStore.setViewMode("reading", path);
                                 } catch {
                                     console.warn(t("reading.couldNotOpen", { path }));

@@ -331,6 +331,71 @@ async fn open_file_in_split_window(
     Ok(())
 }
 
+/// Open an image file in a dedicated image-viewer window.
+///
+/// Used when the user clicks a .png / .jpg / .gif etc. in the file
+/// tree. The new window loads `index.html?image_viewer=1&vault_path=
+/// …&file_path=…`, and App.tsx has an early branch that detects the
+/// `image_viewer=1` param and renders only the ImageViewer component
+/// (no sidebar, no editor, no plugin system).
+///
+/// We reuse the asset protocol for the actual image bytes so there's
+/// no base64 encoding or IPC round-trip involved — the `<img src>` in
+/// the ImageViewer component resolves to `http://asset.localhost/…`
+/// and WebView2 streams the bytes directly from disk.
+#[tauri::command]
+async fn open_image_in_new_window(
+    app: tauri::AppHandle,
+    vault_path: String,
+    vault_name: String,
+    file_path: String,
+) -> Result<(), String> {
+    use tauri::WebviewWindowBuilder;
+
+    let url_path = format!(
+        "index.html?image_viewer=1&vault_path={}&vault_name={}&file_path={}",
+        urlencoding::encode(&vault_path),
+        urlencoding::encode(&vault_name),
+        urlencoding::encode(&file_path),
+    );
+
+    // Unique label so multiple image-viewer windows can coexist.
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0);
+    let label = format!("image_viewer_{}", ts);
+
+    // Title shows just the filename so it's readable in the taskbar.
+    let file_name = std::path::Path::new(&file_path)
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or(&file_path)
+        .to_string();
+
+    let new_window = WebviewWindowBuilder::new(
+        &app,
+        &label,
+        tauri::WebviewUrl::App(url_path.into()),
+    )
+    .title(format!("MindZJ — {}", file_name))
+    .inner_size(900.0, 700.0)
+    .min_inner_size(320.0, 240.0)
+    .resizable(true)
+    .decorations(false)
+    .background_color(tauri::window::Color(30, 30, 30, 255))
+    .visible(false)
+    .build()
+    .map_err(|e| e.to_string())?;
+
+    apply_hires_icon(&new_window);
+
+    let _ = new_window.show();
+    let _ = new_window.set_focus();
+
+    Ok(())
+}
+
 /// Configure and run the Tauri application.
 ///
 /// This is the main setup function called by both desktop and mobile entry points.
@@ -420,6 +485,7 @@ pub fn run() {
             // Window API
             open_vault_window,
             open_file_in_split_window,
+            open_image_in_new_window,
             exit_app,
             close_or_exit,
             // Vault API

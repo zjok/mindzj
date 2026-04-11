@@ -2,6 +2,7 @@ import { Component, For, Show, createMemo, createResource } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 import { vaultStore } from "../../stores/vault";
 import { displayName } from "../../utils/displayName";
+import { openFileRouted } from "../../utils/openFileRouted";
 import { t } from "../../i18n";
 
 interface NoteLink {
@@ -72,7 +73,7 @@ export const Backlinks: Component = () => {
                 <For each={backlinks()}>
                     {(link) => (
                         <div
-                            onClick={() => vaultStore.openFile(link.source)}
+                            onClick={() => void openFileRouted(link.source)}
                             style={{
                                 padding: "3px 12px",
                                 "font-size": "var(--mz-font-size-sm)",
@@ -135,7 +136,7 @@ export const Backlinks: Component = () => {
                 <For each={forwardLinks()}>
                     {(link) => (
                         <div
-                            onClick={() => vaultStore.openFile(link.target)}
+                            onClick={() => void openFileRouted(link.target)}
                             style={{
                                 padding: "3px 12px",
                                 "font-size": "var(--mz-font-size-sm)",

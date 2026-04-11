@@ -29,10 +29,12 @@ import { WelcomeScreen } from "./components/common/WelcomeScreen";
 import { CommandPalette } from "./components/common/CommandPalette";
 import { SettingsModal } from "./components/settings/SettingsModal";
 import { WindowControls } from "./components/common/TitleBar";
+import { ImageViewer } from "./components/common/ImageViewer";
 import { createPersistableWindowState } from "./utils/windowState";
 import { register, unregister } from "@tauri-apps/plugin-global-shortcut";
 import { ScreenshotOverlay } from "./components/screenshot/ScreenshotOverlay";
 import { promptDialog } from "./components/common/ConfirmDialog";
+import { openFileRouted } from "./utils/openFileRouted";
 import { t } from "./i18n";
 
 type SidebarTab = "files" | "outline" | "search" | "calendar";
@@ -45,6 +47,24 @@ function normalizeVaultPath(path: string | null | undefined): string {
 }
 
 const App: Component = () => {
+    // If the window was created via `open_image_in_new_window`, the
+    // URL carries `image_viewer=1` plus a vault_path/file_path. In that
+    // case we render ONLY the ImageViewer component — no sidebar, no
+    // editor, no plugin system, no bootstrapping/workspace-restore
+    // machinery. This is what lets an image .png pop up in a tiny
+    // clean viewer window instead of the full app.
+    {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get("image_viewer") === "1") {
+            return (
+                <ImageViewer
+                    vaultPath={params.get("vault_path") ?? ""}
+                    filePath={params.get("file_path") ?? ""}
+                />
+            );
+        }
+    }
+
     const [showCommandPalette, setShowCommandPalette] = createSignal(false);
     const [showSettings, setShowSettings] = createSignal(false);
     const [sidebarTab, setSidebarTab] = createSignal<SidebarTab>("files");
@@ -1148,7 +1168,7 @@ const App: Component = () => {
                                 <div style={{ flex: "1", "min-height": "0", overflow: "auto" }}>
                                     <FileTree
                                         entries={vaultStore.fileTree()}
-                                        onFileClick={(p: string) => vaultStore.openFile(p)}
+                                        onFileClick={(p: string) => { void openFileRouted(p); }}
                                         activePath={vaultStore.activeFile()?.path ?? null}
                                         sortMode={sortMode()}
                                         sortOrder={sortOrder()}

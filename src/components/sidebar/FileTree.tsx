@@ -7,6 +7,7 @@ import { editorStore } from "../../stores/editor";
 import { ContextMenu, type MenuItem } from "../common/ContextMenu";
 import { displayName } from "../../utils/displayName";
 import { fetchBacklinks, updateBacklinksOnFileRename } from "../../utils/linkUpdater";
+import { openFileRouted } from "../../utils/openFileRouted";
 import { t } from "../../i18n";
 
 type FolderVisibilityAction = "default" | "collapse" | "expand";
@@ -746,7 +747,7 @@ export const FileTree: Component<FileTreeProps> = (props) => {
         const name = path.split("/").pop() ?? path;
         const items: MenuItem[] = [];
         if (!isDir) {
-            items.push({ label: t("context.open"), icon: "\uD83D\uDCC4", action: () => vaultStore.openFile(path) });
+            items.push({ label: t("context.open"), icon: "\uD83D\uDCC4", action: () => { void openFileRouted(path); } });
         }
         items.push({
             label: t("context.newNote"), icon: "\u270F\uFE0F",

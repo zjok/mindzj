@@ -1,8 +1,8 @@
 import { Component, For, Show, createSignal } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 import { t } from "../../i18n";
-import { vaultStore } from "../../stores/vault";
 import { displayName } from "../../utils/displayName";
+import { openFileRouted } from "../../utils/openFileRouted";
 
 interface SearchResult {
   path: string;
@@ -108,7 +108,7 @@ export const SearchPanel: Component = () => {
               }}
             >
               <div
-                onClick={() => void vaultStore.openFile(result.path)}
+                onClick={() => void openFileRouted(result.path)}
                 style={{
                   padding: "4px 8px",
                   "font-size": "var(--mz-font-size-sm)",
@@ -137,7 +137,7 @@ export const SearchPanel: Component = () => {
 
                   return (
                     <div
-                      onClick={() => void vaultStore.openFile(result.path)}
+                      onClick={() => void openFileRouted(result.path)}
                       style={{
                         padding: "2px 8px 2px 16px",
                         "font-size": "var(--mz-font-size-xs)",

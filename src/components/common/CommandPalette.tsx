@@ -13,6 +13,7 @@ import { settingsStore } from "../../stores/settings";
 import { listPluginCommands, runPluginCommand } from "../../stores/plugins";
 import type { VaultEntry } from "../../stores/vault";
 import { displayName } from "../../utils/displayName";
+import { openFileRouted } from "../../utils/openFileRouted";
 import { t } from "../../i18n";
 
 interface PaletteItem {
@@ -43,7 +44,10 @@ function flattenEntries(
       category: "file",
       description: entry.relative_path,
       action: async () => {
-        await vaultStore.openFile(entry.relative_path);
+        // Route via openFileRouted so binary files (images, office
+        // docs, etc.) open in the right way when the user selects
+        // them from the palette's fuzzy file search.
+        await openFileRouted(entry.relative_path);
       },
     });
   }
