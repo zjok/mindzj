@@ -697,6 +697,12 @@ export const Editor: Component<EditorProps> = (props) => {
             ...((window as any).__mindzj_plugin_cm_extensions ?? []),
 
             keymap.of([
+                // PageUp / PageDown intentionally NOT overridden here —
+                // we fall through to `defaultKeymap` which binds them
+                // to `cursorPageUp` / `cursorPageDown`, i.e. scroll
+                // the cursor by one viewport page. This matches VS
+                // Code / Obsidian / the web default behaviour the
+                // user explicitly asked us to preserve.
                 ...defaultKeymap,
                 ...historyKeymap,
                 // Redo: Ctrl+Shift+Z (Obsidian-style, overrides default Ctrl+Y)
