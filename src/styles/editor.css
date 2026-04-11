@@ -321,20 +321,20 @@ html[data-theme="light"] .cm-editor .cm-panels-bottom {
 .cm-editor .mz-search-flash,
 .mz-reading-view .mz-search-flash,
 .mz-reading-view mark.mz-search-flash {
-  background: rgba(255, 210, 66, 0.55);
+  background: rgba(98, 255, 66, 0.235);
   color: inherit;
-  outline: 1.5px solid rgba(255, 170, 0, 0.75);
+  outline: 1.5px solid rgba(0, 255, 76, 0.75);
   border-radius: 3px;
   padding: 0 1px;
   animation: mz-search-flash-pulse 0.3s ease-out;
 }
 @keyframes mz-search-flash-pulse {
   0% {
-    background: rgba(255, 170, 0, 0.95);
+    background: rgba(255, 170, 0, 0.368);
     outline-color: rgba(255, 140, 0, 1);
   }
   100% {
-    background: rgba(255, 210, 66, 0.55);
+    background: rgba(255, 211, 66, 0.215);
     outline-color: rgba(255, 170, 0, 0.75);
   }
 }
