@@ -2,8 +2,8 @@
 name = "mindzj-cli"
 version = "0.1.0"
 description = "MindZJ CLI - command-line interface for MindZJ note vaults"
-authors = ["MindZJ Contributors"]
-license = "MIT"
+authors = ["SuperJohn"] 
+license = "AGPL-3.0-or-later"
 edition = "2021"
 
 [[bin]]
