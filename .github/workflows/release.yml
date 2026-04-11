@@ -188,7 +188,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             libwebkit2gtk-4.1-dev \
-            libappindicator3-dev \
+            libayatana-appindicator3-dev \
             librsvg2-dev \
             patchelf \
             build-essential \
@@ -196,12 +196,18 @@ jobs:
             wget \
             file \
             libxdo-dev \
-            libssl-dev \
-            libayatana-appindicator3-dev
-          # This is the full Tauri 2 Linux dep list (WebKitGTK for the
-          # webview, libxdo for text-injection plugins, appindicator
-          # for system-tray support, librsvg for SVG rendering in icons,
-          # patchelf for fixing AppImage RPATHs).
+            libssl-dev
+          # Tauri 2 Linux dep list: WebKitGTK for the webview, libxdo
+          # for text-injection plugins, librsvg for SVG rendering in
+          # icons, patchelf for fixing AppImage RPATHs.
+          #
+          # NOTE: We install `libayatana-appindicator3-dev` but NOT
+          # `libappindicator3-dev` — the two packages conflict because
+          # they provide the same symbols. Tauri 2 uses the Ayatana
+          # fork (the actively maintained one); the legacy
+          # `libappindicator3-dev` would abort this step with
+          # `E: Unable to correct problems, you have held broken packages.`
+          # That's why the two are mutually exclusive.
 
       - name: Install frontend dependencies
         run: npm ci

@@ -15,10 +15,19 @@ pub async fn capture_screen() -> Result<String, CommandError> {
     // Run the blocking capture on a dedicated thread so we don't block
     // the Tauri async runtime.
     let result = tokio::task::spawn_blocking(|| -> Result<String, String> {
-        let monitors = xcap::Monitor::all().map_err(|e| format!("Failed to list monitors: {}", e))?;
+        // xcap 0.9 API notes:
+        //  - `Monitor::all()` still returns Result<Vec<Monitor>>.
+        //  - `is_primary()` NOW returns Result<bool, XCapError> (it
+        //    was `bool` in 0.0.x). Treat any error as "not primary"
+        //    so a flaky secondary monitor doesn't poison primary
+        //    detection.
+        //  - `capture_image()` still returns an image::RgbaImage
+        //    (via the `image` feature we enabled in Cargo.toml).
+        let monitors = xcap::Monitor::all()
+            .map_err(|e| format!("Failed to list monitors: {}", e))?;
         let monitor = monitors
             .into_iter()
-            .find(|m| m.is_primary())
+            .find(|m| m.is_primary().unwrap_or(false))
             .or_else(|| xcap::Monitor::all().ok()?.into_iter().next())
             .ok_or_else(|| "No monitor found".to_string())?;
 

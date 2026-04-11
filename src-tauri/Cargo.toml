@@ -77,8 +77,20 @@ keyring = "3"
 # Base64 encoding/decoding (for binary file writes from frontend)
 base64 = "0.22"
 
-# Screenshot capture (cross-platform screen capture)
-xcap = "0.0.14"
+# Screenshot capture (cross-platform screen capture).
+#
+# Pinned to 0.9.x (the current stable) rather than the older
+# 0.0.14 we used to ship because 0.0.14 has a Rust type-
+# inference regression on macOS that breaks GitHub Actions
+# builds on `macos-latest`:
+#
+#   error[E0282]: type annotations needed
+#     --> xcap-0.0.14/src/macos/boxed.rs:22
+#
+# The `image` feature gates xcap's `RgbaImage -> image::ImageBuffer`
+# conversion, which is what we use to encode PNGs in
+# `api/screenshot_api.rs` via `img.write_to(&mut buf, ...)`.
+xcap = { version = "0.9", features = ["image"] }
 
 # Image encoding (PNG encoding for screenshot data)
 image = { version = "0.25", default-features = false, features = ["png"] }
