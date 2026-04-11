@@ -54,6 +54,49 @@ export const SearchPanel: Component = () => {
     text.slice(end),
   ];
 
+  /**
+   * Open a search result and reveal (scroll + flash highlight) the
+   * matched text on a specific line. The flow is:
+   *
+   *   1. `openFileRouted(path)` — if the file isn't already the
+   *      active tab, this opens/switches to it. Async.
+   *   2. Wait ~150ms so the Editor component has time to mount
+   *      and CodeMirror has finished applying its initial
+   *      viewport / decorations. Without this the dispatched
+   *      command fires BEFORE the editor is ready and the scroll
+   *      is silently dropped.
+   *   3. Dispatch a `mindzj:editor-command` CustomEvent with
+   *      `command: "search-reveal", line, query`. The Editor
+   *      component listens for this at the document level and
+   *      its handler in `Editor.tsx:dispatchEditorCommand` scrolls
+   *      to the line, selects the match, and fires the 1.5s
+   *      flash-highlight effect via `searchFlashField`.
+   *
+   * If the file was already open, the 150ms wait is pure
+   * latency; still negligible vs the user's click-to-feedback
+   * budget, and keeps the code path uniform.
+   */
+  const openAndReveal = async (path: string, line: number) => {
+    const q = query();
+    try {
+      await openFileRouted(path);
+    } catch (e) {
+      console.warn("[search] openFileRouted failed:", e);
+      return;
+    }
+    setTimeout(() => {
+      document.dispatchEvent(
+        new CustomEvent("mindzj:editor-command", {
+          detail: {
+            command: "search-reveal",
+            line,
+            query: q,
+          },
+        }),
+      );
+    }, 150);
+  };
+
   return (
     <div
       style={{
@@ -108,7 +151,14 @@ export const SearchPanel: Component = () => {
               }}
             >
               <div
-                onClick={() => void openFileRouted(result.path)}
+                onClick={() => {
+                  // Clicking the file header jumps to the FIRST
+                  // snippet's line so the user still sees the
+                  // match they searched for, not just an arbitrary
+                  // line-1 scroll position.
+                  const firstLine = result.snippets[0]?.line ?? 0;
+                  void openAndReveal(result.path, firstLine);
+                }}
                 style={{
                   padding: "4px 8px",
                   "font-size": "var(--mz-font-size-sm)",
@@ -137,7 +187,7 @@ export const SearchPanel: Component = () => {
 
                   return (
                     <div
-                      onClick={() => void openFileRouted(result.path)}
+                      onClick={() => void openAndReveal(result.path, snippet.line)}
                       style={{
                         padding: "2px 8px 2px 16px",
                         "font-size": "var(--mz-font-size-xs)",

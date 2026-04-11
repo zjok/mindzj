@@ -288,6 +288,57 @@ html[data-theme="light"] .cm-editor .cm-panels-bottom {
 .cm-editor .mz-lp-strikethrough { text-decoration: line-through; color: var(--mz-syntax-strikethrough); }
 .cm-editor .mz-lp-highlight { background: var(--mz-syntax-highlight-bg); border-radius: 2px; padding: 1px 2px; }
 
+/* Search-result flash highlight — applied when the user clicks a
+   hit in the global search panel. The decoration lives on the
+   matched text for ~1.5s, then clears itself.
+
+   Two rendering paths both use the same class:
+
+   1. Live-preview / source mode: the `searchFlashField` CM6
+      StateField paints a `Decoration.mark({class})` over the range.
+      CM6 generates a `<span class="mz-search-flash">`.
+
+   2. Reading mode: `ReadingView.tsx:flashReadingSearch()` walks
+      the reading-view DOM, finds the match, and wraps it in a
+      real `<mark class="mz-search-flash">`.
+
+   We reset `<mark>`'s browser default styles so the reading-view
+   path looks identical to the CM6 path.
+
+   Visual design:
+   - Strong amber background so the match is impossible to miss
+     even if the scroll lands it near an active selection.
+   - Subtle outline to give the flash a "pill" feel rather than a
+     raw rectangle.
+   - Rounded corners + tight padding so it looks like part of the
+     running text, not a UI chrome element.
+   - `mz-search-flash-pulse` keyframe fades from a brighter accent
+     color down to the steady-state yellow in 300ms, giving the
+     user's eye something to latch onto at the moment of reveal.
+     The fade is shorter than the decoration's 1.5s lifetime on
+     purpose — after the pulse settles, the match stays visibly
+     highlighted for ~1.2s so the user has time to read it. */
+.cm-editor .mz-search-flash,
+.mz-reading-view .mz-search-flash,
+.mz-reading-view mark.mz-search-flash {
+  background: rgba(255, 210, 66, 0.55);
+  color: inherit;
+  outline: 1.5px solid rgba(255, 170, 0, 0.75);
+  border-radius: 3px;
+  padding: 0 1px;
+  animation: mz-search-flash-pulse 0.3s ease-out;
+}
+@keyframes mz-search-flash-pulse {
+  0% {
+    background: rgba(255, 170, 0, 0.95);
+    outline-color: rgba(255, 140, 0, 1);
+  }
+  100% {
+    background: rgba(255, 210, 66, 0.55);
+    outline-color: rgba(255, 170, 0, 0.75);
+  }
+}
+
 .cm-editor .mz-lp-inline-code {
   font-family: var(--mz-font-mono);
   font-size: 0.9em;

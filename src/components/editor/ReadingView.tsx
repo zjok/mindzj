@@ -730,6 +730,190 @@ async function renderMermaidBlocks(container: HTMLElement): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// Reading-mode search reveal
+// ---------------------------------------------------------------------------
+//
+// These module-level variables track the currently-active search
+// flash in reading mode. Stored at module scope (not component
+// scope) because:
+//
+//   1. `clearReadingFlash()` is called from multiple places —
+//      both the `search-reveal` handler (to reset before a new
+//      flash) and `onCleanup` (when the view unmounts). Having a
+//      single source of truth keeps them in sync.
+//   2. Multiple ReadingView instances (split panes) shouldn't
+//      show simultaneous flashes anyway — only the one the user
+//      last clicked a search result for. Module-level state
+//      gives us "latest click wins" for free.
+let _readingFlashMark: HTMLElement | null = null;
+let _readingFlashTimer: number | null = null;
+
+/**
+ * Remove any currently-active reading-mode search flash.
+ *
+ * Un-wraps the `<mark class="mz-search-flash">` by replacing it
+ * with a plain text node containing the same content, then calls
+ * `normalize()` on the parent to merge adjacent text nodes (so the
+ * DOM looks the same as it did before the flash was applied).
+ *
+ * Also cancels any pending clear-timer so a previous flash's 1.5s
+ * timeout can't fire after a new one has started.
+ */
+function clearReadingFlash(): void {
+    if (_readingFlashTimer != null) {
+        clearTimeout(_readingFlashTimer);
+        _readingFlashTimer = null;
+    }
+    const mark = _readingFlashMark;
+    _readingFlashMark = null;
+    if (mark && mark.parentNode) {
+        const parent = mark.parentNode;
+        const textNode = document.createTextNode(mark.textContent || "");
+        parent.replaceChild(textNode, mark);
+        parent.normalize();
+    }
+}
+
+/**
+ * Scroll an element into the middle of a scroll container without
+ * using `scrollIntoView({ block: "center" })`, which produces a
+ * weird "jumps back to top then snaps" animation in some Chromium
+ * versions. We compute the target `scrollTop` manually and set it
+ * directly — instant, reliable, no animation.
+ */
+function scrollElementToCenter(el: HTMLElement, scrollEl: HTMLElement): void {
+    const elRect = el.getBoundingClientRect();
+    const contRect = scrollEl.getBoundingClientRect();
+    const offset =
+        elRect.top -
+        contRect.top +
+        scrollEl.scrollTop -
+        scrollEl.clientHeight / 2 +
+        elRect.height / 2;
+    scrollEl.scrollTop = Math.max(0, offset);
+}
+
+/**
+ * Apply a temporary search-flash highlight in reading mode.
+ *
+ * Finds the first text node inside `container` that matches the
+ * given `query` (case-insensitively, UTF-16 safe) — preferring
+ * text nodes inside an element whose `data-line` attribute equals
+ * `line` when multiple matches exist on the page. Wraps the match
+ * in a `<mark class="mz-search-flash">`, scrolls it to the middle
+ * of the viewport, and schedules an unwrap after 1.5 seconds.
+ *
+ * Re-clicks before the 1.5s expires call `clearReadingFlash()`
+ * first, so the timer is effectively reset.
+ */
+function flashReadingSearch(
+    container: HTMLElement,
+    scrollContainer: HTMLElement,
+    line: number,
+    query: string,
+): void {
+    clearReadingFlash();
+    if (!query) return;
+
+    // Step 1: pick an "anchor" element — the one whose data-line
+    // matches (or is closest to) the target line. Search INSIDE
+    // the anchor first so multi-match files highlight the hit the
+    // user clicked, not just the first occurrence in the document.
+    const elts = container.querySelectorAll<HTMLElement>("[data-line]");
+    let anchor: HTMLElement | null = null;
+    let anchorDelta = Number.POSITIVE_INFINITY;
+    for (const el of elts) {
+        const ln = parseInt(el.getAttribute("data-line") || "-1", 10);
+        if (ln < 0) continue;
+        const delta = Math.abs(ln - line);
+        if (delta < anchorDelta) {
+            anchor = el;
+            anchorDelta = delta;
+            if (delta === 0) break;
+        }
+    }
+
+    const queryLower = query.toLowerCase();
+
+    /** Find the first text node in `root` whose contents contain
+     *  the query. Skips empty text nodes and any node that's inside
+     *  a pre/code element so we don't mangle syntax-highlighted
+     *  code spans (those have their own styling and the flash would
+     *  look weird anyway). */
+    function findMatchIn(
+        root: HTMLElement,
+    ): { node: Text; index: number } | null {
+        const walker = document.createTreeWalker(
+            root,
+            NodeFilter.SHOW_TEXT,
+            {
+                acceptNode(node) {
+                    if (!node.nodeValue) return NodeFilter.FILTER_REJECT;
+                    // Rejecting <pre>/<code> descendants would lose
+                    // matches in fenced code blocks; the user DOES
+                    // search through those in the global search
+                    // panel, so skipping them here would be
+                    // inconsistent. Accept everything.
+                    return NodeFilter.FILTER_ACCEPT;
+                },
+            },
+        );
+        let n: Node | null;
+        while ((n = walker.nextNode())) {
+            const textNode = n as Text;
+            const idx = textNode.data.toLowerCase().indexOf(queryLower);
+            if (idx >= 0) return { node: textNode, index: idx };
+        }
+        return null;
+    }
+
+    let match: { node: Text; index: number } | null = null;
+    if (anchor) match = findMatchIn(anchor);
+    if (!match) match = findMatchIn(container);
+
+    if (!match) {
+        // Couldn't find the query anywhere — still scroll to the
+        // anchor so at least the user sees the target region.
+        if (anchor) scrollElementToCenter(anchor, scrollContainer);
+        return;
+    }
+
+    // Step 2: split the matched text node into
+    // [before] [<mark>match</mark>] [after] and drop the original.
+    const { node, index } = match;
+    const matchLen = query.length;
+    const text = node.data;
+    const beforeText = text.slice(0, index);
+    const matchText = text.slice(index, index + matchLen);
+    const afterText = text.slice(index + matchLen);
+
+    const parent = node.parentNode;
+    if (!parent) return;
+
+    const mark = document.createElement("mark");
+    mark.className = "mz-search-flash";
+    mark.textContent = matchText;
+
+    if (beforeText) parent.insertBefore(document.createTextNode(beforeText), node);
+    parent.insertBefore(mark, node);
+    if (afterText) parent.insertBefore(document.createTextNode(afterText), node);
+    parent.removeChild(node);
+
+    _readingFlashMark = mark;
+
+    // Step 3: scroll the match into the middle of the viewport.
+    scrollElementToCenter(mark, scrollContainer);
+
+    // Step 4: schedule the unwrap. `window.setTimeout` is typed
+    // as `number` in the browser (vs `NodeJS.Timeout` in Node),
+    // matching our `_readingFlashTimer: number | null` type.
+    _readingFlashTimer = window.setTimeout(() => {
+        _readingFlashTimer = null;
+        clearReadingFlash();
+    }, 1500);
+}
+
+// ---------------------------------------------------------------------------
 // ReadingView Component
 // ---------------------------------------------------------------------------
 
@@ -945,6 +1129,38 @@ export const ReadingView: Component<ReadingViewProps> = (props) => {
                     const offset = targetTop - containerTop + scrollContainerRef.scrollTop;
                     scrollContainerRef.scrollTop = offset;
                 }
+            } else if (detail?.command === "search-reveal") {
+                // The search-reveal command may arrive BEFORE the
+                // reading view has finished rendering (the 150ms
+                // wait in SearchPanel covers typical cases but
+                // can race on large files). Retry up to 20 times
+                // at 50ms intervals — total ≤ 1s — until the
+                // container has content, then fire the flash.
+                const line = typeof detail.line === "number" ? detail.line : 0;
+                const query: string = typeof detail.query === "string"
+                    ? detail.query
+                    : "";
+                let retries = 0;
+                const tryFlash = () => {
+                    if (
+                        containerRef &&
+                        scrollContainerRef &&
+                        containerRef.childElementCount > 0
+                    ) {
+                        flashReadingSearch(
+                            containerRef,
+                            scrollContainerRef,
+                            line,
+                            query,
+                        );
+                        return;
+                    }
+                    if (retries < 20) {
+                        retries++;
+                        setTimeout(tryFlash, 50);
+                    }
+                };
+                tryFlash();
             }
         };
         document.addEventListener("mindzj:editor-command", handler);
@@ -954,6 +1170,11 @@ export const ReadingView: Component<ReadingViewProps> = (props) => {
                 "mindzj:remember-active-viewport",
                 handleRememberViewport,
             );
+            // If we unmount while a flash is still pending, clear
+            // it so the `<mark>` doesn't outlive its container (if
+            // it ever got reparented by a future theme that moved
+            // reading content into a portal, say).
+            clearReadingFlash();
         });
 
         // Continuously track the top-visible line as the user scrolls so

@@ -52,6 +52,11 @@ import {
 import { linkHandlerExtension } from "./extensions/linkHandler";
 import { sourceHeadingLineExtension } from "./extensions/sourceHeadingLine";
 import {
+    addSearchFlash,
+    clearSearchFlash,
+    searchFlashField,
+} from "./extensions/searchFlash";
+import {
     DEFAULT_ATTACHMENT_FOLDER,
     getParentPath,
     joinVaultPath,
@@ -134,6 +139,13 @@ export const Editor: Component<EditorProps> = (props) => {
     let currentFilePath: string | null = null;
     let currentViewMode: ViewMode | null = null;
     let isProgrammaticUpdate = false;
+    // Active search-reveal flash timer. Stored at component scope
+    // (not module scope) so each split-pane editor tracks its own
+    // flash independently. Re-clicks on any search result cancel
+    // this timer and start a new one — without cancelling, the
+    // OLD timer from the previous click would fire and wipe the
+    // NEW flash prematurely.
+    let searchFlashTimer: ReturnType<typeof setTimeout> | null = null;
     // Compartment that holds the zoom font-size theme. Reconfiguring it
     // is the only way to get CodeMirror to invalidate its height map
     // when the editor font-size changes.
@@ -727,6 +739,12 @@ export const Editor: Component<EditorProps> = (props) => {
            
             
             searchCounterExtension(),
+
+            // Search-reveal flash highlight — temporary decoration
+            // fired from the global search panel when the user
+            // clicks a result. Scrolls to the line and paints a
+            // yellow-ish flash over the matched text for ~1.5s.
+            searchFlashField,
 
             // Link handler (Ctrl+Click, wiki link autocomplete,
             // Ctrl+Alt+C/V link-anchor copy/paste)
@@ -1617,6 +1635,92 @@ export const Editor: Component<EditorProps> = (props) => {
                     selection: { anchor: lineInfo.from },
                     effects: EditorView.scrollIntoView(lineInfo.from, { y: "start", yMargin: 0 }),
                 });
+                break;
+            }
+            case "search-reveal": {
+                // Open the file at `detail.line` (0-based), find the
+                // first occurrence of `detail.query` on that line,
+                // select it, scroll it into the MIDDLE of the
+                // viewport, and paint a flash highlight on top that
+                // fades out after ~1.5s.
+                //
+                // We don't trust `highlight_start/highlight_end` from
+                // the search backend because those are UTF-8 BYTE
+                // offsets but CodeMirror positions are UTF-16 code
+                // units — mapping between them on every result would
+                // require round-tripping through TextEncoder and is
+                // easy to get wrong for multi-byte content. Doing a
+                // fresh case-insensitive `indexOf` on the line in JS
+                // space gives us a correct match for any encoding.
+                const line0 = typeof detail.line === "number" ? detail.line : 0;
+                const query: string = typeof detail.query === "string"
+                    ? detail.query
+                    : "";
+                const lineNum = Math.max(
+                    1,
+                    Math.min(line0 + 1, view.state.doc.lines),
+                );
+                const lineInfo = view.state.doc.line(lineNum);
+                const lineText = lineInfo.text;
+
+                let from = lineInfo.from;
+                let to = lineInfo.from;
+                if (query) {
+                    const idx = lineText
+                        .toLowerCase()
+                        .indexOf(query.toLowerCase());
+                    if (idx >= 0) {
+                        from = lineInfo.from + idx;
+                        to = from + query.length;
+                    }
+                }
+
+                // Scroll so the match lands roughly in the middle
+                // of the viewport — feels more like "jump to" than
+                // landing on the last visible row. `yMargin: 60`
+                // keeps the flash away from the very top/bottom.
+                view.dispatch({
+                    selection: { anchor: from, head: to },
+                    effects: [
+                        EditorView.scrollIntoView(from, {
+                            y: "center",
+                            yMargin: 60,
+                        }),
+                        // Only fire the flash if we actually found
+                        // the match (from !== to). Otherwise we'd
+                        // paint a 0-width decoration that renders
+                        // nothing but still goes through the
+                        // clear-timer dance.
+                        ...(to > from ? [addSearchFlash.of({ from, to })] : []),
+                    ],
+                });
+
+                if (to > from) {
+                    // Cancel any previous flash timer so re-clicks
+                    // on a different search result don't let the
+                    // OLD timer fire mid-flash and clear the NEW
+                    // decoration 0.3s after it appears.
+                    if (searchFlashTimer) {
+                        clearTimeout(searchFlashTimer);
+                        searchFlashTimer = null;
+                    }
+                    // Clear the flash after 1.5s. Capture the view
+                    // reference in a closure so a later file switch
+                    // doesn't accidentally clear decorations on the
+                    // wrong document.
+                    const targetView = view;
+                    searchFlashTimer = setTimeout(() => {
+                        searchFlashTimer = null;
+                        try {
+                            targetView.dispatch({
+                                effects: clearSearchFlash.of(null),
+                            });
+                        } catch {
+                            // View may have been destroyed — safe
+                            // to ignore, StateField is gone too.
+                        }
+                    }, 1500);
+                }
                 break;
             }
         }
