@@ -111,6 +111,43 @@ const App: Component = () => {
         }
     })();
     const [isBootstrapping, setIsBootstrapping] = createSignal(hasRestorableVault);
+
+    // Recently-closed tab history (LIFO stack of vault-relative
+    // file paths). Used by Ctrl+T to "reopen the last closed tab",
+    // mirroring the same shortcut in browsers / VS Code / Obsidian.
+    //
+    // The stack is bounded so a user who closes thousands of tabs in
+    // a long session doesn't accumulate unbounded state. The most
+    // recent entry is at the END of the array (LIFO push/pop).
+    const MAX_CLOSED_HISTORY = 50;
+    const [closedTabsHistory, setClosedTabsHistory] = createSignal<string[]>([]);
+
+    function pushClosedTab(path: string) {
+        setClosedTabsHistory((prev) => {
+            // De-dupe: drop any earlier occurrence of the same path
+            // so closing a file that was already in history bumps it
+            // to the top instead of leaving stale duplicates that
+            // would Ctrl+T-reopen the same file twice in a row.
+            const deduped = prev.filter((p) => p !== path);
+            const next = [...deduped, path];
+            // Cap from the OLD end (drop oldest entries first).
+            return next.length > MAX_CLOSED_HISTORY
+                ? next.slice(next.length - MAX_CLOSED_HISTORY)
+                : next;
+        });
+    }
+
+    function reopenLastClosedTab() {
+        const history = closedTabsHistory();
+        if (history.length === 0) return;
+        const path = history[history.length - 1];
+        // Pop FIRST, then reopen — popping after reopen would risk
+        // leaving the entry stuck in the stack if openFileRouted
+        // throws synchronously somewhere we don't expect.
+        setClosedTabsHistory((prev) => prev.slice(0, -1));
+        void openFileRouted(path);
+    }
+
     const uiScale = createMemo(() => editorStore.uiZoom() / 100);
     const activePanePath = createMemo(() =>
         activePaneSlot() === "secondary"
@@ -221,26 +258,76 @@ const App: Component = () => {
     }
 
     function handleTabClose(path: string) {
-        const remainingPaths = vaultStore
-            .openFiles()
+        // Snapshot the open files BEFORE closing so we can compute
+        // which tab to focus next based on the closed tab's position.
+        const openFilesBefore = vaultStore.openFiles();
+        const closedIndex = openFilesBefore.findIndex((f) => f.path === path);
+        if (closedIndex === -1) return;
+
+        const remainingPaths = openFilesBefore
             .filter((file) => file.path !== path)
             .map((file) => file.path);
+
+        // Push the closed path onto the recently-closed history so
+        // the user can reopen it with Ctrl+T. We do this BEFORE the
+        // actual close so we don't end up with an inconsistent state
+        // if anything below throws.
+        pushClosedTab(path);
+
         const primaryBefore = primaryPanePath();
         const secondaryBefore = secondaryPanePath();
         const activeBefore = activePaneSlot();
 
         vaultStore.closeFile(path);
 
-        const pickReplacement = (exclude: string | null = null) =>
-            remainingPaths.find((candidate) => candidate !== exclude) ??
-            remainingPaths[remainingPaths.length - 1] ??
-            null;
+        // Replacement-picker policy:
+        //   1. Prefer the LEFT neighbour of the closed tab — i.e. the
+        //      file that sits at index `closedIndex - 1` in the
+        //      original openFiles array. After removal it's at the
+        //      same index in `remainingPaths`.
+        //   2. If the closed tab was the LEFTMOST (closedIndex === 0),
+        //      fall back to the new leftmost (which used to be at
+        //      index 1, and is now at index 0 in `remainingPaths`).
+        //   3. If `exclude` is given (because the OTHER pane is already
+        //      showing that candidate and we don't want both panes
+        //      pointing at the same file), skip past it in either
+        //      direction.
+        const pickReplacement = (exclude: string | null = null): string | null => {
+            if (remainingPaths.length === 0) return null;
 
-        let nextPrimary = primaryBefore === path ? pickReplacement(secondaryBefore === path ? null : secondaryBefore) : primaryBefore;
-        let nextSecondary = secondaryBefore === path ? pickReplacement(nextPrimary) : secondaryBefore;
+            // Build the search order: left neighbour first, then walk
+            // further LEFT, then walk RIGHT from the original position.
+            // This way "select the closest existing tab" works even
+            // when the immediate neighbour also happens to be excluded.
+            const order: number[] = [];
+            for (let i = closedIndex - 1; i >= 0; i--) order.push(i);
+            // After removal, indices >= closedIndex shift down by one,
+            // but the i-th remaining file IS the original (i+1)-th
+            // file. We want to traverse those in the original order,
+            // which corresponds to remaining indices `closedIndex,
+            // closedIndex+1, …` IF closedIndex < remainingPaths.length.
+            for (let i = closedIndex; i < remainingPaths.length; i++) order.push(i);
 
-        if (nextSecondary === nextPrimary) {
-            nextSecondary = remainingPaths.find((candidate) => candidate !== nextPrimary) ?? null;
+            for (const idx of order) {
+                const candidate = remainingPaths[idx];
+                if (candidate && candidate !== exclude) return candidate;
+            }
+            return null;
+        };
+
+        // Pane reassignment. If a pane was pointing at the closed
+        // file, replace it with the picker's choice; the OTHER pane
+        // is unaffected unless both happened to point at the same
+        // (now closed) file.
+        let nextPrimary = primaryBefore === path
+            ? pickReplacement(secondaryBefore === path ? null : secondaryBefore)
+            : primaryBefore;
+        let nextSecondary = secondaryBefore === path
+            ? pickReplacement(nextPrimary)
+            : secondaryBefore;
+
+        if (nextSecondary === nextPrimary && nextSecondary !== null) {
+            nextSecondary = pickReplacement(nextPrimary);
         }
 
         if (!remainingPaths.length) {
@@ -889,6 +976,17 @@ const App: Component = () => {
                 document.dispatchEvent(new CustomEvent("mindzj:force-save"));
                 handleTabClose(path);
             }
+            return;
+        }
+        // Ctrl+T: reopen the most recently closed tab. Mirrors the
+        // browser/VS Code shortcut. The closed-tabs history is a
+        // bounded LIFO stack pushed by `handleTabClose`. Pressing
+        // Ctrl+T multiple times in a row reopens tabs in
+        // reverse-close order (most recent first).
+        if (matchesHotkey(e, getHotkey("reopen-tab", "Ctrl+T"))) {
+            e.preventDefault();
+            e.stopPropagation();
+            reopenLastClosedTab();
             return;
         }
         if (matchesHotkey(e, getHotkey("task-list", "Ctrl+L"))) {
