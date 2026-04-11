@@ -30,6 +30,7 @@ import { CommandPalette } from "./components/common/CommandPalette";
 import { SettingsModal } from "./components/settings/SettingsModal";
 import { WindowControls } from "./components/common/TitleBar";
 import { ImageViewer } from "./components/common/ImageViewer";
+import { FilePreview } from "./components/common/FilePreview";
 import { createPersistableWindowState } from "./utils/windowState";
 import { register, unregister } from "@tauri-apps/plugin-global-shortcut";
 import { ScreenshotOverlay } from "./components/screenshot/ScreenshotOverlay";
@@ -707,7 +708,7 @@ const App: Component = () => {
                     filesToOpen.push(ws.active_file);
                 }
                 for (const filePath of filesToOpen) {
-                    try { await vaultStore.openFile(filePath); } catch { /* skip missing files */ }
+                    try { await openFileRouted(filePath); } catch { /* skip missing files */ }
                 }
                 if (ws.active_file) {
                     try { vaultStore.switchToFile(ws.active_file); } catch { /* skip */ }
@@ -718,7 +719,7 @@ const App: Component = () => {
             if (!startupPayloadApplied() && (startupFilePath || isViewMode(startupViewMode))) {
                 if (startupFilePath) {
                     try {
-                        await vaultStore.openFile(startupFilePath);
+                        await openFileRouted(startupFilePath);
                     } catch (e) {
                         console.warn("Failed to open startup file from URL params:", e);
                     }
@@ -1588,6 +1589,11 @@ const PaneFileView: Component<{
     const isPluginView = createMemo(() => hasPluginViewForExtension(fileExt()));
     const viewMode = createMemo(() => editorStore.getViewModeForFile(props.filePath));
     const title = createMemo(() => props.filePath.split("/").pop() ?? props.filePath);
+    const previewKind = createMemo<"image" | "document" | null>(() => {
+        if (file()?.kind === "image") return "image";
+        if (file()?.kind === "document") return "document";
+        return null;
+    });
 
     return (
         <div
@@ -1680,31 +1686,42 @@ const PaneFileView: Component<{
                 }
             >
                 <Show
-                    when={isPluginView()}
+                    when={previewKind()}
                     fallback={
                         <Show
-                            when={viewMode() === "reading"}
+                            when={isPluginView()}
                             fallback={
-                                <Editor
-                                    file={file()}
-                                    viewMode={viewMode()}
-                                    isActive={props.active}
-                                    onActivate={props.onActivate}
-                                />
+                                <Show
+                                    when={viewMode() === "reading"}
+                                    fallback={
+                                        <Editor
+                                            file={file()}
+                                            viewMode={viewMode()}
+                                            isActive={props.active}
+                                            onActivate={props.onActivate}
+                                        />
+                                    }
+                                >
+                                    <ReadingView
+                                        file={file()}
+                                        isActive={props.active}
+                                        onActivate={props.onActivate}
+                                    />
+                                </Show>
                             }
                         >
-                            <ReadingView
-                                file={file()}
-                                isActive={props.active}
-                                onActivate={props.onActivate}
+                            <PluginViewHost
+                                filePath={props.filePath}
+                                content={file()!.content}
+                                extension={fileExt()}
                             />
                         </Show>
                     }
                 >
-                    <PluginViewHost
+                    <FilePreview
                         filePath={props.filePath}
-                        content={file()!.content}
-                        extension={fileExt()}
+                        kind={previewKind()!}
+                        active={props.active}
                     />
                 </Show>
             </Show>

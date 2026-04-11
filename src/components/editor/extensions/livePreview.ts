@@ -473,6 +473,7 @@ const italicDeco = Decoration.mark({ class: "mz-lp-italic" });
 const strikethroughDeco = Decoration.mark({ class: "mz-lp-strikethrough" });
 const highlightDeco = Decoration.mark({ class: "mz-lp-highlight" });
 const inlineCodeDeco = Decoration.mark({ class: "mz-lp-inline-code" });
+const orderedMarkerDeco = Decoration.mark({ class: "mz-lp-ordered-marker" });
 const linkDeco = Decoration.mark({ class: "mz-lp-link" });
 // linkUrlDeco removed — link URLs are hidden in preview
 // Blockquote + HR: same reasoning as headings — use line decorations so
@@ -648,6 +649,12 @@ function buildDecorationsImpl(
             const bracketStart = line.from + taskMatch[1].length + 2; // after "- "
             const bracketEnd = bracketStart + 3; // "[x]" or "[ ]"
             decorations.push(taskMarkerDeco.range(bracketStart, bracketEnd));
+        }
+        const orderedMatch = text.match(/^(\s*)(\d+\.)\s/);
+        if (orderedMatch) {
+            const markerStart = line.from + orderedMatch[1].length;
+            const markerEnd = markerStart + orderedMatch[2].length;
+            decorations.push(orderedMarkerDeco.range(markerStart, markerEnd));
         }
         if (taskMatch && !isCurrentLine) {
             const checkStart = line.from + taskMatch[1].length;
@@ -1124,6 +1131,9 @@ const livePreviewTheme = EditorView.baseTheme({
         background: "var(--mz-text-muted)",
         transform: "translate(-50%, -50%)",
         pointerEvents: "none",
+    },
+    ".mz-lp-ordered-marker": {
+        color: "var(--mz-text-muted)",
     },
     ".mz-lp-bold": {
         fontWeight: "700",

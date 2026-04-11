@@ -21,7 +21,8 @@ function todayStr(): string {
 }
 
 function dailyNotePath(dateStr: string): string {
-  return `diary/${dateStr}.md`;
+  const [year, month] = dateStr.split("-");
+  return `diary/${year}/${month}/${dateStr}.md`;
 }
 
 function collectDiaryDates(entries: VaultEntry[], result: Set<string>) {
@@ -128,17 +129,34 @@ export const Calendar: Component = () => {
   };
 
   const openDailyNote = async (dateStr: string) => {
+    if (!existingNotes().has(dateStr)) return;
     const path = dailyNotePath(dateStr);
     try {
       await vaultStore.openFile(path);
+    } catch (error) {
+      console.error("Failed to open daily note:", error);
+    }
+  };
+
+  const openOrCreateTodayNote = async () => {
+    const dateStr = todayStr();
+    const path = dailyNotePath(dateStr);
+    try {
+      await vaultStore.openFile(path);
+      return;
     } catch {
-      try {
-        await invoke("create_dir", { relativePath: "diary" }).catch(() => {});
-        await vaultStore.createFile(path, "");
-        await vaultStore.openFile(path);
-      } catch (error) {
-        console.error("Failed to create daily note:", error);
-      }
+      // Fall through to create explicitly.
+    }
+
+    try {
+      const [year, month] = dateStr.split("-");
+      await invoke("create_dir", { relativePath: "diary" }).catch(() => {});
+      await invoke("create_dir", { relativePath: `diary/${year}` }).catch(() => {});
+      await invoke("create_dir", { relativePath: `diary/${year}/${month}` }).catch(() => {});
+      await vaultStore.createFile(path, "");
+      await vaultStore.openFile(path);
+    } catch (error) {
+      console.error("Failed to create daily note:", error);
     }
   };
 
@@ -236,7 +254,7 @@ export const Calendar: Component = () => {
                   : day.isCurrentMonth
                     ? "var(--mz-text-primary)"
                     : "var(--mz-text-muted)",
-                cursor: "pointer",
+                cursor: day.hasNote ? "pointer" : "default",
                 "border-radius": "var(--mz-radius-sm)",
                 "font-size": "11px",
                 "font-family": "var(--mz-font-sans)",
@@ -248,7 +266,7 @@ export const Calendar: Component = () => {
                 opacity: day.isCurrentMonth ? "1" : "0.4",
               }}
               onMouseEnter={(event) => {
-                if (!day.isToday) {
+                if (!day.isToday && day.hasNote) {
                   event.currentTarget.style.background = "var(--mz-bg-hover)";
                 }
               }}
@@ -259,7 +277,7 @@ export const Calendar: Component = () => {
               }}
             >
               {day.day}
-              <Show when={day.hasNote && !day.isToday}>
+              <Show when={day.hasNote}>
                 <span
                   style={{
                     position: "absolute",
@@ -269,7 +287,7 @@ export const Calendar: Component = () => {
                     width: "4px",
                     height: "4px",
                     "border-radius": "50%",
-                    background: "var(--mz-accent)",
+                    background: day.isToday ? "var(--mz-text-on-accent)" : "var(--mz-accent)",
                   }}
                 />
               </Show>
@@ -279,7 +297,7 @@ export const Calendar: Component = () => {
       </div>
 
       <button
-        onClick={() => void openDailyNote(todayStr())}
+        onClick={() => void openOrCreateTodayNote()}
         style={{
           width: "100%",
           padding: "8px",

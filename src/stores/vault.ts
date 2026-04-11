@@ -27,6 +27,7 @@ export interface FileContent {
   content: string;
   modified: string;
   hash: string;
+  kind?: "text" | "image" | "document";
 }
 
 export interface FileMetadata {
@@ -52,6 +53,16 @@ function createVaultStore() {
   const [openFiles, setOpenFiles] = createSignal<FileContent[]>([]);
   const [isLoading, setIsLoading] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
+
+  function upsertOpenFile(content: FileContent) {
+    setOpenFiles((prev) => {
+      const exists = prev.some((f) => f.path === content.path);
+      if (exists) {
+        return prev.map((f) => (f.path === content.path ? content : f));
+      }
+      return [...prev, content];
+    });
+  }
 
   // Open a vault
   async function openVault(path: string, name: string): Promise<void> {
@@ -85,22 +96,13 @@ function createVaultStore() {
   async function openFile(relativePath: string): Promise<FileContent> {
     setIsLoading(true);
     try {
-      const content = await invoke<FileContent>("read_file", {
+      const raw = await invoke<FileContent>("read_file", {
         relativePath,
       });
+      const content: FileContent = { ...raw, kind: "text" };
 
       setActiveFile(content);
-
-      // Add to open files if not already there
-      setOpenFiles((prev) => {
-        const exists = prev.some((f) => f.path === content.path);
-        if (exists) {
-          return prev.map((f) =>
-            f.path === content.path ? content : f
-          );
-        }
-        return [...prev, content];
-      });
+      upsertOpenFile(content);
 
       return content;
     } catch (e: any) {
@@ -117,7 +119,11 @@ function createVaultStore() {
   // we MUST NOT yank the user off whatever tab they're currently on.
   async function reloadFile(relativePath: string): Promise<void> {
     try {
-      const content = await invoke<FileContent>("read_file", { relativePath });
+      const existing = openFiles().find((file) => file.path === relativePath);
+      if (existing?.kind && existing.kind !== "text") return;
+
+      const raw = await invoke<FileContent>("read_file", { relativePath });
+      const content: FileContent = { ...raw, kind: "text" };
       setOpenFiles((prev) =>
         prev.some((f) => f.path === content.path)
           ? prev.map((f) => (f.path === content.path ? content : f))
@@ -145,10 +151,11 @@ function createVaultStore() {
     content: string
   ): Promise<FileContent> {
     try {
-      const result = await invoke<FileContent>("write_file", {
+      const raw = await invoke<FileContent>("write_file", {
         relativePath,
         content,
       });
+      const result: FileContent = { ...raw, kind: "text" };
 
       // Only promote the saved file to active if it already was — this
       // keeps the modified timestamp / hash in sync without clobbering
@@ -173,10 +180,11 @@ function createVaultStore() {
     content: string = ""
   ): Promise<FileContent> {
     try {
-      const result = await invoke<FileContent>("create_file", {
+      const raw = await invoke<FileContent>("create_file", {
         relativePath,
         content,
       });
+      const result: FileContent = { ...raw, kind: "text" };
       await refreshFileTree();
       return result;
     } catch (e: any) {
@@ -258,6 +266,22 @@ function createVaultStore() {
     }
   }
 
+  function openPreviewFile(
+    relativePath: string,
+    kind: Extract<FileContent["kind"], "image" | "document">,
+  ): FileContent {
+    const preview: FileContent = {
+      path: relativePath,
+      content: "",
+      modified: "",
+      hash: "",
+      kind,
+    };
+    setActiveFile(preview);
+    upsertOpenFile(preview);
+    return preview;
+  }
+
   // Close the current vault and reset all state
   function closeVault() {
     setVaultInfo(null);
@@ -301,6 +325,7 @@ function createVaultStore() {
     openVault,
     refreshFileTree,
     openFile,
+    openPreviewFile,
     reloadFile,
     saveFile,
     createFile,

@@ -19,11 +19,11 @@ import { getFileHandler } from "./fileTypes";
  *     `vaultStore.openFile(path)`, because the editor area delegates
  *     to a `PluginViewHost` when it detects a registered extension.
  *
- *   - Images (`.png`, `.jpg`, `.gif`, `.webp`, `.svg`, ...) → a new
- *     dedicated Tauri webview window with the ImageViewer component.
- *     Reading an image via `read_file` would return garbled bytes,
- *     so routing to a separate window that uses the asset protocol
- *     is the only correct approach.
+ *   - Images (`.png`, `.jpg`, `.gif`, `.webp`, `.svg`, ...) → an
+ *     in-app preview tab.
+ *
+ *   - `.doc/.docx` → an in-app document placeholder tab so the file
+ *     stays in the workspace rather than jumping out to another app.
  *
  *   - Office documents, PDFs, archives, A/V files → the OS default
  *     application (Word, Excel, Acrobat, the system media player).
@@ -37,16 +37,19 @@ export async function openFileRouted(relativePath: string): Promise<void> {
 
     switch (handler) {
         case "image": {
-            const info = vaultStore.vaultInfo();
-            if (!info) return;
             try {
-                await invoke("open_image_in_new_window", {
-                    vaultPath: info.path,
-                    vaultName: info.name,
-                    filePath: relativePath,
-                });
+                vaultStore.openPreviewFile(relativePath, "image");
             } catch (e) {
-                console.error("[openFileRouted] open_image_in_new_window failed:", e);
+                console.error("[openFileRouted] openPreviewFile(image) failed:", e);
+            }
+            return;
+        }
+
+        case "preview": {
+            try {
+                vaultStore.openPreviewFile(relativePath, "document");
+            } catch (e) {
+                console.error("[openFileRouted] openPreviewFile(document) failed:", e);
             }
             return;
         }

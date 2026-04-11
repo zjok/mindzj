@@ -22,6 +22,7 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { settingsStore } from "../stores/settings";
+import { openFileRouted } from "./openFileRouted";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -197,7 +198,7 @@ export function attachCtrlClick(
         break;
       case "open-in-new-tab":
       default:
-        window.open(img.src, "_blank");
+        void openFileRouted(imgPath);
         break;
     }
   }

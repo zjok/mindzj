@@ -241,6 +241,13 @@ export function resetFileOrder() {
 // ---------------------------------------------------------------------------
 
 function sortEntries(entries: VaultEntry[], mode: SortMode, order: SortOrder, dirPath: string = ""): VaultEntry[] {
+    const diaryComparator = createDiaryComparator(dirPath);
+    if (diaryComparator) {
+        const sorted = [...entries];
+        sorted.sort(diaryComparator);
+        return sorted;
+    }
+
     if (mode === "custom") {
         const orderList = fileOrderMap()[dirPath];
         if (orderList && orderList.length > 0) {
@@ -280,6 +287,52 @@ function sortEntries(entries: VaultEntry[], mode: SortMode, order: SortOrder, di
         return order === "desc" ? -cmp : cmp;
     });
     return sorted;
+}
+
+function createDiaryComparator(dirPath: string) {
+    const normalized = dirPath.replace(/\\/g, "/").replace(/\/+$/g, "");
+    const isDiaryRoot = normalized === "diary";
+    const isDiaryYear = /^diary\/\d{4}$/.test(normalized);
+    const isDiaryMonth = /^diary\/\d{4}\/\d{2}$/.test(normalized);
+    if (!isDiaryRoot && !isDiaryYear && !isDiaryMonth) return null;
+
+    const readYear = (name: string) => (/^\d{4}$/.test(name) ? Number.parseInt(name, 10) : null);
+    const readMonth = (name: string) => (/^\d{2}$/.test(name) ? Number.parseInt(name, 10) : null);
+    const readDay = (name: string) =>
+        /^(\d{4})-(\d{2})-(\d{2})\.md$/i.test(name)
+            ? name.slice(0, 10)
+            : null;
+
+    return (a: VaultEntry, b: VaultEntry) => {
+        if (a.is_dir && !b.is_dir) return -1;
+        if (!a.is_dir && b.is_dir) return 1;
+
+        if (isDiaryRoot) {
+            const ay = readYear(a.name);
+            const by = readYear(b.name);
+            if (ay != null && by != null) return by - ay;
+            if (ay != null) return -1;
+            if (by != null) return 1;
+        }
+
+        if (isDiaryYear) {
+            const am = readMonth(a.name);
+            const bm = readMonth(b.name);
+            if (am != null && bm != null) return bm - am;
+            if (am != null) return -1;
+            if (bm != null) return 1;
+        }
+
+        if (isDiaryMonth) {
+            const ad = readDay(a.name);
+            const bd = readDay(b.name);
+            if (ad && bd) return bd.localeCompare(ad);
+            if (ad) return -1;
+            if (bd) return 1;
+        }
+
+        return a.name.localeCompare(b.name, "zh-CN", { sensitivity: "base" });
+    };
 }
 
 // ---------------------------------------------------------------------------

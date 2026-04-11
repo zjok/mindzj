@@ -7,13 +7,11 @@
  *   - Markdown and plain-text files go into the CodeMirror editor.
  *   - `.mindzj` (or any plugin-registered extension) goes into a
  *     plugin view.
- *   - Images open in a dedicated image-viewer window (new Tauri
- *     webview) so the user can zoom/pan without cluttering the main
- *     editor area.
- *   - Office documents, PDFs, archives, A/V files etc. can't be
- *     rendered inside a WebView2 view in any useful way — we delegate
- *     them to the operating system's default app (Word, Excel,
- *     Acrobat, the default image/video player, etc.).
+ *   - Images open in an in-app preview tab.
+ *   - A small set of binary document formats (currently `.doc/.docx`)
+ *     open in an in-app placeholder tab with actions.
+ *   - Other Office documents, PDFs, archives, A/V files etc. are
+ *     delegated to the operating system's default app.
  */
 
 export type FileHandler =
@@ -21,8 +19,10 @@ export type FileHandler =
     | "editor"
     /** Open via a registered plugin view (e.g. `.mindzj` → mind-map). */
     | "plugin"
-    /** Open in a dedicated Tauri image-viewer window. */
+    /** Open in an in-app image preview tab. */
     | "image"
+    /** Open in an in-app document placeholder tab. */
+    | "preview"
     /** Delegate to the OS default application (Word, Excel, etc.). */
     | "external"
     /** Unknown extension — fall back to the editor (maybe it's text). */
@@ -60,6 +60,9 @@ const TEXT_EXTS = new Set([
     "txt",
     "log",
     "readme",
+    "csv",
+    "cvs",
+    "tsv",
     // Structured configs
     "json",
     "jsonc",
@@ -110,6 +113,11 @@ const TEXT_EXTS = new Set([
     "gql",
 ]);
 
+const PREVIEW_EXTS = new Set([
+    "doc",
+    "docx",
+]);
+
 /**
  * Files we hand off to the OS default app. These either can't render
  * in a WebView2 view at all (Office, PDF, archives) or would render
@@ -131,9 +139,6 @@ const EXTERNAL_EXTS = new Set([
     "pages",
     "numbers",
     "key",
-    // Tabular (render better in Excel / Numbers than our editor)
-    "csv",
-    "tsv",
     // PDFs
     "pdf",
     // Audio / video
@@ -190,6 +195,7 @@ export function getFileHandler(
     if (ext && hasPluginView(ext)) return "plugin";
     if (IMAGE_EXTS.has(ext)) return "image";
     if (TEXT_EXTS.has(ext)) return "editor";
+    if (PREVIEW_EXTS.has(ext)) return "preview";
     if (EXTERNAL_EXTS.has(ext)) return "external";
     // Unknown extension: try the editor. Worst case the user sees
     // garbled bytes and closes the tab — better than silently doing
@@ -207,4 +213,8 @@ export function isTextExtension(ext: string): boolean {
 
 export function isExternalExtension(ext: string): boolean {
     return EXTERNAL_EXTS.has(ext.toLowerCase());
+}
+
+export function isPreviewExtension(ext: string): boolean {
+    return PREVIEW_EXTS.has(ext.toLowerCase());
 }

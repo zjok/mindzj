@@ -524,8 +524,8 @@ html[data-theme="light"] .cm-editor .cm-panels-bottom {
   font-weight: 400;
 }
 
-/* Top-level ordered list number markers are muted */
-.mz-reading-view .mz-rv-list-ol > li::marker {
+/* Ordered list number markers are muted in reading mode */
+.mz-reading-view .mz-rv-list-ol li::marker {
   color: var(--mz-text-muted);
   font-weight: 400;
 }
