@@ -139,6 +139,14 @@ const MESSAGES: Record<string, TranslationMap> = {
   "welcome.opening": { "zh-CN": "打开中...", en: "Opening...", ja: "開いています...", fr: "Ouverture...", de: "Wird geöffnet...", es: "Abriendo..." },
   "welcome.shortcutsHint": { "zh-CN": "Ctrl+P 命令面板 · Ctrl+S 保存 · Alt+G 截图", en: "Ctrl+P command palette · Ctrl+S save · Alt+G screenshot", ja: "Ctrl+P コマンドパレット · Ctrl+S 保存 · Alt+G スクリーンショット", fr: "Ctrl+P palette de commandes · Ctrl+S enregistrer · Alt+G capture", de: "Ctrl+P Befehlspalette · Ctrl+S speichern · Alt+G Screenshot", es: "Ctrl+P paleta de comandos · Ctrl+S guardar · Alt+G captura" },
   "calendar.openToday": { "zh-CN": "打开今日笔记", en: "Open today's note", ja: "今日のノートを開く", fr: "Ouvrir la note du jour", de: "Heutige Notiz öffnen", es: "Abrir nota de hoy" },
+  "calendar.newNoteForDate": { "zh-CN": "新建该日期的笔记", en: "New note for this date", ja: "この日付のノートを作成", fr: "Nouvelle note pour cette date", de: "Notiz für dieses Datum anlegen", es: "Nueva nota para esta fecha" },
+  "calendar.openNoteForDate": { "zh-CN": "打开该日期的笔记", en: "Open note for this date", ja: "この日付のノートを開く", fr: "Ouvrir la note de cette date", de: "Notiz für dieses Datum öffnen", es: "Abrir nota de esta fecha" },
+  "calendar.newNoteForSelected": { "zh-CN": "为所选日期新建笔记", en: "New note for selected date", ja: "選択した日付でノート作成", fr: "Nouvelle note pour la date sélectionnée", de: "Notiz für ausgewähltes Datum", es: "Nueva nota para la fecha seleccionada" },
+  "calendar.backToToday": { "zh-CN": "回到今天", en: "Back to today", ja: "今日に戻る", fr: "Revenir à aujourd’hui", de: "Heute anzeigen", es: "Volver a hoy" },
+  "calendar.pickYearMonth": { "zh-CN": "选择年月", en: "Pick year & month", ja: "年月を選択", fr: "Choisir année et mois", de: "Jahr & Monat wählen", es: "Elegir año y mes" },
+  "calendar.year": { "zh-CN": "年", en: "Year", ja: "年", fr: "Année", de: "Jahr", es: "Año" },
+  "calendar.month": { "zh-CN": "月", en: "Month", ja: "月", fr: "Mois", de: "Monat", es: "Mes" },
+  "calendar.confirm": { "zh-CN": "确定", en: "Confirm", ja: "確定", fr: "Valider", de: "Bestätigen", es: "Confirmar" },
   "search.placeholder": { "zh-CN": "搜索笔记内容...", en: "Search note content...", ja: "ノート内容を検索...", fr: "Rechercher dans les notes...", de: "Notizinhalte suchen...", es: "Buscar en las notas..." },
   "search.searching": { "zh-CN": "搜索中...", en: "Searching...", ja: "検索中...", fr: "Recherche...", de: "Suche...", es: "Buscando..." },
   "search.noResults": { "zh-CN": "没有找到结果", en: "No results found", ja: "結果が見つかりません", fr: "Aucun résultat", de: "Keine Ergebnisse gefunden", es: "No se encontraron resultados" },
@@ -416,4 +424,13 @@ export function formatMonthYear(year: number, month: number, locale = currentLoc
   return new Intl.DateTimeFormat(locale, { year: "numeric", month: "long" }).format(
     new Date(year, month, 1),
   );
+}
+
+/**
+ * Localized full month names (12 entries, January..December for the
+ * current locale). Used by the calendar's year/month picker popup.
+ */
+export function getMonthLabels(locale = currentLocale()): string[] {
+  const formatter = new Intl.DateTimeFormat(locale, { month: "long" });
+  return Array.from({ length: 12 }, (_, idx) => formatter.format(new Date(2000, idx, 1)));
 }

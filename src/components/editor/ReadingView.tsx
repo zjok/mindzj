@@ -72,34 +72,43 @@ function parseReadingListToken(
     line: string,
     lineNumber: number,
 ): ReadingListToken | null {
-    const taskMatch = line.match(/^(\s*)- \[([ xX])\]\s(.+)$/);
+    // The third capture group is `(\s(.*))?` (optional) so that an
+    // empty list item like `2. ` (or `- [ ]` or `- ` with no content)
+    // STILL matches and renders as a list item with empty content.
+    // The previous regexes used `\s(.+)$` which required at least
+    // one character after the marker — that broke the very common
+    // case of a half-typed ordered list where the last line is just
+    // `3. ` and the user expects it to render aligned with `1.`/`2.`
+    // instead of as a stray paragraph below the <ol>.
+
+    const taskMatch = line.match(/^(\s*)- \[([ xX])\](?:\s(.*))?$/);
     if (taskMatch) {
         return {
             kind: "task",
             level: measureListIndent(taskMatch[1] ?? ""),
             line: lineNumber,
-            content: taskMatch[3],
+            content: taskMatch[3] ?? "",
             checked: taskMatch[2] !== " ",
         };
     }
 
-    const unorderedMatch = line.match(/^(\s*)([-*+])\s(.+)$/);
+    const unorderedMatch = line.match(/^(\s*)([-*+])(?:\s(.*))?$/);
     if (unorderedMatch) {
         return {
             kind: "ul",
             level: measureListIndent(unorderedMatch[1] ?? ""),
             line: lineNumber,
-            content: unorderedMatch[3],
+            content: unorderedMatch[3] ?? "",
         };
     }
 
-    const orderedMatch = line.match(/^(\s*)(\d+)\.\s(.+)$/);
+    const orderedMatch = line.match(/^(\s*)(\d+)\.(?:\s(.*))?$/);
     if (orderedMatch) {
         return {
             kind: "ol",
             level: measureListIndent(orderedMatch[1] ?? ""),
             line: lineNumber,
-            content: orderedMatch[3],
+            content: orderedMatch[3] ?? "",
             start: Number.parseInt(orderedMatch[2], 10),
         };
     }

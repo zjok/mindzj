@@ -875,6 +875,22 @@ const App: Component = () => {
             document.dispatchEvent(new CustomEvent("mindzj:force-save"));
             return;
         }
+        // Ctrl+W: save and close the currently active tab (the one
+        // visible in whichever pane has focus). We dispatch the
+        // force-save event first so the editor flushes any pending
+        // changes via the same `mindzj:force-save` path that Ctrl+S
+        // uses, then call `handleTabClose` which removes the file
+        // from `openFiles` and rebalances the panes.
+        if (matchesHotkey(e, getHotkey("close-tab", "Ctrl+W"))) {
+            e.preventDefault();
+            e.stopPropagation();
+            const path = activePanePath() ?? vaultStore.activeFile()?.path ?? null;
+            if (path) {
+                document.dispatchEvent(new CustomEvent("mindzj:force-save"));
+                handleTabClose(path);
+            }
+            return;
+        }
         if (matchesHotkey(e, getHotkey("task-list", "Ctrl+L"))) {
             e.preventDefault();
             e.stopPropagation();
