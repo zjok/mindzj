@@ -2776,6 +2776,7 @@ dependencies = [
  "tracing-subscriber",
  "urlencoding",
  "uuid",
+ "windows 0.58.0",
  "xcap",
 ]
 

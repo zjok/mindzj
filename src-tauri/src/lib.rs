@@ -1,5 +1,7 @@
 mod api;
 mod kernel;
+#[cfg(windows)]
+mod keyboard_hook;
 
 use api::settings_api::{apply_window_state, load_window_state_sync};
 use kernel::AppState;
@@ -43,6 +45,35 @@ fn apply_hires_icon(window: &tauri::WebviewWindow) {
 fn exit_app(app: tauri::AppHandle) {
     tracing::info!("exit_app invoked — shutting down");
     app.exit(0);
+}
+
+/// Open the webview devtools for the calling window.
+///
+/// The `devtools` Cargo feature on `tauri = { ... }` is already enabled
+/// in `Cargo.toml`, so the underlying WebView2 runtime is compiled with
+/// devtools support in both debug and release builds. This command is
+/// the programmatic entry point — the frontend calls it from the
+/// Ctrl+Shift+I global keydown handler so the shortcut works whether
+/// or not WebView2 happens to have its own hotkey binding active.
+#[tauri::command]
+fn open_devtools(window: tauri::WebviewWindow) {
+    tracing::info!("open_devtools invoked — window='{}'", window.label());
+    window.open_devtools();
+}
+
+/// Minimize the calling window to the taskbar. Wired to Ctrl+M in the
+/// frontend global keydown handler. We go through a Tauri command (as
+/// opposed to calling `getCurrentWindow().minimize()` in JS) because
+/// the JS path has occasionally raced with the capture-phase keydown
+/// event's propagation and left the minimize silently dropped. A
+/// dedicated Rust-side command is synchronous with respect to the
+/// window handle and always takes effect.
+#[tauri::command]
+fn minimize_window(window: tauri::WebviewWindow) {
+    tracing::info!("minimize_window invoked — window='{}'", window.label());
+    if let Err(e) = window.minimize() {
+        tracing::warn!("minimize_window failed: {}", e);
+    }
 }
 
 /// Multi-window-aware close: if there are OTHER webview windows open,
@@ -478,6 +509,15 @@ pub fn run() {
                 }
                 let _ = main_window.show();
             }
+            // Install the low-level keyboard hook on Windows so
+            // Ctrl+Alt+Left/Right tab-switching works even when
+            // Intel/AMD graphics drivers have their own
+            // WH_KEYBOARD_LL hook fighting for the same combo.
+            // See keyboard_hook.rs for the full rationale.
+            #[cfg(windows)]
+            {
+                keyboard_hook::install(app.handle());
+            }
             Ok(())
         })
         // Register all Tauri commands (the Core API layer)
@@ -488,6 +528,8 @@ pub fn run() {
             open_image_in_new_window,
             exit_app,
             close_or_exit,
+            open_devtools,
+            minimize_window,
             // Vault API
             api::vault_api::open_vault,
             api::vault_api::get_vault_info,

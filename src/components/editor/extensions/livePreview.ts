@@ -1159,9 +1159,14 @@ const livePreviewTheme = EditorView.baseTheme({
     },
     ".mz-lp-link": {
         color: "var(--mz-syntax-link)",
-        textDecoration: "none",
+        // Underline is declared in editor.css via `text-decoration`.
+        // We used to ALSO set `borderBottom: "1px solid ..."` here,
+        // which combined with the CSS `text-decoration: underline`
+        // produced a visible DOUBLE underline — one line from the
+        // border and another from the text-decoration. Both are
+        // removed from this inline theme so only the CSS rule
+        // draws the single underline.
         cursor: "pointer",
-        borderBottom: "1px solid var(--mz-syntax-link)",
         "&:hover": {
             opacity: "0.8",
         },

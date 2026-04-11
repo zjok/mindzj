@@ -32,7 +32,7 @@ import { WindowControls } from "./components/common/TitleBar";
 import { ImageViewer } from "./components/common/ImageViewer";
 import { FilePreview } from "./components/common/FilePreview";
 import { createPersistableWindowState } from "./utils/windowState";
-import { register, unregister } from "@tauri-apps/plugin-global-shortcut";
+import { register, unregister, isRegistered } from "@tauri-apps/plugin-global-shortcut";
 import { ScreenshotOverlay } from "./components/screenshot/ScreenshotOverlay";
 import { promptDialog } from "./components/common/ConfirmDialog";
 import { openFileRouted } from "./utils/openFileRouted";
@@ -146,6 +146,21 @@ const App: Component = () => {
         // throws synchronously somewhere we don't expect.
         setClosedTabsHistory((prev) => prev.slice(0, -1));
         void openFileRouted(path);
+    }
+
+    // Ephemeral "shortcut fired" toast. Lets us verify, without
+    // needing to open devtools, whether a keyboard shortcut handler
+    // actually ran. When a path calls `showShortcutToast(msg)` the
+    // toast appears top-center for 1.2s then fades out. Used by
+    // `switchOpenTab` so the user can SEE that the handler fired
+    // even if tab switching itself looks like it didn't do anything
+    // (e.g. only one tab open, so prev/next is a no-op).
+    const [shortcutToast, setShortcutToast] = createSignal<string | null>(null);
+    let shortcutToastTimer: ReturnType<typeof setTimeout> | null = null;
+    function showShortcutToast(message: string) {
+        setShortcutToast(message);
+        if (shortcutToastTimer) clearTimeout(shortcutToastTimer);
+        shortcutToastTimer = setTimeout(() => setShortcutToast(null), 1200);
     }
 
     const uiScale = createMemo(() => editorStore.uiZoom() / 100);
@@ -269,6 +284,16 @@ const App: Component = () => {
 
     function switchOpenTab(direction: "prev" | "next"): boolean {
         const files = vaultStore.openFiles();
+        // Fire the visible toast unconditionally — if the user sees
+        // it, they know the shortcut reached this function. If they
+        // don't, we know the keyboard event never made it here (which
+        // is the interesting debugging signal).
+        showShortcutToast(
+            direction === "prev"
+                ? `← tab (${files.length} open)`
+                : `tab → (${files.length} open)`,
+        );
+
         if (files.length === 0) return false;
 
         const currentPath =
@@ -756,6 +781,82 @@ const App: Component = () => {
         });
     }
 
+    // ─────────────────────────────────────────────────────────────
+    //  Ctrl+Alt+Left / Ctrl+Alt+Right — OS-level global shortcuts
+    // ─────────────────────────────────────────────────────────────
+    //
+    // After multiple failed attempts to get this to work via the DOM
+    // keydown path, we ALSO register at the OS level via Tauri's
+    // global-shortcut plugin. The most likely explanation for the
+    // DOM path never firing on the user's machine is that Windows'
+    // Intel Graphics Command Center hijacks Ctrl+Alt+Arrow at the OS
+    // level for screen rotation BEFORE the webview even sees the
+    // keypress. Registering at the OS level tells Windows "this app
+    // owns this shortcut" and typically supersedes the graphics
+    // driver binding.
+    //
+    // Key design decisions vs. earlier versions of this block:
+    //  - NO `isFocused()` check. Previously we bailed out of the
+    //    callback if another window was on top, but `isFocused()` is
+    //    async and racing with the keydown → the first press would
+    //    sometimes resolve false even though the user was actively
+    //    focused on MindZJ. Now we just switch unconditionally. A
+    //    global shortcut fire while another app is on top is a
+    //    corner case the user would have to go out of their way to
+    //    produce; if it matters we can re-add focus filtering later.
+    //  - We call `switchOpenTab` SYNCHRONOUSLY from inside the
+    //    plugin-global-shortcut callback. It triggers the visible
+    //    toast, which is our smoke-test signal.
+    //  - `isRegistered()` is called immediately after `register()`
+    //    so the user-facing log shows whether registration actually
+    //    succeeded. If it didn't, the most likely cause is another
+    //    application (or OS component) already claiming the key.
+    onMount(async () => {
+        const tryRegister = async (combo: string, direction: "prev" | "next") => {
+            try {
+                await register(combo, (event) => {
+                    if (event.state === "Pressed") switchOpenTab(direction);
+                });
+                const ok = await isRegistered(combo).catch(() => false);
+                // eslint-disable-next-line no-console
+                console.log(`[GlobalShortcut] register('${combo}') success=${ok}`);
+            } catch (err) {
+                console.warn(
+                    `[GlobalShortcut] register('${combo}') failed:`,
+                    err,
+                );
+            }
+        };
+        await tryRegister("CommandOrControl+Alt+Left", "prev");
+        await tryRegister("CommandOrControl+Alt+Right", "next");
+
+        // Listen for the `mindzj://tab-switch` event emitted by the
+        // Rust-side Windows low-level keyboard hook
+        // (src-tauri/src/keyboard_hook.rs). That hook catches
+        // Ctrl+Alt+Left/Right at the kernel-driver level, BEFORE
+        // Intel/AMD graphics drivers can intercept them for screen
+        // rotation. The payload is the string "prev" or "next".
+        // This is the "nuclear option" path — it should always
+        // fire on Windows whether or not any of the higher-level
+        // (DOM keydown, RegisterHotKey) paths manage to see the
+        // event first.
+        const unlistenTabSwitch = await listen<string>(
+            "mindzj://tab-switch",
+            (event) => {
+                const direction = event.payload === "prev" ? "prev" : "next";
+                // eslint-disable-next-line no-console
+                console.log(`[tab-switch] event from Rust hook: ${direction}`);
+                switchOpenTab(direction);
+            },
+        );
+
+        onCleanup(() => {
+            unregister("CommandOrControl+Alt+Left").catch(() => {});
+            unregister("CommandOrControl+Alt+Right").catch(() => {});
+            try { unlistenTabSwitch(); } catch {}
+        });
+    });
+
     // Update window title when vault changes
     createEffect(() => {
         const info = vaultStore.vaultInfo();
@@ -943,6 +1044,67 @@ const App: Component = () => {
     }
 
     function handleGlobalKeydown(e: KeyboardEvent) {
+        // ═══════════════════════════════════════════════════════════
+        //  Ctrl+Alt+Left / Ctrl+Alt+Right → switch to prev/next tab.
+        // ═══════════════════════════════════════════════════════════
+        //
+        // This check is DELIBERATELY placed at the very top of the
+        // keydown handler, BEFORE any other early-return or the
+        // `__mindzj_hotkey_capturing` bail-out. Previous attempts
+        // that used `matchesHotkey(getHotkey("tab-prev"))` further
+        // down the function never worked for the user — diagnosis
+        // was eating too much time, so this version:
+        //
+        //   1. Matches by `e.code === "ArrowLeft"/"ArrowRight"`
+        //      (layout-independent — doesn't care if the user has a
+        //      non-US keyboard that maps the left-arrow key to a
+        //      non-"ArrowLeft" `e.key` value).
+        //   2. Also accepts `e.key === "ArrowLeft"/"ArrowRight"` and
+        //      `"Left"/"Right"` as a fallback.
+        //   3. Calls `stopImmediatePropagation()` on top of the
+        //      usual `preventDefault`+`stopPropagation`, so no other
+        //      capture-phase listener on `document` (e.g. the plugin
+        //      hotkey handler in stores/plugins.ts) gets a chance
+        //      to swallow or re-dispatch the event.
+        //   4. Switches tabs through `switchOpenTab(...)`, which
+        //      goes through `handleTabSelect(path)` — the same
+        //      routine a TabBar click uses, so the pane-path signal
+        //      and the vault-store active file stay in lock-step.
+        //
+        // If this STILL doesn't fire for someone, set
+        // `localStorage.setItem("mindzj-debug-tab-switch", "1")` in
+        // devtools; the next press will dump the event details to
+        // the console so we can see exactly what the webview is
+        // sending.
+        if (
+            (e.ctrlKey || e.metaKey) &&
+            e.altKey &&
+            !e.shiftKey &&
+            (e.code === "ArrowLeft" ||
+                e.code === "ArrowRight" ||
+                e.key === "ArrowLeft" ||
+                e.key === "ArrowRight" ||
+                e.key === "Left" ||
+                e.key === "Right")
+        ) {
+            if (localStorage.getItem("mindzj-debug-tab-switch") === "1") {
+                // eslint-disable-next-line no-console
+                console.debug(
+                    "[tab-switch] Ctrl+Alt+Arrow caught",
+                    { key: e.key, code: e.code, ctrl: e.ctrlKey, alt: e.altKey },
+                );
+            }
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            const goLeft =
+                e.code === "ArrowLeft" ||
+                e.key === "ArrowLeft" ||
+                e.key === "Left";
+            switchOpenTab(goLeft ? "prev" : "next");
+            return;
+        }
+
         // Prevent the bare Alt key from activating the system menu bar,
         // which steals focus from the editor. We only suppress the Alt
         // key itself (no combo) — Alt+<key> combos are handled below.
@@ -963,25 +1125,55 @@ const App: Component = () => {
             return;
         }
 
-        // Ctrl+Shift+I / F12 / Ctrl+Shift+J / Ctrl+Shift+C → block
-        // browser-default devtools openers. Tauri v2 enables the
-        // `devtools` Cargo feature in release for our own diagnosis,
-        // but we don't want the user's muscle memory to accidentally
-        // pop it. Ctrl+Shift+C is ALSO rebound below to "insert code
-        // block" so users can still get to that function.
+        // Ctrl+Shift+I / F12 → open the webview devtools.
+        //
+        // `devtools = true` on Tauri's Cargo features enables the
+        // underlying WebView2 devtools in every build. We used to
+        // SWALLOW this shortcut so users couldn't accidentally pop
+        // devtools, but per user request it's now hooked up as the
+        // explicit shortcut to open them. We invoke the dedicated
+        // Rust command `open_devtools` instead of relying on the
+        // webview's own default binding — some Tauri/WebView2
+        // combinations don't expose Ctrl+Shift+I to the webview
+        // layer at all, and going through the Rust handle works
+        // regardless.
+        //
+        // Ctrl+Shift+J is ALSO mapped here (Chrome muscle memory).
         if (
-            (e.ctrlKey || e.metaKey) &&
-            e.shiftKey &&
-            !e.altKey &&
-            (e.key === "I" || e.key === "J" || e.key === "i" || e.key === "j")
+            ((e.ctrlKey || e.metaKey) &&
+                e.shiftKey &&
+                !e.altKey &&
+                (e.key === "I" ||
+                    e.key === "J" ||
+                    e.key === "i" ||
+                    e.key === "j")) ||
+            e.key === "F12"
         ) {
             e.preventDefault();
             e.stopPropagation();
+            void invoke("open_devtools").catch((err) => {
+                console.warn("[open_devtools] invoke failed:", err);
+            });
             return;
         }
-        if (e.key === "F12") {
+
+        // Ctrl+M → minimize the current window to the taskbar. We
+        // go through the `minimize_window` Tauri command rather
+        // than calling `getCurrentWindow().minimize()` in JS so
+        // the minimize always happens synchronously with respect
+        // to the window handle — the pure-JS path has occasionally
+        // been lost when pressed while the editor DOM is busy.
+        if (
+            (e.ctrlKey || e.metaKey) &&
+            !e.shiftKey &&
+            !e.altKey &&
+            (e.key === "m" || e.key === "M")
+        ) {
             e.preventDefault();
             e.stopPropagation();
+            void invoke("minimize_window").catch((err) => {
+                console.warn("[minimize_window] invoke failed:", err);
+            });
             return;
         }
 
@@ -1060,34 +1252,10 @@ const App: Component = () => {
             void handleNewTab();
             return;
         }
-        // Ctrl+Alt+Left / Ctrl+Alt+Right → switch to previous / next
-        // tab in the same pane, wrapping around at the ends.
-        //
-        // IMPORTANT: we don't go through `matchesHotkey(getHotkey(...))`
-        // here because a hotkey override save from an older version of
-        // the app may have stored the key as `Ctrl+Alt+ArrowLeft` (the
-        // raw DOM name) instead of the normalized `Ctrl+Alt+Left`, and
-        // debugging why a particular user's override wouldn't match was
-        // eating real time. Hard-coding the key check guarantees the
-        // tab switch fires regardless of what's in settings.
-        //
-        // We also call `handleTabSelect(path)` (what a TabBar click
-        // would do) instead of `openFileRouted(path)` — the latter
-        // re-reads the file from disk on every press and only updates
-        // the vault-level active file, which can leave the pane slot
-        // out of sync with the tab.
-        if (matchesHotkey(e, getHotkey("tab-prev", "Ctrl+Alt+Left"))) {
-            e.preventDefault();
-            e.stopPropagation();
-            switchOpenTab("prev");
-            return;
-        }
-        if (matchesHotkey(e, getHotkey("tab-next", "Ctrl+Alt+Right"))) {
-            e.preventDefault();
-            e.stopPropagation();
-            switchOpenTab("next");
-            return;
-        }
+        // Ctrl+Alt+Left / Ctrl+Alt+Right are intercepted at the
+        // very top of this handler (see the "tab switch" block
+        // above the bare-Alt guard). Not repeated here.
+
         // Ctrl+Shift+C → insert a fenced code block in markdown.
         // Browsers bind this to "Inspect element" in devtools — we
         // intercept + preventDefault earlier above, but we ALSO
@@ -1690,6 +1858,36 @@ const App: Component = () => {
                     onClose={() => setScreenshotData(null)}
                     onSave={handleScreenshotSave}
                 />
+            </Show>
+            {/* Ephemeral shortcut toast — auto-fades after ~1.2s. Used
+                primarily by the Ctrl+Alt+Left/Right tab switch handler
+                so the user can verify the keyboard event actually
+                reached our code even if the tab switching itself looks
+                like a no-op (e.g. only one tab open). Rendered OUTSIDE
+                the normal layout tree so it can sit top-center over
+                everything. */}
+            <Show when={shortcutToast()}>
+                <div
+                    style={{
+                        position: "fixed",
+                        top: "48px",
+                        left: "50%",
+                        transform: "translateX(-50%)",
+                        padding: "6px 14px",
+                        background: "var(--mz-bg-secondary, rgba(30, 30, 30, 0.92))",
+                        color: "var(--mz-text-primary, #ffffff)",
+                        border: "1px solid var(--mz-border, rgba(255, 255, 255, 0.15))",
+                        "border-radius": "6px",
+                        "font-family": "var(--mz-font-mono, monospace)",
+                        "font-size": "12px",
+                        "pointer-events": "none",
+                        "z-index": "100000",
+                        "box-shadow": "0 4px 12px rgba(0, 0, 0, 0.35)",
+                        "white-space": "nowrap",
+                    }}
+                >
+                    {shortcutToast()}
+                </div>
             </Show>
             <ConfirmDialog />
         </div>

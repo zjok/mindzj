@@ -86,6 +86,23 @@ image = { version = "0.25", default-features = false, features = ["png"] }
 # Graceful Ctrl+C handling so `tauri dev` exits 0 instead of 0xC000013A
 ctrlc = "3"
 
+# Windows-only: low-level keyboard hook (`WH_KEYBOARD_LL`) used to
+# catch Ctrl+Alt+Left/Right tab-switch shortcuts BEFORE Intel/AMD
+# graphics drivers can intercept them for screen rotation. Running
+# the hook at the kernel-mode keyboard driver exit point is the
+# only reliable way to claim this shortcut on Windows; webview-level
+# DOM keydown never sees it if the driver grabbed it first, and
+# `RegisterHotKey` (which `tauri-plugin-global-shortcut` uses) sits
+# ABOVE the driver hook table so it also loses the race.
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.58", features = [
+    "Win32_Foundation",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_System_LibraryLoader",
+    "Win32_System_Threading",
+] }
+
 [features]
 default = []
 custom-protocol = ["tauri/custom-protocol"]

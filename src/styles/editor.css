@@ -296,15 +296,21 @@ html[data-theme="light"] .cm-editor .cm-panels-bottom {
   padding: 1px 5px;
 }
 
-/* Links */
+/* Links — wiki links [[page]] and markdown links [text](url).
+   Underlined by default so they visually stand out from plain text
+   in live preview. The underline color matches the link color so
+   it reads as a "styled" link rather than an accessibility default.
+   `text-underline-offset` pushes the line a touch below the
+   baseline so descenders like `y`, `g`, `p` don't collide. */
 .cm-editor .mz-lp-link {
   color: var(--mz-syntax-link);
-  text-decoration: none;
+  text-decoration: underline;
+  text-decoration-color: var(--mz-syntax-link);
+  text-underline-offset: 2px;
   cursor: pointer;
-  border-bottom: 1px solid transparent;
 }
 .cm-editor .mz-lp-link:hover {
-  border-bottom-color: var(--mz-syntax-link);
+  text-decoration-thickness: 2px;
 }
 
 /* Blockquote and horizontal rule line styles live in livePreview.ts's
@@ -461,19 +467,24 @@ html[data-theme="light"] .cm-editor .cm-panels-bottom {
   padding: 1px 5px;
 }
 
-/* Links */
+/* Links — wiki links [[page]] and markdown links [text](url).
+   Underlined by default in reading view so they match the live
+   preview styling and stand out from plain body text. The
+   underline color matches the link color so the effect reads as
+   "styled link" rather than the browser's default blue underline. */
 .mz-reading-view .mz-rv-link,
 .mz-reading-view .mz-rv-wikilink {
   color: var(--mz-syntax-link);
-  text-decoration: none;
-  border-bottom: 1px solid transparent;
+  text-decoration: underline;
+  text-decoration-color: var(--mz-syntax-link);
+  text-underline-offset: 2px;
   cursor: pointer;
-  transition: border-color 120ms ease;
+  transition: text-decoration-thickness 120ms ease;
 }
 
 .mz-reading-view .mz-rv-link:hover,
 .mz-reading-view .mz-rv-wikilink:hover {
-  border-bottom-color: var(--mz-syntax-link);
+  text-decoration-thickness: 2px;
 }
 
 /* Images */

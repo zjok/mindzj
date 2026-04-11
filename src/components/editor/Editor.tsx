@@ -845,15 +845,33 @@ export const Editor: Component<EditorProps> = (props) => {
 
             EditorView.domEventHandlers({
                 keydown(event) {
-                    if (matchesHotkey(event, getHotkey("tab-prev", "Ctrl+Alt+Left"))) {
+                    // Ctrl+Alt+Left / Ctrl+Alt+Right → switch tabs.
+                    //
+                    // Hard-coded match (not `matchesHotkey`) and uses
+                    // both `event.code` and `event.key` so non-US
+                    // keyboard layouts can't silently break this.
+                    // This is only a safety net — the primary path
+                    // is the capture-phase document listener in
+                    // App.tsx, which calls stopImmediatePropagation
+                    // before this handler would ever see the event.
+                    if (
+                        (event.ctrlKey || event.metaKey) &&
+                        event.altKey &&
+                        !event.shiftKey &&
+                        (event.code === "ArrowLeft" ||
+                            event.code === "ArrowRight" ||
+                            event.key === "ArrowLeft" ||
+                            event.key === "ArrowRight" ||
+                            event.key === "Left" ||
+                            event.key === "Right")
+                    ) {
                         event.preventDefault();
                         event.stopPropagation();
-                        return switchTabFromEditor("prev");
-                    }
-                    if (matchesHotkey(event, getHotkey("tab-next", "Ctrl+Alt+Right"))) {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        return switchTabFromEditor("next");
+                        const goLeft =
+                            event.code === "ArrowLeft" ||
+                            event.key === "ArrowLeft" ||
+                            event.key === "Left";
+                        return switchTabFromEditor(goLeft ? "prev" : "next");
                     }
                     return false;
                 },

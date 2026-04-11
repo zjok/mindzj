@@ -13,9 +13,10 @@ import { editorStore, type ViewMode } from "../../stores/editor";
 import type { FileContent } from "../../stores/vault";
 import { displayName } from "../../utils/displayName";
 
-// Default tab width in pixels. Bumped from 90 → 102 (+12px) so the
-// filename has more room before getting truncated with `…`.
-const TAB_WIDTH = 102;
+// Default tab width in pixels. Bumped 90 → 102 → 114 (each step adds
+// 12px to give the filename a bit more breathing room before getting
+// truncated with `…`).
+const TAB_WIDTH = 114;
 const TAB_MIN_WIDTH = 50;
 const TAB_TOOLTIP_DELAY_MS = 1000;
 
