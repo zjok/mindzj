@@ -41,7 +41,8 @@ interface ScreenshotOverlayProps {
 }
 
 const COLORS = ["#ff0000", "#00cc00", "#0088ff", "#ffcc00", "#ff6600", "#cc00ff", "#ffffff", "#000000"];
-const LINE_WIDTHS = [2, 3, 5];
+const LINE_WIDTHS = [1, 2, 3, 5, 8, 12];
+const FONT_SIZES = [14, 18, 24, 32, 48];
 let _nextId = 1;
 
 // ---------------------------------------------------------------------------
@@ -106,7 +107,23 @@ export const ScreenshotOverlay: Component<ScreenshotOverlayProps> = (props) => {
   const [activeTool, setActiveTool] = createSignal<ToolType>("rect");
   const [activeColor, setActiveColor] = createSignal("#ff0000");
   const [activeLineWidth, setActiveLineWidth] = createSignal(3);
-  const [annotations, setAnnotations] = createSignal<Annotation[]>([]);
+  const [activeFontSize, setActiveFontSize] = createSignal(24);
+  // Undo/redo: instead of a flat `annotations` signal, we keep a
+  // chronological `history` array where each entry is a complete
+  // snapshot of the annotations list. `historyIdx` points at the
+  // "current" snapshot. Undo decrements the index; redo increments
+  // it; new mutations truncate everything after the current index
+  // (so redo is only available if the user hasn't drawn something
+  // new after undoing).
+  const [history, setHistory] = createSignal<Annotation[][]>([[]]);
+  const [historyIdx, setHistoryIdx] = createSignal(0);
+  const annotations = () => history()[historyIdx()] ?? [];
+  function pushAnnotations(newList: Annotation[]) {
+    const h = history().slice(0, historyIdx() + 1);
+    h.push(newList);
+    setHistory(h);
+    setHistoryIdx(h.length - 1);
+  }
   const [currentAnnotation, setCurrentAnnotation] = createSignal<Annotation | null>(null);
   // Annotation move
   const [selectedAnnoId, setSelectedAnnoId] = createSignal<number | null>(null);
@@ -135,7 +152,10 @@ export const ScreenshotOverlay: Component<ScreenshotOverlayProps> = (props) => {
     bgImage.src = `data:image/png;base64,${props.screenshotBase64}`;
     const handleEsc = (e: KeyboardEvent) => { if (e.key === "Escape") props.onClose(); };
     const handleCtrlZ = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "z" && phase() === "annotate") { e.preventDefault(); undo(); }
+      if ((e.ctrlKey || e.metaKey) && phase() === "annotate") {
+        if (e.shiftKey && (e.key === "z" || e.key === "Z")) { e.preventDefault(); redo(); }
+        else if (!e.shiftKey && e.key === "z") { e.preventDefault(); undo(); }
+      }
     };
     document.addEventListener("keydown", handleEsc, true);
     document.addEventListener("keydown", handleCtrlZ, true);
@@ -443,7 +463,7 @@ export const ScreenshotOverlay: Component<ScreenshotOverlayProps> = (props) => {
       const start = annoMoveStart();
       const dx = pos.x - start.x, dy = pos.y - start.y;
       const id = selectedAnnoId();
-      setAnnotations(annotations().map((a) => a.id === id ? moveAnnotation(a, dx, dy) : a));
+      pushAnnotations(annotations().map((a) => a.id === id ? moveAnnotation(a, dx, dy) : a));
       setAnnoMoveStart(pos);
       redrawAnnotations();
       return;
@@ -466,7 +486,7 @@ export const ScreenshotOverlay: Component<ScreenshotOverlayProps> = (props) => {
     if (!curr) return;
     if (curr.points.length >= 2) {
       const withBounds = { ...curr, bounds: annotationBounds(curr) };
-      setAnnotations([...annotations(), withBounds]);
+      pushAnnotations([...annotations(), withBounds]);
     }
     setCurrentAnnotation(null);
     redrawAnnotations();
@@ -476,9 +496,10 @@ export const ScreenshotOverlay: Component<ScreenshotOverlayProps> = (props) => {
     const txt = textValue().trim();
     if (!txt) { setTextInput({ ...textInput(), visible: false }); return; }
     const pos = annoPos({ clientX: textInput().x, clientY: textInput().y } as MouseEvent);
-    const ann: Annotation = { id: _nextId++, tool: "text", color: activeColor(), lineWidth: activeLineWidth(), points: [pos], text: txt, fontSize: 20 };
-    ann.bounds = { x: pos.x - 4, y: pos.y - 24, w: txt.length * 14, h: 32 };
-    setAnnotations([...annotations(), ann]);
+    const fs = activeFontSize();
+    const ann: Annotation = { id: _nextId++, tool: "text", color: activeColor(), lineWidth: activeLineWidth(), points: [pos], text: txt, fontSize: fs };
+    ann.bounds = { x: pos.x - 4, y: pos.y - fs - 4, w: txt.length * fs * 0.65, h: fs + 8 };
+    pushAnnotations([...annotations(), ann]);
     setTextInput({ ...textInput(), visible: false });
     setTextValue("");
     redrawAnnotations();
@@ -522,13 +543,18 @@ export const ScreenshotOverlay: Component<ScreenshotOverlayProps> = (props) => {
       }
       case "arrow": {
         if (pts.length < 2) break;
+        // Arrow head size scales with line width so thin arrows
+        // get small heads and thick arrows get large ones. The
+        // `Math.max(10, ...)` floor prevents the head from
+        // disappearing on the thinnest setting.
+        const headSize = Math.max(10, ann.lineWidth * 4);
         const angle = Math.atan2(pts[1].y - pts[0].y, pts[1].x - pts[0].x);
         ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y); ctx.lineTo(pts[1].x, pts[1].y); ctx.stroke();
         ctx.beginPath();
         ctx.moveTo(pts[1].x, pts[1].y);
-        ctx.lineTo(pts[1].x - 14 * Math.cos(angle - Math.PI / 6), pts[1].y - 14 * Math.sin(angle - Math.PI / 6));
+        ctx.lineTo(pts[1].x - headSize * Math.cos(angle - Math.PI / 6), pts[1].y - headSize * Math.sin(angle - Math.PI / 6));
         ctx.moveTo(pts[1].x, pts[1].y);
-        ctx.lineTo(pts[1].x - 14 * Math.cos(angle + Math.PI / 6), pts[1].y - 14 * Math.sin(angle + Math.PI / 6));
+        ctx.lineTo(pts[1].x - headSize * Math.cos(angle + Math.PI / 6), pts[1].y - headSize * Math.sin(angle + Math.PI / 6));
         ctx.stroke();
         break;
       }
@@ -577,8 +603,16 @@ export const ScreenshotOverlay: Component<ScreenshotOverlayProps> = (props) => {
   }
 
   function undo() {
-    const list = annotations();
-    if (list.length > 0) { setAnnotations(list.slice(0, -1)); redrawAnnotations(); }
+    if (historyIdx() > 0) {
+      setHistoryIdx(historyIdx() - 1);
+      redrawAnnotations();
+    }
+  }
+  function redo() {
+    if (historyIdx() < history().length - 1) {
+      setHistoryIdx(historyIdx() + 1);
+      redrawAnnotations();
+    }
   }
 
   function confirmScreenshot() {
@@ -697,33 +731,98 @@ export const ScreenshotOverlay: Component<ScreenshotOverlayProps> = (props) => {
             <Show when={textInput().visible}>
               <input type="text" value={textValue()} onInput={(e) => setTextValue(e.currentTarget.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") commitText(); if (e.key === "Escape") setTextInput({ ...textInput(), visible: false }); }}
-                autofocus style={{ position: "fixed", left: textInput().x + "px", top: textInput().y + "px", background: "rgba(0,0,0,0.8)", border: `2px solid ${activeColor()}`, color: activeColor(), "font-size": "18px", padding: "4px 8px", "border-radius": "4px", outline: "none", "min-width": "120px", "font-family": "system-ui", "z-index": "100001" }} />
+                autofocus style={{ position: "fixed", left: textInput().x + "px", top: textInput().y + "px", background: "rgba(0,0,0,0.8)", border: `2px solid ${activeColor()}`, color: activeColor(), "font-size": `${activeFontSize()}px`, padding: "4px 8px", "border-radius": "4px", outline: "none", "min-width": "120px", "font-family": "system-ui", "z-index": "100001" }} />
             </Show>
           </div>
 
           {/* Toolbar */}
-          <div style={{ display: "flex", "align-items": "center", gap: "4px", padding: "8px 12px", background: "rgba(40,40,40,0.95)", "border-radius": "10px", "margin-top": "12px", "box-shadow": "0 4px 16px rgba(0,0,0,0.4)", "backdrop-filter": "blur(8px)" }}>
+          <div style={{ display: "flex", "align-items": "center", gap: "4px", padding: "8px 12px", background: "rgba(40,40,40,0.95)", "border-radius": "10px", "margin-top": "12px", "box-shadow": "0 4px 16px rgba(0,0,0,0.4)", "backdrop-filter": "blur(8px)", "flex-wrap": "wrap", "justify-content": "center", "max-width": "95vw" }}>
+            {/* ── Tool buttons ── */}
             {tools.map((t) => (
               <button onClick={() => { setActiveTool(t.id); if (t.id !== "select") setSelectedAnnoId(null); }} title={t.label}
                 style={{ width: "36px", height: "36px", border: activeTool() === t.id ? "2px solid #00aaff" : "2px solid transparent", background: activeTool() === t.id ? "rgba(0,170,255,0.15)" : "transparent", "border-radius": "8px", cursor: "pointer", display: "flex", "align-items": "center", "justify-content": "center", transition: "all 100ms" }}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={activeTool() === t.id ? "#00aaff" : "#ccc"} stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d={t.icon} /></svg>
               </button>
             ))}
+
+            {/* ── Colors (preset swatches + custom picker) ── */}
             <div style={{ width: "1px", height: "24px", background: "rgba(255,255,255,0.15)", margin: "0 6px" }} />
             {COLORS.map((c) => (
               <button onClick={() => setActiveColor(c)} style={{ width: "22px", height: "22px", "border-radius": "50%", background: c, border: activeColor() === c ? "3px solid #fff" : "2px solid rgba(255,255,255,0.2)", cursor: "pointer", "flex-shrink": "0" }} />
             ))}
+            {/* Custom color picker — the native browser color input
+                renders as a small square on click (WebView2 on Windows
+                shows a full color wheel dialog). */}
+            <div style={{ position: "relative", width: "22px", height: "22px", "flex-shrink": "0" }}>
+              <input
+                type="color"
+                value={activeColor()}
+                onInput={(e) => setActiveColor(e.currentTarget.value)}
+                title={t("screenshot.customColor") || "Custom color"}
+                style={{
+                  position: "absolute",
+                  inset: "0",
+                  width: "100%",
+                  height: "100%",
+                  padding: "0",
+                  border: "none",
+                  background: "transparent",
+                  cursor: "pointer",
+                  opacity: "0",
+                }}
+              />
+              {/* Visual label over the invisible <input>: a rainbow
+                  gradient circle with a "+" so it's obvious this
+                  opens a custom color picker. */}
+              <div style={{
+                width: "22px",
+                height: "22px",
+                "border-radius": "50%",
+                background: "conic-gradient(#f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00)",
+                border: "2px solid rgba(255,255,255,0.3)",
+                display: "flex",
+                "align-items": "center",
+                "justify-content": "center",
+                "pointer-events": "none",
+                "font-size": "12px",
+                color: "#fff",
+                "text-shadow": "0 0 3px #000, 0 0 6px #000",
+                "font-weight": "bold",
+              }}>+</div>
+            </div>
+
+            {/* ── Line widths ── */}
             <div style={{ width: "1px", height: "24px", background: "rgba(255,255,255,0.15)", margin: "0 6px" }} />
             {LINE_WIDTHS.map((lw) => (
               <button onClick={() => setActiveLineWidth(lw)} title={`${lw}px`}
                 style={{ width: "30px", height: "30px", border: activeLineWidth() === lw ? "2px solid #00aaff" : "2px solid transparent", background: activeLineWidth() === lw ? "rgba(0,170,255,0.15)" : "transparent", "border-radius": "6px", cursor: "pointer", display: "flex", "align-items": "center", "justify-content": "center" }}>
-                <div style={{ width: "16px", height: lw + "px", background: activeLineWidth() === lw ? "#00aaff" : "#aaa" }} />
+                <div style={{ width: "16px", height: Math.max(1, lw) + "px", background: activeLineWidth() === lw ? "#00aaff" : "#aaa", "border-radius": lw > 3 ? "2px" : "0" }} />
               </button>
             ))}
+
+            {/* ── Font sizes (only visible when text tool is active) ── */}
+            <Show when={activeTool() === "text"}>
+              <div style={{ width: "1px", height: "24px", background: "rgba(255,255,255,0.15)", margin: "0 6px" }} />
+              {FONT_SIZES.map((fs) => (
+                <button onClick={() => setActiveFontSize(fs)} title={`${fs}px`}
+                  style={{ "min-width": "28px", height: "28px", border: activeFontSize() === fs ? "2px solid #00aaff" : "2px solid transparent", background: activeFontSize() === fs ? "rgba(0,170,255,0.15)" : "transparent", "border-radius": "6px", cursor: "pointer", display: "flex", "align-items": "center", "justify-content": "center", "font-size": "11px", color: activeFontSize() === fs ? "#00aaff" : "#aaa", "font-family": "system-ui", padding: "0 4px" }}>
+                  {fs}
+                </button>
+              ))}
+            </Show>
+
+            {/* ── Undo / Redo ── */}
             <div style={{ width: "1px", height: "24px", background: "rgba(255,255,255,0.15)", margin: "0 6px" }} />
-            <button onClick={undo} title={t("screenshot.undo")} style={{ width: "36px", height: "36px", border: "2px solid transparent", background: "transparent", "border-radius": "8px", cursor: "pointer", display: "flex", "align-items": "center", "justify-content": "center" }}>
+            <button onClick={undo} title={`${t("screenshot.undo")} (Ctrl+Z)`}
+              style={{ width: "36px", height: "36px", border: "2px solid transparent", background: "transparent", "border-radius": "8px", cursor: historyIdx() > 0 ? "pointer" : "default", display: "flex", "align-items": "center", "justify-content": "center", opacity: historyIdx() > 0 ? "1" : "0.35" }}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4v6h6M3.51 15a9 9 0 102.13-9.36L1 10" /></svg>
             </button>
+            <button onClick={redo} title={`Redo (Ctrl+Shift+Z)`}
+              style={{ width: "36px", height: "36px", border: "2px solid transparent", background: "transparent", "border-radius": "8px", cursor: historyIdx() < history().length - 1 ? "pointer" : "default", display: "flex", "align-items": "center", "justify-content": "center", opacity: historyIdx() < history().length - 1 ? "1" : "0.35" }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6M20.49 15a9 9 0 11-2.13-9.36L23 10" /></svg>
+            </button>
+
+            {/* ── Cancel / Confirm ── */}
             <div style={{ width: "1px", height: "24px", background: "rgba(255,255,255,0.15)", margin: "0 6px" }} />
             <button onClick={props.onClose} style={{ padding: "6px 16px", background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", "border-radius": "6px", color: "#ddd", cursor: "pointer", "font-size": "13px", "font-family": "system-ui" }}>{t("common.cancel")}</button>
             <button onClick={confirmScreenshot} style={{ padding: "6px 16px", background: "#00aaff", border: "none", "border-radius": "6px", color: "#fff", cursor: "pointer", "font-size": "13px", "font-family": "system-ui", "font-weight": "600" }}>{t("common.confirm")}</button>
