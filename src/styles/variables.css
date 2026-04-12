@@ -64,6 +64,7 @@
   --mz-accent: #1aad3f;
   --mz-accent-hover: #20c748;
   --mz-accent-subtle: rgba(26, 173, 63, 0.15);
+  --mz-drag-indicator: var(--mz-accent);
 
   --mz-border: #3e3e3e;
   --mz-border-strong: #555555;
@@ -120,6 +121,7 @@
   --mz-accent: #1aad3f;
   --mz-accent-hover: #148a32;
   --mz-accent-subtle: rgba(26, 173, 63, 0.1);
+  --mz-drag-indicator: var(--mz-accent);
 
   --mz-border: #e0e0e0;
   --mz-border-strong: #c0c0c0;

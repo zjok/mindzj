@@ -78,6 +78,10 @@ export interface AppSettings {
    *  `null` means "use the theme default" (rgba blue in dark,
    *  rgba blue-grey in light). */
   selection_color: string | null;
+  /** File-tree drag indicator line color. Applied via the
+   *  `--mz-drag-indicator` CSS variable. `null` means "use the
+   *  theme accent color" (green by default). */
+  drag_indicator_color: string | null;
   css_snippet: string | null;
   /**
    * List of enabled CSS snippet filenames from `.mindzj/snippets/`.
@@ -135,6 +139,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   link_color: null,
   highlight_color: null,
   selection_color: null,
+  drag_indicator_color: null,
   css_snippet: null,
   enabled_css_snippets: [],
   attachment_folder: DEFAULT_ATTACHMENT_FOLDER,
@@ -284,6 +289,15 @@ function createSettingsStore() {
       document.documentElement.style.setProperty("--mz-bg-selection", color);
     } else {
       document.documentElement.style.removeProperty("--mz-bg-selection");
+    }
+  });
+
+  createEffect(() => {
+    const color = settings().drag_indicator_color;
+    if (color) {
+      document.documentElement.style.setProperty("--mz-drag-indicator", color);
+    } else {
+      document.documentElement.style.removeProperty("--mz-drag-indicator");
     }
   });
 

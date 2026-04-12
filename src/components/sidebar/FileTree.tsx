@@ -591,23 +591,27 @@ function installGlobalDragTracking() {
 
             if (pos === "inside") {
                 dropEl.setAttribute("data-drop-indicator", "true");
-                dropEl.style.outline = "1px dashed var(--mz-text-muted, #888)";
-                dropEl.style.outlineOffset = "-1px";
-                dropEl.style.background = "rgba(128,128,128,0.06)";
+                dropEl.style.outline = "2px dashed var(--mz-drag-indicator, var(--mz-accent, #1aad3f))";
+                dropEl.style.outlineOffset = "-2px";
+                dropEl.style.background = "rgba(26,173,63,0.08)";
             } else {
-                // Show insertion line — subtle gray, no bright accent
+                // Show insertion line — bright accent color so it's
+                // clearly visible in both dev and production builds.
+                // Previous version used `--mz-text-muted` at 1px
+                // height + 0.5 opacity which was nearly invisible
+                // in production (especially on dark backgrounds).
                 const line = document.createElement("div");
                 line.className = "mz-drop-line";
                 Object.assign(line.style, {
                     position: "absolute",
                     left: "8px",
                     right: "8px",
-                    height: "1px",
-                    background: "var(--mz-text-muted, #888)",
-                    opacity: "0.5",
-                    borderRadius: "0",
+                    height: "2px",
+                    background: "var(--mz-drag-indicator, var(--mz-accent, #1aad3f))",
+                    opacity: "1",
+                    borderRadius: "1px",
                     pointerEvents: "none",
-                    zIndex: "100",
+                    zIndex: "10000",
                 });
 
                 // Position the line relative to the item

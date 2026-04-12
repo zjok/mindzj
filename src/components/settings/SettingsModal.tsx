@@ -444,6 +444,13 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
                 onChange={(v) => set("selection_color", v)}
                 onClear={() => set("selection_color", null)}
               />
+              <SettingColor
+                label={t("settings.dragIndicatorColor")}
+                description={t("settings.dragIndicatorColorDescription")}
+                value={s().drag_indicator_color || "#1aad3f"}
+                onChange={(v) => set("drag_indicator_color", v)}
+                onClear={() => set("drag_indicator_color", null)}
+              />
               <SettingSelect
                 label={t("common.interfaceLanguage")}
                 description={t("settings.interfaceLanguageDescription")}

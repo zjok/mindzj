@@ -132,6 +132,14 @@ export const ScreenshotOverlay: Component<ScreenshotOverlayProps> = (props) => {
   // Text
   const [textInput, setTextInput] = createSignal<{ x: number; y: number; visible: boolean }>({ x: 0, y: 0, visible: false });
   const [textValue, setTextValue] = createSignal("");
+  // Right-click drag to reposition the Phase 2 annotation window.
+  // The offset is applied as a CSS `translate()` on the annotation
+  // wrapper so the canvas stays fully functional (no coordinate
+  // remapping needed — canvas mouse events are relative to the
+  // canvas element itself, which moves as a unit).
+  const [annoWindowOffset, setAnnoWindowOffset] = createSignal({ x: 0, y: 0 });
+  const [windowDragging, setWindowDragging] = createSignal(false);
+  const [windowDragStart, setWindowDragStart] = createSignal({ x: 0, y: 0 });
 
   // Refs
   let bgCanvasRef: HTMLCanvasElement | undefined;
@@ -292,6 +300,10 @@ export const ScreenshotOverlay: Component<ScreenshotOverlayProps> = (props) => {
 
   function onSelMouseDown(e: MouseEvent) {
     if (phase() !== "select") return;
+    // Only left-click (button 0) starts or moves a selection.
+    // Right-click is reserved for the system and does nothing
+    // here (context menu is suppressed on the canvas separately).
+    if (e.button !== 0) return;
     e.preventDefault();
     const pos = bgPos(e);
 
@@ -428,6 +440,15 @@ export const ScreenshotOverlay: Component<ScreenshotOverlayProps> = (props) => {
   function onAnnoMouseDown(e: MouseEvent) {
     if (phase() !== "annotate") return;
     e.preventDefault();
+
+    // Right-click (button 2) → start dragging the entire
+    // annotation window rather than drawing an annotation.
+    if (e.button === 2) {
+      setWindowDragging(true);
+      setWindowDragStart({ x: e.clientX - annoWindowOffset().x, y: e.clientY - annoWindowOffset().y });
+      return;
+    }
+
     const pos = annoPos(e);
     const tool = activeTool();
 
@@ -457,6 +478,14 @@ export const ScreenshotOverlay: Component<ScreenshotOverlayProps> = (props) => {
   }
 
   function onAnnoMouseMove(e: MouseEvent) {
+    // Right-click window drag
+    if (windowDragging()) {
+      setAnnoWindowOffset({
+        x: e.clientX - windowDragStart().x,
+        y: e.clientY - windowDragStart().y,
+      });
+      return;
+    }
     // Moving annotation
     if (movingAnno()) {
       const pos = annoPos(e);
@@ -481,6 +510,7 @@ export const ScreenshotOverlay: Component<ScreenshotOverlayProps> = (props) => {
   }
 
   function onAnnoMouseUp() {
+    if (windowDragging()) { setWindowDragging(false); return; }
     if (movingAnno()) { setMovingAnno(false); return; }
     const curr = currentAnnotation();
     if (!curr) return;
@@ -647,7 +677,8 @@ export const ScreenshotOverlay: Component<ScreenshotOverlayProps> = (props) => {
       {/* Phase 1: Selection */}
       <Show when={phase() === "select"}>
         <canvas ref={bgCanvasRef} style={{ position: "absolute", inset: "0", width: "100%", height: "100%", "object-fit": "contain" }}
-          onMouseDown={onSelMouseDown} onMouseMove={onSelMouseMove} onMouseUp={onSelMouseUp} onDblClick={onSelDoubleClick} onMouseLeave={onSelMouseLeave} />
+          onMouseDown={onSelMouseDown} onMouseMove={onSelMouseMove} onMouseUp={onSelMouseUp} onDblClick={onSelDoubleClick} onMouseLeave={onSelMouseLeave}
+          onContextMenu={(e) => e.preventDefault()} />
 
         {/* Full-screen crosshair guide lines — follow the mouse
             during the select phase so the user can see EXACTLY
@@ -724,9 +755,10 @@ export const ScreenshotOverlay: Component<ScreenshotOverlayProps> = (props) => {
 
       {/* Phase 2: Annotate */}
       <Show when={phase() === "annotate"}>
-        <div style={{ position: "absolute", inset: "0", display: "flex", "flex-direction": "column", "align-items": "center", "justify-content": "center", background: "rgba(0,0,0,0.85)" }}>
-          <div style={{ position: "relative", "max-width": "90vw", "max-height": "calc(100vh - 120px)" }}>
-            <canvas ref={annotateCanvasRef} style={{ "max-width": "90vw", "max-height": "calc(100vh - 120px)", "object-fit": "contain", cursor: activeTool() === "select" ? "default" : activeTool() === "text" ? "text" : "crosshair", "border-radius": "4px", "box-shadow": "0 4px 20px rgba(0,0,0,0.5)" }}
+        <div style={{ position: "absolute", inset: "0", display: "flex", "flex-direction": "column", "align-items": "center", "justify-content": "center", background: "rgba(0,0,0,0.85)" }}
+          onContextMenu={(e) => e.preventDefault()}>
+          <div style={{ position: "relative", "max-width": "90vw", "max-height": "calc(100vh - 120px)", transform: `translate(${annoWindowOffset().x}px, ${annoWindowOffset().y}px)`, cursor: windowDragging() ? "grabbing" : undefined }}>
+            <canvas ref={annotateCanvasRef} style={{ "max-width": "90vw", "max-height": "calc(100vh - 120px)", "object-fit": "contain", cursor: windowDragging() ? "grabbing" : activeTool() === "select" ? "default" : activeTool() === "text" ? "text" : "crosshair", "border-radius": "4px", "box-shadow": "0 4px 20px rgba(0,0,0,0.5)" }}
               onMouseDown={onAnnoMouseDown} onMouseMove={onAnnoMouseMove} onMouseUp={onAnnoMouseUp} />
             <Show when={textInput().visible}>
               <input type="text" value={textValue()} onInput={(e) => setTextValue(e.currentTarget.value)}
