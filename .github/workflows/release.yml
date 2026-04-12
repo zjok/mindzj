@@ -144,9 +144,23 @@ jobs:
             # target below so the universal build can link both archs.
           - platform: 'ubuntu-22.04'
             args: ''
-            # Pinned to 22.04 because ubuntu-24.04 has had intermittent
-            # `libwebkit2gtk-4.1-dev` packaging issues reported in
-            # Tauri GitHub issues. Bump when upstream confirms stable.
+            # Pinned to 22.04 (glibc 2.35), NOT 24.04 (glibc 2.39).
+            #
+            # AppImages are supposed to be "build once, run
+            # anywhere", but glibc symbol versioning tethers them
+            # to the GLIBC release they were linked against. An
+            # AppImage built on 24.04 would fail with
+            # `version 'GLIBC_2.36' not found` on Ubuntu 22.04,
+            # Debian 12, Mint 21, RHEL 9, and any distro shipping
+            # glibc < 2.39. Building on 22.04 produces an AppImage
+            # that runs on essentially every mainstream desktop
+            # Linux from 2022 onwards, which is the whole point of
+            # AppImage as a distribution format.
+            #
+            # webkit2gtk-4.1-dev is ALSO available on 22.04 and
+            # works fine with Tauri 2 — the earlier "webkit issues
+            # on 24.04" comment was misleading; the real concern
+            # is glibc portability of the AppImage artifact.
           - platform: 'windows-latest'
             args: ''
 
@@ -196,18 +210,30 @@ jobs:
             wget \
             file \
             libxdo-dev \
-            libssl-dev
+            libssl-dev \
+            libpipewire-0.3-dev
           # Tauri 2 Linux dep list: WebKitGTK for the webview, libxdo
           # for text-injection plugins, librsvg for SVG rendering in
           # icons, patchelf for fixing AppImage RPATHs.
           #
-          # NOTE: We install `libayatana-appindicator3-dev` but NOT
+          # NOTE 1: We install `libayatana-appindicator3-dev` but NOT
           # `libappindicator3-dev` — the two packages conflict because
           # they provide the same symbols. Tauri 2 uses the Ayatana
           # fork (the actively maintained one); the legacy
           # `libappindicator3-dev` would abort this step with
           # `E: Unable to correct problems, you have held broken packages.`
           # That's why the two are mutually exclusive.
+          #
+          # NOTE 2: `libpipewire-0.3-dev` is required by the `xcap`
+          # 0.9.x screenshot crate, which gained a Wayland screen-
+          # capture backend via PipeWire. Its `libspa-sys` build
+          # script calls `pkg-config --libs libpipewire-0.3` at
+          # compile time and aborts with:
+          #   `The system library libpipewire-0.3 required by crate
+          #    libspa-sys was not found`
+          # if the dev package is missing. Not pre-installed on any
+          # stock GitHub Actions Ubuntu runner — we have to apt-get
+          # it explicitly. Both 22.04 and 24.04 repos ship it.
 
       - name: Install frontend dependencies
         run: npm ci
