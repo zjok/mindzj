@@ -216,7 +216,11 @@ jobs:
             file \
             libxdo-dev \
             libssl-dev \
-            libpipewire-0.3-dev
+            libpipewire-0.3-dev \
+            libgbm-dev \
+            libdrm-dev \
+            libclang-dev \
+            libegl-dev
           # Tauri 2 Linux dep list: WebKitGTK for the webview, libxdo
           # for text-injection plugins, librsvg for SVG rendering in
           # icons, patchelf for fixing AppImage RPATHs.
@@ -229,20 +233,29 @@ jobs:
           # `E: Unable to correct problems, you have held broken packages.`
           # That's why the two are mutually exclusive.
           #
-          # NOTE 2: `libpipewire-0.3-dev` is required by the `xcap`
-          # 0.9.x screenshot crate, which gained a Wayland screen-
-          # capture backend via PipeWire. xcap pulls in the Rust
-          # `libspa 0.9.2` wrapper, and libspa's bindings have
-          # hard-coded expectations about PipeWire's C header
-          # layout — specifically that `spa_video_info_raw` has
-          # the `flags` field (added in PipeWire 0.3.60) and that
-          # `modifier` is `uint64_t` (current layout). Ubuntu
-          # 22.04's PipeWire is 0.3.48 which predates both
-          # changes, so compiling libspa against 22.04's headers
-          # fails with E0560/E0609/E0308. Ubuntu 24.04 ships a
-          # newer PipeWire whose struct layout matches libspa
-          # 0.9.2's expectations — that's why the runner above
-          # is pinned to `ubuntu-24.04`, not 22.04.
+          # NOTE 2: The `xcap` 0.9.x screenshot crate uses a
+          # Wayland/DRM screen-capture backend on Linux, which
+          # pulls in several system libraries at link time:
+          #
+          #   libpipewire-0.3-dev — PipeWire protocol (libspa-sys)
+          #   libgbm-dev          — Generic Buffer Management
+          #                         (gbm-sys, needed by
+          #                          libwayshot-xcap)
+          #   libdrm-dev          — Direct Rendering Manager
+          #                         (drm-sys, needed by
+          #                          libwayshot-xcap)
+          #   libclang-dev        — libclang for bindgen, used by
+          #                         libspa-sys and pipewire-sys to
+          #                         generate Rust FFI bindings from
+          #                         PipeWire C headers at build time
+          #   libegl-dev          — EGL for the GL-based pixel
+          #                         readback path in libwayshot-xcap
+          #
+          # None of these are pre-installed on the stock GitHub
+          # Actions Ubuntu runner. We must also use ubuntu-24.04
+          # (not 22.04) because 22.04's PipeWire 0.3.48 is too
+          # old for libspa 0.9.2's struct-layout expectations
+          # (see the matrix comment above for the full explanation).
 
       - name: Install frontend dependencies
         run: npm ci
