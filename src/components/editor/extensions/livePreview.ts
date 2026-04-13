@@ -571,6 +571,20 @@ function listGuideDeco(level: number): Decoration {
     });
 }
 
+/**
+ * Line decoration for list hanging indent.
+ * Split into tab-part (px via --mz-list-indent-step) + marker-part (ch)
+ * so zoom / font-size changes stay correct.
+ */
+function listWrapDeco(level: number, markerChars: number): Decoration {
+    return Decoration.line({
+        class: "mz-list-wrap-line",
+        attributes: {
+            style: `--mz-list-wrap-tabs: ${level}; --mz-list-wrap-marker: ${markerChars};`,
+        },
+    });
+}
+
 function measureListIndentWidth(view: EditorView): number {
     if (typeof document === "undefined") {
         return LIST_INDENT_WIDTH * 8 + LIST_INDENT_EXTRA_PX;
@@ -1233,8 +1247,8 @@ const livePreviewTheme = EditorView.baseTheme({
         position: "absolute",
         left: "0",
         top: "50%",
-        width: "0.42em",
-        height: "0.42em",
+        width: "0.3em",
+        height: "0.3em",
         borderRadius: "999px",
         background: "var(--mz-text-muted)",
         transform: "translate(-50%, -50%)",
@@ -1431,15 +1445,14 @@ function buildLineDecorations(
             decos.push(blockquoteLineDeco.range(line.from));
         }
 
-        // --- Nested list guide lines ---
+        // --- List lines: guide lines + hanging indent ---
         {
             const listInfo = getContinuationInfo(text);
-            if (
-                listInfo &&
-                listInfo.kind !== "blockquote" &&
-                listInfo.level > 0
-            ) {
-                decos.push(listGuideDeco(listInfo.level).range(line.from));
+            if (listInfo && listInfo.kind !== "blockquote") {
+                if (listInfo.level > 0) {
+                    decos.push(listGuideDeco(listInfo.level).range(line.from));
+                }
+                decos.push(listWrapDeco(listInfo.level, listInfo.marker.length).range(line.from));
             }
         }
 

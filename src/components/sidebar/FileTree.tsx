@@ -81,6 +81,7 @@ function setFolderOpen(path: string, depth: number, open: boolean) {
         syncAllFoldersCollapsed(next, nextRegistered);
         return next;
     });
+    scheduleFolderStateSave();
 }
 
 export function setAllFoldersVisibility(action: "collapse" | "expand") {
@@ -94,6 +95,7 @@ export function setAllFoldersVisibility(action: "collapse" | "expand") {
         syncAllFoldersCollapsed(next, currentRegistered);
         return next;
     });
+    scheduleFolderStateSave();
 }
 
 export function resetFolderVisibilityState() {
@@ -101,6 +103,7 @@ export function resetFolderVisibilityState() {
     setFolderOpenState({});
     setRegisteredFolders({});
     setAllFoldersCollapsed(false);
+    folderStateLoaded = false;
 }
 
 // ---------------------------------------------------------------------------
@@ -234,6 +237,50 @@ async function saveFileOrder(order: FileOrderMap): Promise<void> {
 export function resetFileOrder() {
     fileOrderLoaded = false;
     setFileOrderMap({});
+}
+
+// ---------------------------------------------------------------------------
+// Folder open/close state persistence
+// ---------------------------------------------------------------------------
+
+let folderStateLoaded = false;
+let _folderStateSaveTimer: ReturnType<typeof setTimeout> | null = null;
+
+export async function loadFolderState(): Promise<void> {
+    if (folderStateLoaded) return;
+    try {
+        const r = await invoke<{ content: string }>("read_file", {
+            relativePath: ".mindzj/folder-state.json",
+        });
+        const parsed = JSON.parse(r.content);
+        if (typeof parsed === "object" && parsed !== null) {
+            setFolderOpenState(parsed);
+        }
+    } catch {
+        // File doesn't exist yet — that's fine
+    }
+    folderStateLoaded = true;
+}
+
+export async function saveFolderState(): Promise<void> {
+    const state = folderOpenState();
+    try {
+        await invoke("write_file", {
+            relativePath: ".mindzj/folder-state.json",
+            content: JSON.stringify(state),
+        });
+    } catch (e) {
+        console.error("Failed to save folder state:", e);
+    }
+}
+
+function scheduleFolderStateSave(): void {
+    if (_folderStateSaveTimer) clearTimeout(_folderStateSaveTimer);
+    _folderStateSaveTimer = setTimeout(() => saveFolderState(), 1000);
+}
+
+export function resetFolderState() {
+    folderStateLoaded = false;
 }
 
 // ---------------------------------------------------------------------------
@@ -760,9 +807,12 @@ export const FileTree: Component<FileTreeProps> = (props) => {
     };
     const sortedEntries = () => sortEntries(props.entries, sortMode(), sortOrder(), dirPath());
 
-    // Install global drag tracking once & load file order
+    // Install global drag tracking once & load persisted state
     installGlobalDragTracking();
-    onMount(() => { loadFileOrder(); });
+    onMount(async () => {
+        await loadFolderState();
+        loadFileOrder();
+    });
 
     createEffect(() => {
         if ((props.depth ?? 0) !== 0) return;

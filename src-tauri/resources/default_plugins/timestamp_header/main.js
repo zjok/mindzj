@@ -16,7 +16,7 @@ module.exports = class TimestampPlugin extends Plugin {
 					now.getDate().toString().padStart(2, '0');
 				const timePart = now.getHours().toString().padStart(2, '0') +
 					now.getMinutes().toString().padStart(2, '0');
-				const timestamp = `## ${datePart} ${timePart}`;
+				const timestamp = `## ${datePart} ${timePart}\n`;
 				editor.replaceSelection(timestamp);
 			}
 		});
@@ -28,7 +28,7 @@ module.exports = class TimestampPlugin extends Plugin {
 			name: 'Insert Triple Asterisk',
 			// 不再硬编码 hotkeys — 由 App.tsx 通过 mindzj:plugin-command 事件触发
 			editorCallback: (editor, view) => {
-				const content = `***\n`;
+				const content = `***`;
 				editor.replaceSelection(content);
 			}
 		});

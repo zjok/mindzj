@@ -4,6 +4,6 @@
     "version": "1.0.0",
     "minAppVersion": "0.15.0",
     "description": "Insert H2 timestamp with Alt+F | Alt+A 插入分隔行符号 *** ",
-    "author": "User",
+    "author": "SuperJohn",
     "isDesktopOnly": true
 }

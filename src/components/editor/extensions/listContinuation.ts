@@ -124,11 +124,61 @@ function outdentCurrentLine(view: EditorView): boolean {
     return true;
 }
 
+/**
+ * Auto-renumber ordered list items after edits.
+ * When a numbered marker changes, subsequent consecutive items at the
+ * same indent level are renumbered sequentially.
+ */
+function renumberOrderedList(view: EditorView): void {
+    const doc = view.state.doc;
+    const changes: { from: number; to: number; insert: string }[] = [];
+
+    for (let i = 1; i <= doc.lines; i++) {
+        const line = doc.line(i);
+        const match = line.text.match(/^(\s*)(\d+)\.\s/);
+        if (!match) continue;
+
+        const indent = match[1];
+        const startNum = Number.parseInt(match[2], 10);
+        let expectedNext = startNum + 1;
+
+        // Walk subsequent lines at the same indent level
+        for (let j = i + 1; j <= doc.lines; j++) {
+            const nextLine = doc.line(j);
+            const nextMatch = nextLine.text.match(/^(\s*)(\d+)\.\s/);
+
+            if (!nextMatch || nextMatch[1] !== indent) break;
+
+            const currentNum = Number.parseInt(nextMatch[2], 10);
+            if (currentNum !== expectedNext) {
+                const numStart = nextLine.from + nextMatch[1].length;
+                const numEnd = numStart + nextMatch[2].length;
+                changes.push({ from: numStart, to: numEnd, insert: String(expectedNext) });
+            }
+            expectedNext++;
+        }
+        // Skip past the items we just checked
+        i += (expectedNext - startNum - 1);
+    }
+
+    if (changes.length > 0) {
+        view.dispatch({ changes });
+    }
+}
+
+const orderedListRenumber = EditorView.updateListener.of((update) => {
+    if (!update.docChanged) return;
+    setTimeout(() => renumberOrderedList(update.view), 0);
+});
+
 export function listContinuationExtension(): Extension {
-    return keymap.of([
-        { key: "Shift-Enter", run: insertPlainNewlineAfterList },
-        { key: "Enter", run: continueList },
-        { key: "Tab", run: handleTab },
-        { key: "Shift-Tab", run: outdentCurrentLine },
-    ]);
+    return [
+        keymap.of([
+            { key: "Shift-Enter", run: insertPlainNewlineAfterList },
+            { key: "Enter", run: continueList },
+            { key: "Tab", run: handleTab },
+            { key: "Shift-Tab", run: outdentCurrentLine },
+        ]),
+        orderedListRenumber,
+    ];
 }

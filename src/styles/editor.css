@@ -120,9 +120,16 @@
   padding: 0 2px 0 0;
 }
 
+/* Hanging indent for list items — wrapped text aligns with content after marker.
+   --mz-list-wrap-tabs:   tab indent levels (unitless)
+   --mz-list-wrap-marker: marker char count (unitless, e.g. "- "=2, "1. "=3) */
 .cm-editor .cm-line.mz-list-wrap-line {
-  padding-left: var(--mz-list-wrap-indent, 0px);
-  text-indent: calc(var(--mz-list-wrap-indent, 0px) * -1);
+  --_wrap: calc(
+    var(--mz-list-wrap-tabs, 0) * var(--mz-list-indent-step, 40px)
+    + var(--mz-list-wrap-marker, 0) * 1ch
+  );
+  padding-left: var(--_wrap);
+  text-indent: calc(var(--_wrap) * -1);
 }
 
 /* Links */

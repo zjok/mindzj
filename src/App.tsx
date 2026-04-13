@@ -12,6 +12,7 @@ import {
     SortBar,
     allFoldersCollapsed,
     resetFolderVisibilityState,
+    saveFolderState,
     setAllFoldersVisibility,
     type SortMode,
     type SortOrder,
@@ -469,7 +470,10 @@ const App: Component = () => {
     async function flushWorkspaceNow() {
         if (!vaultStore.vaultInfo() || isTransientWindow()) return;
         document.dispatchEvent(new CustomEvent("mindzj:remember-active-viewport"));
-        await workspaceStore.saveWorkspace(buildWorkspaceSnapshot());
+        await Promise.all([
+            workspaceStore.saveWorkspace(buildWorkspaceSnapshot()),
+            saveFolderState(),
+        ]);
     }
 
     async function closeCurrentVault() {
