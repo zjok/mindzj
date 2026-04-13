@@ -417,7 +417,7 @@ var _en = {
   "def.root": "Root",
   "def.newRoot": "New Root",
   "def.child": "Child",
-  "set.title": "MindZJ Settings",
+  "set.title": "MindZJMap Settings",
   "set.lang": "Language",
   "set.langDesc": "Interface language",
   "set.theme": "Theme",
@@ -568,7 +568,7 @@ var _zh = {
   "def.root": "\u4E3B\u8282\u70B9",
   "def.newRoot": "\u65B0\u4E3B\u8282\u70B9",
   "def.child": "\u5B50\u8282\u70B9",
-  "set.title": "MindZJ \u8BBE\u7F6E",
+  "set.title": "MindZJMap \u8BBE\u7F6E",
   "set.lang": "\u8BED\u8A00",
   "set.langDesc": "\u754C\u9762\u8BED\u8A00",
   "set.theme": "\u4E3B\u9898",
@@ -719,7 +719,7 @@ var _ja = {
   "def.root": "\u30EB\u30FC\u30C8",
   "def.newRoot": "\u65B0\u3057\u3044\u30EB\u30FC\u30C8",
   "def.child": "\u5B50\u30CE\u30FC\u30C9",
-  "set.title": "MindZJ \u8A2D\u5B9A",
+  "set.title": "MindZJMap \u8A2D\u5B9A",
   "set.lang": "\u8A00\u8A9E",
   "set.langDesc": "\u30A4\u30F3\u30BF\u30FC\u30D5\u30A7\u30FC\u30B9\u8A00\u8A9E",
   "set.theme": "\u30C6\u30FC\u30DE",
@@ -870,7 +870,7 @@ var _fr = {
   "def.root": "Racine",
   "def.newRoot": "Nouvelle racine",
   "def.child": "Enfant",
-  "set.title": "Param\xE8tres MindZJ",
+  "set.title": "Param\xE8tres MindZJMap",
   "set.lang": "Langue",
   "set.langDesc": "Langue d'interface",
   "set.theme": "Th\xE8me",
@@ -1021,7 +1021,7 @@ var _de = {
   "def.root": "Wurzel",
   "def.newRoot": "Neue Wurzel",
   "def.child": "Kind",
-  "set.title": "MindZJ Einstellungen",
+  "set.title": "MindZJMap Einstellungen",
   "set.lang": "Sprache",
   "set.langDesc": "Oberfl\xE4chensprache",
   "set.theme": "Thema",
@@ -1172,7 +1172,7 @@ var _es = {
   "def.root": "Ra\xEDz",
   "def.newRoot": "Nueva ra\xEDz",
   "def.child": "Hijo",
-  "set.title": "Ajustes MindZJ",
+  "set.title": "Ajustes MindZJMap",
   "set.lang": "Idioma",
   "set.langDesc": "Idioma interfaz",
   "set.theme": "Tema",
@@ -1323,7 +1323,7 @@ var _ru = {
   "def.root": "\u041A\u043E\u0440\u0435\u043D\u044C",
   "def.newRoot": "\u041D\u043E\u0432\u044B\u0439 \u043A\u043E\u0440\u0435\u043D\u044C",
   "def.child": "\u0414\u043E\u0447\u0435\u0440\u043D\u0438\u0439",
-  "set.title": "\u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 MindZJ",
+  "set.title": "\u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 MindZJMap",
   "set.lang": "\u042F\u0437\u044B\u043A",
   "set.langDesc": "\u042F\u0437\u044B\u043A \u0438\u043D\u0442\u0435\u0440\u0444\u0435\u0439\u0441\u0430",
   "set.theme": "\u0422\u0435\u043C\u0430",
@@ -1474,7 +1474,7 @@ var _sv = {
   "def.root": "Rot",
   "def.newRoot": "Ny rot",
   "def.child": "Barn",
-  "set.title": "MindZJ Inst\xE4llningar",
+  "set.title": "MindZJMap Inst\xE4llningar",
   "set.lang": "Spr\xE5k",
   "set.langDesc": "Gr\xE4nssnittsspr\xE5k",
   "set.theme": "Tema",
@@ -1625,7 +1625,7 @@ var _hi = {
   "def.root": "\u092E\u0942\u0932",
   "def.newRoot": "\u0928\u092F\u093E \u092E\u0942\u0932",
   "def.child": "\u091A\u093E\u0907\u0932\u094D\u0921",
-  "set.title": "MindZJ \u0938\u0947\u091F\u093F\u0902\u0917\u094D\u0938",
+  "set.title": "MindZJMap \u0938\u0947\u091F\u093F\u0902\u0917\u094D\u0938",
   "set.lang": "\u092D\u093E\u0937\u093E",
   "set.langDesc": "\u0907\u0902\u091F\u0930\u092B\u093C\u0947\u0938 \u092D\u093E\u0937\u093E",
   "set.theme": "\u0925\u0940\u092E",
@@ -1776,7 +1776,7 @@ var _ko = {
   "def.root": "\uB8E8\uD2B8",
   "def.newRoot": "\uC0C8 \uB8E8\uD2B8",
   "def.child": "\uC790\uC2DD",
-  "set.title": "MindZJ \uC124\uC815",
+  "set.title": "MindZJMap \uC124\uC815",
   "set.lang": "\uC5B8\uC5B4",
   "set.langDesc": "\uC778\uD130\uD398\uC774\uC2A4 \uC5B8\uC5B4",
   "set.theme": "\uD14C\uB9C8",
@@ -1927,7 +1927,7 @@ var _pt = {
   "def.root": "Raiz",
   "def.newRoot": "Nova raiz",
   "def.child": "Filho",
-  "set.title": "Configura\xE7\xF5es MindZJ",
+  "set.title": "Configura\xE7\xF5es MindZJMap",
   "set.lang": "Idioma",
   "set.langDesc": "Idioma da interface",
   "set.theme": "Tema",
@@ -2078,7 +2078,7 @@ var _fi = {
   "def.root": "Juuri",
   "def.newRoot": "Uusi juuri",
   "def.child": "Lapsi",
-  "set.title": "MindZJ Asetukset",
+  "set.title": "MindZJMap Asetukset",
   "set.lang": "Kieli",
   "set.langDesc": "K\xE4ytt\xF6liittym\xE4n kieli",
   "set.theme": "Teema",
@@ -2229,7 +2229,7 @@ var _no = {
   "def.root": "Rot",
   "def.newRoot": "Ny rot",
   "def.child": "Barn",
-  "set.title": "MindZJ Innstillinger",
+  "set.title": "MindZJMap Innstillinger",
   "set.lang": "Spr\xE5k",
   "set.langDesc": "Grensesnittspr\xE5k",
   "set.theme": "Tema",
@@ -2380,7 +2380,7 @@ var _nl = {
   "def.root": "Wortel",
   "def.newRoot": "Nieuwe wortel",
   "def.child": "Kind",
-  "set.title": "MindZJ Instellingen",
+  "set.title": "MindZJMap Instellingen",
   "set.lang": "Taal",
   "set.langDesc": "Interfacetaal",
   "set.theme": "Thema",
@@ -2531,7 +2531,7 @@ var _li = {
   "def.root": "Wurzel",
   "def.newRoot": "N\xF6ii Wurzel",
   "def.child": "Chind",
-  "set.title": "MindZJ Istelliga",
+  "set.title": "MindZJMap Istelliga",
   "set.lang": "Sproch",
   "set.langDesc": "Oberfl\xE4cha-Sproch",
   "set.theme": "Thema",
@@ -2682,7 +2682,7 @@ var _da = {
   "def.root": "Rod",
   "def.newRoot": "Ny rod",
   "def.child": "Barn",
-  "set.title": "MindZJ Indstillinger",
+  "set.title": "MindZJMap Indstillinger",
   "set.lang": "Sprog",
   "set.langDesc": "Gr\xE6nsefladesprog",
   "set.theme": "Tema",
@@ -2833,7 +2833,7 @@ var _he = {
   "def.root": "\u05E9\u05D5\u05E8\u05E9",
   "def.newRoot": "\u05E9\u05D5\u05E8\u05E9 \u05D7\u05D3\u05E9",
   "def.child": "\u05E6\u05D0\u05E6\u05D0",
-  "set.title": "\u05D4\u05D2\u05D3\u05E8\u05D5\u05EA MindZJ",
+  "set.title": "\u05D4\u05D2\u05D3\u05E8\u05D5\u05EA MindZJMap",
   "set.lang": "\u05E9\u05E4\u05D4",
   "set.langDesc": "\u05E9\u05E4\u05EA \u05DE\u05DE\u05E9\u05E7",
   "set.theme": "\u05E2\u05E8\u05DB\u05EA \u05E0\u05D5\u05E9\u05D0",
@@ -2984,7 +2984,7 @@ var _it = {
   "def.root": "Radice",
   "def.newRoot": "Nuova radice",
   "def.child": "Figlio",
-  "set.title": "Impostazioni MindZJ",
+  "set.title": "Impostazioni MindZJMap",
   "set.lang": "Lingua",
   "set.langDesc": "Lingua dell'interfaccia",
   "set.theme": "Tema",
@@ -3135,7 +3135,7 @@ var _ar = {
   "def.root": "\u062C\u0630\u0631",
   "def.newRoot": "\u062C\u0630\u0631 \u062C\u062F\u064A\u062F",
   "def.child": "\u0641\u0631\u0639",
-  "set.title": "\u0625\u0639\u062F\u0627\u062F\u0627\u062A MindZJ",
+  "set.title": "\u0625\u0639\u062F\u0627\u062F\u0627\u062A MindZJMap",
   "set.lang": "\u0627\u0644\u0644\u063A\u0629",
   "set.langDesc": "\u0644\u063A\u0629 \u0627\u0644\u0648\u0627\u062C\u0647\u0629",
   "set.theme": "\u0627\u0644\u0633\u0645\u0629",
@@ -3611,7 +3611,7 @@ var _MindMapView = class extends import_obsidian.TextFileView {
     return VIEW_TYPE_MINDMAP;
   }
   getDisplayText() {
-    return this.file ? this.file.basename : "MindZJ";
+    return this.file ? this.file.basename : "MindZJMap";
   }
   getIcon() {
     return "network";
@@ -6746,7 +6746,7 @@ var StylePanelView = class extends import_obsidian2.ItemView {
     return VIEW_TYPE_MINDMAP_STYLE;
   }
   getDisplayText() {
-    return "MindZJ " + t("tb.style");
+    return "MindZJMap " + t("tb.style");
   }
   getIcon() {
     return "palette";
@@ -7001,7 +7001,7 @@ var MindMapOutlineView = class extends import_obsidian3.ItemView {
     return VIEW_TYPE_MINDMAP_OUTLINE;
   }
   getDisplayText() {
-    return "MindZJ " + t("outline.title");
+    return "MindZJMap " + t("outline.title");
   }
   getIcon() {
     return "list-tree";
@@ -7221,7 +7221,7 @@ var MindMapSettingTab = class extends import_obsidian4.PluginSettingTab {
     const iconEl = about.createEl("div");
     iconEl.addClass("mz-about-icon");
     iconEl.innerText = "\u{1F5FA}\uFE0F";
-    const titleEl = about.createEl("h2", { text: "MindZJ" });
+    const titleEl = about.createEl("h2", { text: "MindZJMap" });
     titleEl.addClass("mz-about-title");
     const verEl = about.createEl("div", {
       text: `${t("set.version")}: ${this.plugin.manifest.version}`
@@ -7235,7 +7235,7 @@ var MindMapSettingTab = class extends import_obsidian4.PluginSettingTab {
     descEl.addClass("mz-about-desc");
     const ghLink = about.createEl("div").createEl("a", {
       text: `\u{1F4E6} ${t("set.github")}`,
-      href: "https://github.com/zjok/mindzj"
+      href: "https://github.com/zjok/mindzjmap"
     });
     ghLink.addClass("mz-about-link");
     ghLink.setAttr("target", "_blank");
@@ -7525,7 +7525,7 @@ var MindNodePlugin = class extends import_obsidian5.Plugin {
       (leaf) => new MindMapOutlineView(leaf, this)
     );
     this.addSettingTab(new MindMapSettingTab(this.app, this));
-    this.addRibbonIcon("network", "New MindZJ", () => {
+    this.addRibbonIcon("network", "New MindZJMap", () => {
       void this.createNew();
     });
     this.addCommand({
@@ -7537,7 +7537,7 @@ var MindNodePlugin = class extends import_obsidian5.Plugin {
     });
     this.addCommand({
       id: "open-outline",
-      name: "Open MindZJ outline",
+      name: "Open MindZJMap outline",
       callback: () => {
         void this.openOutlinePanel();
       }
@@ -7548,7 +7548,7 @@ var MindNodePlugin = class extends import_obsidian5.Plugin {
         if (!(file instanceof import_obsidian5.TFolder))
           return;
         menu.addItem(
-          (i) => i.setTitle("New MindZJ").setIcon("network").onClick(() => {
+          (i) => i.setTitle("New MindZJMap").setIcon("network").onClick(() => {
             void this.createInFolder(file);
           })
         );
@@ -7748,7 +7748,7 @@ var MindNodePlugin = class extends import_obsidian5.Plugin {
   async createInFolder(folder) {
     try {
       const f = await this.app.vault.create(
-        this.uniPath(folder, "Untitled MindZJ"),
+        this.uniPath(folder, "Untitled MindZJMap"),
         this.defaultData()
       );
       const leaf = this.app.workspace.getLeaf("tab");
@@ -7783,7 +7783,7 @@ var MindNodePlugin = class extends import_obsidian5.Plugin {
       }
     }
   }
-  /** Open the MindZJ outline panel in the left sidebar. */
+  /** Open the MindZJMap outline panel in the left sidebar. */
   async openOutlinePanel() {
     var _a;
     const ls = this.app.workspace.getLeavesOfType(

@@ -11,6 +11,9 @@ cli/target/
 .env
 .env.local
 
+# CC
+.claude/
+
 # IDE
 .vscode/
 .idea/

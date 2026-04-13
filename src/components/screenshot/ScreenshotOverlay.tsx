@@ -469,6 +469,12 @@ export const ScreenshotOverlay: Component<ScreenshotOverlayProps> = (props) => {
     }
 
     if (tool === "text") {
+      // Position the text input at the exact mouse click point.
+      // `e.clientX/Y` is in viewport coordinates; the canvas may
+      // be offset by `annoWindowOffset` (right-click drag), so
+      // we need the absolute viewport position of the click.
+      // `e.clientX/Y` already IS viewport-relative, so it's
+      // correct as-is for `position: fixed` placement.
       setTextInput({ x: e.clientX, y: e.clientY, visible: true });
       setTextValue("");
       return;
@@ -763,7 +769,7 @@ export const ScreenshotOverlay: Component<ScreenshotOverlayProps> = (props) => {
             <Show when={textInput().visible}>
               <input type="text" value={textValue()} onInput={(e) => setTextValue(e.currentTarget.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") commitText(); if (e.key === "Escape") setTextInput({ ...textInput(), visible: false }); }}
-                autofocus style={{ position: "fixed", left: textInput().x + "px", top: textInput().y + "px", background: "rgba(0,0,0,0.8)", border: `2px solid ${activeColor()}`, color: activeColor(), "font-size": `${activeFontSize()}px`, padding: "4px 8px", "border-radius": "4px", outline: "none", "min-width": "120px", "font-family": "system-ui", "z-index": "100001" }} />
+                autofocus style={{ position: "fixed", left: textInput().x + "px", top: (textInput().y - activeFontSize() / 2) + "px", background: "transparent", border: `1px dashed ${activeColor()}`, color: activeColor(), "font-size": `${activeFontSize()}px`, padding: "2px 4px", "border-radius": "2px", outline: "none", "min-width": "60px", "font-family": "system-ui", "z-index": "100001", "line-height": "1.2", "caret-color": activeColor() }} />
             </Show>
           </div>
 

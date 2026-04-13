@@ -838,17 +838,35 @@ function buildDecorationsImpl(
             );
 
             // Images: ![alt](src)
+            //
+            // Rendered as a BLOCK widget BELOW the markdown line
+            // (side: 1 = after), NOT as a Decoration.replace that
+            // hides the `![alt](src)` text. This fixes two issues:
+            //
+            //  1. The image is always visible — clicking the line
+            //     shows the markdown link text AND the image stays
+            //     below it (no collapse/reappear flicker).
+            //  2. Editing text below images no longer causes display
+            //     jumble, because block widgets have stable height
+            //     in CM6's heightmap (unlike inline replace widgets
+            //     whose height estimate can desync when edits shift
+            //     surrounding content).
+            //
+            // The `![alt](src)` text stays in the editor with its
+            // normal markdown syntax highlighting (e.g. `cm-image`
+            // / `cm-url` tokens from the markdown grammar).
             const imgRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
             let imgMatch;
             while ((imgMatch = imgRegex.exec(text)) !== null) {
-                const start = line.from + imgMatch.index;
-                const end = start + imgMatch[0].length;
+                const end = line.from + imgMatch.index + imgMatch[0].length;
                 const alt = imgMatch[1];
                 const src = imgMatch[2];
                 decorations.push(
-                    Decoration.replace({
+                    Decoration.widget({
                         widget: new ImageWidget(src, alt, vaultRoot, currentFilePath),
-                    }).range(start, end),
+                        block: true,
+                        side: 1,
+                    }).range(end),
                 );
             }
 
