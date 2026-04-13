@@ -452,6 +452,19 @@ export const ScreenshotOverlay: Component<ScreenshotOverlayProps> = (props) => {
     const pos = annoPos(e);
     const tool = activeTool();
 
+    // If text input is visible and user clicks a non-text tool
+    // (or clicks "select" tool on the canvas), commit/discard
+    // the current text input first.
+    if (textInput().visible && tool !== "text") {
+      const txt = textValue().trim();
+      if (txt) {
+        commitText();
+      } else {
+        setTextInput({ ...textInput(), visible: false });
+        setTextValue("");
+      }
+    }
+
     // "select" tool — pick & move existing annotations
     if (tool === "select") {
       const annos = annotations();
@@ -469,12 +482,20 @@ export const ScreenshotOverlay: Component<ScreenshotOverlayProps> = (props) => {
     }
 
     if (tool === "text") {
-      // Position the text input at the exact mouse click point.
-      // `e.clientX/Y` is in viewport coordinates; the canvas may
-      // be offset by `annoWindowOffset` (right-click drag), so
-      // we need the absolute viewport position of the click.
-      // `e.clientX/Y` already IS viewport-relative, so it's
-      // correct as-is for `position: fixed` placement.
+      // If there's an existing text input open, commit its content
+      // first (if non-empty/non-whitespace), then open a new one
+      // at the new click position. This supports the workflow:
+      // click → type → click elsewhere → text saves + new input.
+      if (textInput().visible) {
+        const txt = textValue().trim();
+        if (txt) {
+          commitText();
+        } else {
+          // Empty or whitespace-only → discard silently
+          setTextInput({ ...textInput(), visible: false });
+          setTextValue("");
+        }
+      }
       setTextInput({ x: e.clientX, y: e.clientY, visible: true });
       setTextValue("");
       return;
@@ -623,7 +644,16 @@ export const ScreenshotOverlay: Component<ScreenshotOverlayProps> = (props) => {
         break;
       }
       case "text":
-        if (ann.text && pts.length >= 1) { ctx.font = `${ann.fontSize || 20}px system-ui`; ctx.fillText(ann.text, pts[0].x, pts[0].y); }
+        if (ann.text && pts.length >= 1) {
+          ctx.font = `${ann.fontSize || 20}px system-ui`;
+          // Use textBaseline "top" so the text top edge aligns
+          // with pts[0].y — matching the position of the input
+          // box (whose CSS `top` was set to the click Y, and
+          // the text inside starts at the top of the box).
+          ctx.textBaseline = "top";
+          ctx.fillText(ann.text, pts[0].x, pts[0].y);
+          ctx.textBaseline = "alphabetic"; // restore default
+        }
         break;
     }
 
@@ -766,12 +796,32 @@ export const ScreenshotOverlay: Component<ScreenshotOverlayProps> = (props) => {
           <div style={{ position: "relative", "max-width": "90vw", "max-height": "calc(100vh - 120px)", transform: `translate(${annoWindowOffset().x}px, ${annoWindowOffset().y}px)`, cursor: windowDragging() ? "grabbing" : undefined }}>
             <canvas ref={annotateCanvasRef} style={{ "max-width": "90vw", "max-height": "calc(100vh - 120px)", "object-fit": "contain", cursor: windowDragging() ? "grabbing" : activeTool() === "select" ? "default" : activeTool() === "text" ? "text" : "crosshair", "border-radius": "4px", "box-shadow": "0 4px 20px rgba(0,0,0,0.5)" }}
               onMouseDown={onAnnoMouseDown} onMouseMove={onAnnoMouseMove} onMouseUp={onAnnoMouseUp} />
-            <Show when={textInput().visible}>
-              <input type="text" value={textValue()} onInput={(e) => setTextValue(e.currentTarget.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") commitText(); if (e.key === "Escape") setTextInput({ ...textInput(), visible: false }); }}
-                autofocus style={{ position: "fixed", left: textInput().x + "px", top: (textInput().y - activeFontSize() / 2) + "px", background: "transparent", border: `1px dashed ${activeColor()}`, color: activeColor(), "font-size": `${activeFontSize()}px`, padding: "2px 4px", "border-radius": "2px", outline: "none", "min-width": "60px", "font-family": "system-ui", "z-index": "100001", "line-height": "1.2", "caret-color": activeColor() }} />
-            </Show>
           </div>
+          {/* Text input — placed OUTSIDE the transform container so
+              `position: fixed` works relative to the viewport, not
+              the transformed parent. CSS spec: a `transform` creates
+              a new containing block for fixed-position descendants,
+              which made the input appear far from the click point
+              when it was inside the transformed div. */}
+          <Show when={textInput().visible}>
+            <input type="text" value={textValue()} onInput={(e) => setTextValue(e.currentTarget.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") commitText(); if (e.key === "Escape") { setTextInput({ ...textInput(), visible: false }); setTextValue(""); } }}
+              onBlur={() => {
+                // Auto-save on blur: non-empty → commit, empty → discard.
+                const txt = textValue().trim();
+                if (txt) { commitText(); } else { setTextInput({ ...textInput(), visible: false }); setTextValue(""); }
+              }}
+              ref={(el) => {
+                // Guarantee the cursor is inside the input every
+                // time it appears. `autofocus` only works on the
+                // first mount; for subsequent re-shows (e.g. user
+                // clicks a new position) we need a programmatic
+                // focus call. The `setTimeout(0)` defers to the
+                // next microtask so the DOM is fully settled.
+                setTimeout(() => el.focus(), 0);
+              }}
+              style={{ position: "fixed", left: textInput().x + "px", top: textInput().y + "px", background: "transparent", border: `2px solid ${activeColor()}`, color: activeColor(), "font-size": `${activeFontSize()}px`, padding: "4px 8px", "border-radius": "4px", outline: "none", "min-width": "120px", "font-family": "system-ui", "z-index": "100001" }} />
+          </Show>
 
           {/* Toolbar */}
           <div style={{ display: "flex", "align-items": "center", gap: "4px", padding: "8px 12px", background: "rgba(40,40,40,0.95)", "border-radius": "10px", "margin-top": "12px", "box-shadow": "0 4px 16px rgba(0,0,0,0.4)", "backdrop-filter": "blur(8px)", "flex-wrap": "wrap", "justify-content": "center", "max-width": "95vw" }}>

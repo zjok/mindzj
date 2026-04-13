@@ -837,39 +837,6 @@ function buildDecorationsImpl(
                 decorations,
             );
 
-            // Images: ![alt](src)
-            //
-            // Rendered as a BLOCK widget BELOW the markdown line
-            // (side: 1 = after), NOT as a Decoration.replace that
-            // hides the `![alt](src)` text. This fixes two issues:
-            //
-            //  1. The image is always visible — clicking the line
-            //     shows the markdown link text AND the image stays
-            //     below it (no collapse/reappear flicker).
-            //  2. Editing text below images no longer causes display
-            //     jumble, because block widgets have stable height
-            //     in CM6's heightmap (unlike inline replace widgets
-            //     whose height estimate can desync when edits shift
-            //     surrounding content).
-            //
-            // The `![alt](src)` text stays in the editor with its
-            // normal markdown syntax highlighting (e.g. `cm-image`
-            // / `cm-url` tokens from the markdown grammar).
-            const imgRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
-            let imgMatch;
-            while ((imgMatch = imgRegex.exec(text)) !== null) {
-                const end = line.from + imgMatch.index + imgMatch[0].length;
-                const alt = imgMatch[1];
-                const src = imgMatch[2];
-                decorations.push(
-                    Decoration.widget({
-                        widget: new ImageWidget(src, alt, vaultRoot, currentFilePath),
-                        block: true,
-                        side: 1,
-                    }).range(end),
-                );
-            }
-
             // Markdown links: [text](url) — not images
             const linkRegex = /(?<!!)\[([^\]]+)\]\(([^)]+)\)/g;
             let linkMatch;
@@ -947,6 +914,48 @@ function buildDecorationsImpl(
                 const start = line.from + fnMatch.index;
                 const end = start + fnMatch[0].length;
                 decorations.push(footnoteDeco.range(start, end));
+            }
+        }
+
+        // Images: ![alt](src)
+        //
+        // OUTSIDE the `if (!isCurrentLine)` guard so images are
+        // ALWAYS visible regardless of cursor position.
+        //
+        // Strategy:
+        //  - An INLINE widget (side: 1) after the `![alt](src)`
+        //    text renders the image. It's "inline" from CM6's
+        //    perspective (ViewPlugin can't provide block widgets),
+        //    but ImageWidget's toDOM() returns a `<div>` which
+        //    the browser renders on its own line — giving us
+        //    block-like visual behavior without triggering CM6's
+        //    "Block decorations may not be specified via plugins"
+        //    restriction.
+        //  - On NON-CURSOR lines: the raw `![alt](src)` text is
+        //    hidden via `hideMarker` (fontSize:0 + transparent).
+        //    Only the image shows.
+        //  - On the CURSOR LINE: the raw text stays visible so
+        //    the user can edit the link/alt. The image stays
+        //    below it.
+        {
+            const imgRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
+            let imgMatch;
+            while ((imgMatch = imgRegex.exec(text)) !== null) {
+                const start = line.from + imgMatch.index;
+                const end = start + imgMatch[0].length;
+                const alt = imgMatch[1];
+                const src = imgMatch[2];
+                // Always show image (inline widget after the text)
+                decorations.push(
+                    Decoration.widget({
+                        widget: new ImageWidget(src, alt, vaultRoot, currentFilePath),
+                        side: 1,
+                    }).range(end),
+                );
+                // Hide the raw markdown text on non-cursor lines
+                if (!isCurrentLine) {
+                    decorations.push(hideMarker.range(start, end));
+                }
             }
         }
 

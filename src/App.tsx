@@ -1205,11 +1205,19 @@ const App: Component = () => {
             return;
         }
 
-        // Prevent the bare Alt key from activating the system menu bar,
-        // which steals focus from the editor. We only suppress the Alt
-        // key itself (no combo) — Alt+<key> combos are handled below.
+        // Prevent the bare Alt key from activating the system menu
+        // bar AND — critically — from putting WebView2 into "menu
+        // mode". Without stopPropagation, WebView2 sees the Alt
+        // keydown, enters its internal menu-activation state, and
+        // the NEXT letter press (e.g. G for our screenshot shortcut)
+        // triggers the browser's built-in "Find" / accessibility
+        // search dialog BEFORE our Alt+G handler can intercept it.
+        // All three stop methods are needed because WebView2
+        // registers its handler at multiple phases.
         if (e.key === "Alt") {
             e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
             return;
         }
 
@@ -1348,10 +1356,17 @@ const App: Component = () => {
             return;
         }
 
-        // Screenshot (default Alt+G, configurable)
+        // Screenshot (default Alt+G, configurable).
+        // `stopImmediatePropagation` is needed because WebView2's
+        // internal Alt-key "menu mode" can otherwise intercept the
+        // G press and pop a search/find dialog before our handler
+        // fires. The bare-Alt handler above ALSO suppresses the
+        // menu-mode activation, but the double-stop here is a
+        // belt-and-suspenders defence.
         if (matchesHotkey(e, getHotkey("screenshot", "Alt+G"))) {
             e.preventDefault();
             e.stopPropagation();
+            e.stopImmediatePropagation();
             startScreenshot();
             return;
         }
