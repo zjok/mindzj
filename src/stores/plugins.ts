@@ -1266,7 +1266,23 @@ function createPluginStore() {
         setPluginsVersion(v => v + 1);
     }
 
-    return { loadedPlugins, loading, loadAllPlugins, unloadAllPlugins, unloadPlugin, reloadPlugin };
+    return {
+        loadedPlugins,
+        loading,
+        loadAllPlugins,
+        unloadAllPlugins,
+        unloadPlugin,
+        reloadPlugin,
+        // Exposed so App.tsx's hotkey handler can run plugin-registered
+        // commands directly (see `handleGlobalKeydown` for Alt+F /
+        // Alt+A). Calling `executeCommandById` here bypasses the per-
+        // plugin `mindzj:plugin-command` DOM event the timestamp
+        // plugin used to listen for — that route was firing the
+        // command multiple times when the plugin's instance landed
+        // on the document with more than one listener attached,
+        // yielding the "4 timestamps per Alt+F" bug.
+        executeCommandById,
+    };
 }
 
 // ---------------------------------------------------------------------------

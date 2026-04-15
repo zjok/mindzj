@@ -1,6 +1,17 @@
 mod api;
 mod kernel;
+// Kept on disk for reference / rollback but NOT installed at startup.
+// The low-level WH_KEYBOARD_LL hook used to install here was the only
+// reliable way to claim Ctrl+Alt+Left/Right tab-switching against
+// Intel graphics driver hotkeys — but the user reports that having
+// it installed keeps Win+F and other Windows shell shortcuts from
+// reaching the OS. Those shortcuts matter more to their workflow
+// than Ctrl+Alt+Arrow, so the hook stays uninstalled. The Tauri
+// global-shortcut plugin registration in App.tsx still handles
+// Ctrl+Alt+Arrow via `RegisterHotKey` on machines where no graphics
+// driver hook is grabbing those keys first.
 #[cfg(windows)]
+#[allow(dead_code)]
 mod keyboard_hook;
 
 use api::settings_api::{apply_window_state, load_window_state_sync};
@@ -673,20 +684,13 @@ pub fn run() {
                 }
                 let _ = main_window.show();
             }
-            // Install the low-level keyboard hook on Windows so
-            // Ctrl+Alt+Left/Right tab-switching works even when
-            // Intel/AMD graphics drivers have their own
-            // WH_KEYBOARD_LL hook fighting for the same combo.
-            // See keyboard_hook.rs for the full rationale. The hook
-            // only consumes Ctrl+Alt+Left/Right; every other
-            // keystroke (including Win+letter combos used by the
-            // Windows shell) is forwarded unchanged via
-            // `CallNextHookEx`, so it does not disable Win+F / Win+E
-            // / Win+R etc. at the OS level.
-            #[cfg(windows)]
-            {
-                keyboard_hook::install(app.handle());
-            }
+            // NOTE: `keyboard_hook::install(app.handle())` used to
+            // run here to beat Intel's graphics-driver hook for
+            // Ctrl+Alt+Arrow tab-switching. It's disabled at user
+            // request — keeping a WH_KEYBOARD_LL hook installed was
+            // blocking Win+F and related Windows shell shortcuts on
+            // the user's machine. See the top-of-file `mod
+            // keyboard_hook` comment for the full rationale.
             Ok(())
         })
         // Register all Tauri commands (the Core API layer)

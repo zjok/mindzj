@@ -38,7 +38,11 @@ import { register, unregister, isRegistered } from "@tauri-apps/plugin-global-sh
 import { ScreenshotOverlay } from "./components/screenshot/ScreenshotOverlay";
 import { promptDialog } from "./components/common/ConfirmDialog";
 import { openFileRouted } from "./utils/openFileRouted";
-import { openSearchPanel } from "@codemirror/search";
+import {
+    openSearchPanel,
+    closeSearchPanel,
+    searchPanelOpen,
+} from "@codemirror/search";
 import type { EditorView } from "@codemirror/view";
 import { t } from "./i18n";
 
@@ -1222,21 +1226,19 @@ const App: Component = () => {
             return;
         }
 
-        // Prevent the bare Alt key from activating the system menu
-        // bar AND — critically — from putting WebView2 into "menu
-        // mode". Without stopPropagation, WebView2 sees the Alt
-        // keydown, enters its internal menu-activation state, and
-        // the NEXT letter press (e.g. G for our screenshot shortcut)
-        // triggers the browser's built-in "Find" / accessibility
-        // search dialog BEFORE our Alt+G handler can intercept it.
-        // All three stop methods are needed because WebView2
-        // registers its handler at multiple phases.
-        if (e.key === "Alt") {
-            e.preventDefault();
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-            return;
-        }
+        // NOTE: the bare-Alt preventDefault guard that used to live
+        // here has been removed. It was originally needed to stop
+        // WebView2 from entering menu-activation mode on an isolated
+        // Alt press (which then caused the next letter, e.g. G, to
+        // fire the WebView's built-in find dialog instead of our
+        // Alt+G screenshot shortcut). Now that the Rust setup hook
+        // flips `AreBrowserAcceleratorKeysEnabled(false)` on every
+        // webview (see `disable_webview2_browser_accelerator_keys`),
+        // the menu-mode path is disabled at the webview layer and
+        // the JS guard is redundant. Keeping it was also suspected
+        // of swallowing the altKey modifier on the subsequent G
+        // keydown in some WebView2 builds, which made Alt+G feel
+        // broken — drop it here.
 
         // If the settings hotkey capture is active, let the HotkeysPanel handle the event
         if ((window as any).__mindzj_hotkey_capturing) return;
@@ -1272,18 +1274,31 @@ const App: Component = () => {
         ) {
             e.preventDefault();
             e.stopPropagation();
+            e.stopImmediatePropagation();
 
-            // Route to the mode-appropriate find panel. Reading mode
-            // has no CodeMirror instance so `openSearchPanel` would
-            // be a no-op — instead we fire a DOM event that the
-            // mounted ReadingView listens for (see the
-            // `mindzj:open-reading-find` handler in
-            // `ReadingView.tsx`). Only the active reading pane
-            // listens, so split reading views behave independently.
+            // Ctrl+F is a TOGGLE: if a find panel is already open
+            // anywhere in the active pane, close it; otherwise open
+            // the mode-appropriate one and focus its input.
             const activePath = activePanePath() ?? vaultStore.activeFile()?.path ?? null;
             const activeMode = editorStore.getViewModeForFile(activePath);
+
+            // Reading mode has its own SolidJS panel in
+            // ReadingView.tsx; look for its rendered DOM to tell if
+            // it's currently open.
+            const readingPanelOpen = !!document.querySelector(
+                ".mz-reading-find-panel",
+            );
+
             if (activeMode === "reading") {
-                document.dispatchEvent(new CustomEvent("mindzj:open-reading-find"));
+                if (readingPanelOpen) {
+                    document.dispatchEvent(
+                        new CustomEvent("mindzj:close-reading-find"),
+                    );
+                } else {
+                    document.dispatchEvent(
+                        new CustomEvent("mindzj:open-reading-find"),
+                    );
+                }
                 return;
             }
 
@@ -1294,13 +1309,77 @@ const App: Component = () => {
             const cmView = api?.cm as EditorView | undefined;
             if (cmView) {
                 try {
-                    openSearchPanel(cmView);
-                    cmView.focus();
+                    if (searchPanelOpen(cmView.state)) {
+                        closeSearchPanel(cmView);
+                        cmView.focus();
+                    } else {
+                        openSearchPanel(cmView);
+                        // Give CM6 a tick to mount the panel DOM,
+                        // then move focus into the find input so the
+                        // user can start typing immediately. The
+                        // custom panel's `mount()` already does this
+                        // on first open; calling it here covers the
+                        // case where the panel is reopened after a
+                        // close from a different code path (e.g. the
+                        // user closed it via × and then hit Ctrl+F
+                        // again).
+                        queueMicrotask(() => {
+                            const input =
+                                cmView.dom.querySelector<HTMLInputElement>(
+                                    ".mz-search-panel .mz-search-input",
+                                );
+                            if (input) {
+                                input.focus();
+                                input.select();
+                            } else {
+                                cmView.focus();
+                            }
+                        });
+                    }
                 } catch (err) {
-                    console.warn("[ctrl-f] openSearchPanel failed:", err);
+                    console.warn("[ctrl-f] toggle search panel failed:", err);
                 }
             }
             return;
+        }
+
+        // Escape closes any open find panel regardless of where
+        // focus currently is. Previously ESC only worked if the
+        // find input itself had focus (CM6's default keybinding);
+        // if the user clicked into the document and lost input
+        // focus, ESC did nothing. This handler checks both the
+        // reading-mode panel and CM6's search state and closes
+        // whichever is open, then lets other ESC consumers run if
+        // neither was.
+        if (
+            e.key === "Escape" &&
+            !e.ctrlKey &&
+            !e.altKey &&
+            !e.shiftKey &&
+            !e.metaKey
+        ) {
+            const readingPanel = document.querySelector(
+                ".mz-reading-find-panel",
+            );
+            if (readingPanel) {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                document.dispatchEvent(
+                    new CustomEvent("mindzj:close-reading-find"),
+                );
+                return;
+            }
+            const api = (window as any).__mindzj_plugin_editor_api;
+            const cmView = api?.cm as EditorView | undefined;
+            if (cmView && searchPanelOpen(cmView.state)) {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                closeSearchPanel(cmView);
+                cmView.focus();
+                return;
+            }
         }
 
         if (isCtrlHeld(e) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "r") {
@@ -1404,21 +1483,33 @@ const App: Component = () => {
             return;
         }
 
-        // Plugin: timestamp-header commands (configurable hotkeys)
+        // Plugin: timestamp-header commands (configurable hotkeys).
+        //
+        // Previously this path dispatched a `mindzj:plugin-command`
+        // CustomEvent that the plugin itself listened for and then
+        // re-ran via `app.commands.executeCommandById`. That indirection
+        // was firing the command multiple times — Alt+F would insert
+        // four timestamps in one press — because the plugin's DOM
+        // listener stuck around across vault reloads / hot-reloads
+        // and each attached copy re-ran the callback. We now call
+        // `pluginStore.executeCommandById` directly. One call per
+        // press, one insert per command.
         if (matchesHotkey(e, getHotkey("plugin:timestamp-header:insert-timestamp", "Alt+F"))) {
             e.preventDefault();
             e.stopPropagation();
-            document.dispatchEvent(new CustomEvent("mindzj:plugin-command", {
-                detail: { command: "insert-custom-timestamp" },
-            }));
+            e.stopImmediatePropagation();
+            void pluginStore.executeCommandById(
+                "timestamp-header:insert-custom-timestamp",
+            );
             return;
         }
         if (matchesHotkey(e, getHotkey("plugin:timestamp-header:insert-separator", "Alt+A"))) {
             e.preventDefault();
             e.stopPropagation();
-            document.dispatchEvent(new CustomEvent("mindzj:plugin-command", {
-                detail: { command: "insert-triple-asterisk" },
-            }));
+            e.stopImmediatePropagation();
+            void pluginStore.executeCommandById(
+                "timestamp-header:insert-triple-asterisk",
+            );
             return;
         }
 

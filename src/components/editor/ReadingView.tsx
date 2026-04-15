@@ -406,8 +406,19 @@ function markdownToHtml(md: string, ctx: RenderContext): string {
         }
 
         // --- Empty line ---
+        //
+        // Emit a visible empty-paragraph marker so blank lines in
+        // source survive into reading mode as actual vertical space.
+        // The default markdown collapse (which just skips blank
+        // lines, generating no HTML at all) means a user who types
+        // three blank lines between two paragraphs sees zero gap
+        // in reading mode — the two paragraphs abut with only their
+        // own margins. `<p class="mz-rv-empty-line"></p>` gives each
+        // blank line its own line-height-sized slot, so the reading
+        // view spacing matches what the editor shows.
         if (line.trim() === "") {
             closeList();
+            html.push(`<p class="mz-rv-empty-line" data-line="${i}"></p>`);
             i++;
             continue;
         }
@@ -1196,6 +1207,15 @@ export const ReadingView: Component<ReadingViewProps> = (props) => {
         };
         document.addEventListener("mindzj:open-reading-find", handleOpenFind);
 
+        // Close event fires for ESC / Ctrl+F-to-toggle from App.tsx
+        // regardless of where focus currently is. ALL open reading
+        // panels close — split reading panes will each close their
+        // own panel, which is fine (they're both unused at that point).
+        const handleCloseFind = () => {
+            setFindPanelOpen(false);
+        };
+        document.addEventListener("mindzj:close-reading-find", handleCloseFind);
+
         onCleanup(() => {
             document.removeEventListener("mindzj:editor-command", handler);
             document.removeEventListener(
@@ -1205,6 +1225,10 @@ export const ReadingView: Component<ReadingViewProps> = (props) => {
             document.removeEventListener(
                 "mindzj:open-reading-find",
                 handleOpenFind,
+            );
+            document.removeEventListener(
+                "mindzj:close-reading-find",
+                handleCloseFind,
             );
             // If we unmount while a flash is still pending, clear
             // it so the `<mark>` doesn't outlive its container (if
@@ -1518,59 +1542,74 @@ export const ReadingView: Component<ReadingViewProps> = (props) => {
 
     return (
         <>
+            {/* Outer wrapper: `position: relative` anchors the
+                absolute-positioned find panel. The scroll container
+                is INSIDE this wrapper rather than being the anchor
+                itself — if the panel were absolute-positioned inside
+                the scrolling element it would scroll away with the
+                content (panel visually "pushed to the top" as the
+                user scrolls down). With the wrapper holding position
+                and the scroll container being a sibling of the panel
+                at the same level, the panel stays fixed at the top-
+                right of the wrapper regardless of scroll position,
+                matching how live-preview / source mode's CM6 panel
+                behaves. */}
             <div
-                ref={scrollContainerRef}
-                // Ctrl+wheel text zoom — mirrors the Editor component's
-                // behaviour so the user can zoom rendered markdown the same
-                // way they zoom source/live-preview. Deltas are small (±2%)
-                // because the store throttles and accumulates via rAF.
-                onWheel={(e) => {
-                    activatePane();
-                    if (e.ctrlKey) {
-                        e.preventDefault();
-                        editorStore.zoomEditorText(e.deltaY > 0 ? -2 : 2);
-                    }
-                }}
-                onContextMenu={(e) => {
-                    activatePane();
-                    const target = e.target as HTMLElement | null;
-                    if (target?.closest(".mz-rv-image")) return;
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setContextMenu({
-                        x: e.clientX,
-                        y: e.clientY,
-                        items: buildReadingContextMenu(),
-                    });
-                }}
                 style={{
                     flex: "1",
-                    overflow: "auto",
-                    background: "var(--mz-bg-primary)",
+                    display: "flex",
+                    "flex-direction": "column",
                     "min-height": "0",
-                    visibility: "hidden",
-                    // `position: relative` so the find panel, which
-                    // uses `position: absolute` to float in the top-
-                    // right corner, anchors to this scroll container
-                    // instead of the nearest positioned ancestor
-                    // (which would otherwise be the pane or the
-                    // window, making the panel drift with scroll).
                     position: "relative",
                 }}
-                onMouseDown={() => activatePane()}
-                onFocusIn={() => activatePane()}
             >
                 <div
-                    ref={containerRef}
-                    class="mz-reading-view"
-                    style={{
-                        padding: "10px 24px",
-                        margin: "0 auto",
-                        width: "100%",
-                        color: "var(--mz-text-primary)",
-                        "box-sizing": "border-box",
+                    ref={scrollContainerRef}
+                    // Ctrl+wheel text zoom — mirrors the Editor component's
+                    // behaviour so the user can zoom rendered markdown the same
+                    // way they zoom source/live-preview. Deltas are small (±2%)
+                    // because the store throttles and accumulates via rAF.
+                    onWheel={(e) => {
+                        activatePane();
+                        if (e.ctrlKey) {
+                            e.preventDefault();
+                            editorStore.zoomEditorText(e.deltaY > 0 ? -2 : 2);
+                        }
                     }}
-                />
+                    onContextMenu={(e) => {
+                        activatePane();
+                        const target = e.target as HTMLElement | null;
+                        if (target?.closest(".mz-rv-image")) return;
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setContextMenu({
+                            x: e.clientX,
+                            y: e.clientY,
+                            items: buildReadingContextMenu(),
+                        });
+                    }}
+                    style={{
+                        flex: "1",
+                        overflow: "auto",
+                        background: "var(--mz-bg-primary)",
+                        "min-height": "0",
+                        visibility: "hidden",
+                    }}
+                    onMouseDown={() => activatePane()}
+                    onFocusIn={() => activatePane()}
+                >
+                    <div
+                        ref={containerRef}
+                        class="mz-reading-view"
+                        style={{
+                            padding: "10px 24px",
+                            margin: "0 auto",
+                            width: "100%",
+                            color: "var(--mz-text-primary)",
+                            "box-sizing": "border-box",
+                        }}
+                    />
+                </div>
                 <Show when={findPanelOpen()}>
                     <ReadingFindPanel
                         container={containerRef ?? null}
