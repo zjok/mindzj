@@ -34,6 +34,7 @@ import {
 } from "@codemirror/language";
 import { tags as t_ } from "@lezer/highlight";
 import { search, searchKeymap } from "@codemirror/search";
+import { createVSCodeSearchPanel } from "./extensions/searchPanel";
 import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
 import { invoke } from "@tauri-apps/api/core";
 import { vaultStore } from "../../stores/vault";
@@ -44,7 +45,11 @@ import { livePreviewExtension } from "./extensions/livePreview";
 import { listContinuationExtension } from "./extensions/listContinuation";
 import { listStyleExtension } from "./extensions/listStyleExtension";
 
-import { searchCounterExtension } from "./extensions/searchCounter";
+// `searchCounterExtension` used to append a match-count span into
+// CM6's default search form. The custom VS Code-style panel (see
+// searchPanel.ts) owns its own counter, so the old injector is no
+// longer wired into the extension list. The module is kept on disk
+// for reference/rollback.
 
 import {
     LIST_INDENT_UNIT,
@@ -712,9 +717,21 @@ export const Editor: Component<EditorProps> = (props) => {
             // bottom position. CSS in editor.css then absolute-
             // positions that top panel as a floating VS Code-style
             // find widget in the top-right corner.
-            search({ top: true }),
+            //
+            // `createPanel` swaps CM6's default form for a custom
+            // VS Code-style panel (see extensions/searchPanel.ts) —
+            // chevron toggle for the replace row, Aa/ab/.* toggles
+            // as icon buttons, match counter, nav arrows, and
+            // find-in-selection / close buttons.
+            search({ top: true, createPanel: createVSCodeSearchPanel }),
 
-            searchCounterExtension(),
+            // `searchCounterExtension` used to append a match-count
+            // span into CM6's default `.cm-search` form. Our custom
+            // VS Code panel owns its own counter element and updates
+            // it on every viewport/query update, so the old injector
+            // would just drop a duplicate span in the DOM. It's kept
+            // imported (below) but deliberately NOT installed.
+            // searchCounterExtension(),
 
             // Search-reveal flash highlight — temporary decoration
             // fired from the global search panel when the user

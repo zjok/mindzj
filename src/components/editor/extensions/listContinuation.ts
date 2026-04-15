@@ -82,7 +82,17 @@ function createChildListItem(view: EditorView): boolean {
     const previousInfo = getContinuationInfo(previousLine.text);
     if (!previousInfo || previousInfo.kind === "blockquote") return false;
 
-    const childPrefix = `${previousInfo.indent}${LIST_INDENT_UNIT}${DEFAULT_CHILD_LIST_MARKER}`;
+    // First Tab on an empty line after Shift+Enter: ALWAYS produce a
+    // single-tab indent (level 1), regardless of how deeply the
+    // previous line was nested. The user has explicitly asked for
+    // strictly incremental Tab — each press adds exactly one indent
+    // level. Reading the previous line's indent here and doing
+    // `previousInfo.indent + "\t"` (the old behaviour) would make
+    // the first Tab jump straight to previousLevel + 1, so after
+    // Shift+Enter on a level-3 item the first Tab press would land
+    // the cursor at level 4 in one shot. The follow-up Tabs then go
+    // through `indentEmptyListItem` which adds one more tab per press.
+    const childPrefix = `${LIST_INDENT_UNIT}${DEFAULT_CHILD_LIST_MARKER}`;
     view.dispatch({
         changes: { from: line.from, to: line.to, insert: childPrefix },
         selection: { anchor: line.from + childPrefix.length },
@@ -138,6 +148,47 @@ function handleTab(view: EditorView): boolean {
         indentEmptyListItem(view) ||
         insertLiteralTab(view)
     );
+}
+
+/**
+ * Backspace on an empty list item (marker only, no content) peels
+ * off ONE indent level instead of deleting characters one at a time.
+ * Mirror of `indentEmptyListItem` for the reverse direction so the
+ * `--mz-list-wrap-tabs` / `--mz-list-level` CSS variables walk back
+ * down in the same one-step-per-keypress cadence they walked up.
+ *
+ * At level 0 (no leading indent) this handler bails out and lets
+ * CM6's default Backspace run — which deletes the marker characters
+ * and eventually clears the line — so the user can exit the list
+ * via Backspace without needing a separate "exit list" keystroke.
+ */
+function outdentEmptyListItem(view: EditorView): boolean {
+    const context = getCollapsedLineContext(view);
+    if (!context) return false;
+
+    const { line, selection } = context;
+    // Only act when the cursor sits at end-of-line (right after the
+    // marker). If the user is mid-line we defer to the default
+    // character-delete so they can edit content the normal way.
+    if (selection.head !== line.to) return false;
+
+    const emptyInfo = getEmptyContinuationInfo(line.text);
+    if (!emptyInfo || emptyInfo.kind === "blockquote") return false;
+    if (emptyInfo.level === 0) return false;
+
+    // Drop exactly one LIST_INDENT_WIDTH worth of columns off the
+    // leading whitespace — `buildIndentFromColumns` handles mixed
+    // tab/space indentation cleanly (converts to the canonical tab
+    // form on the way out). Marker is left untouched.
+    const currentColumns = measureIndentColumns(emptyInfo.rawIndent);
+    const nextColumns = Math.max(0, currentColumns - LIST_INDENT_WIDTH);
+    const newIndent = buildIndentFromColumns(nextColumns);
+    const newText = `${newIndent}${emptyInfo.marker}`;
+    view.dispatch({
+        changes: { from: line.from, to: line.to, insert: newText },
+        selection: { anchor: line.from + newText.length },
+    });
+    return true;
 }
 
 function outdentCurrentLine(view: EditorView): boolean {
@@ -219,6 +270,7 @@ export function listContinuationExtension(): Extension {
             { key: "Enter", run: continueList },
             { key: "Tab", run: handleTab },
             { key: "Shift-Tab", run: outdentCurrentLine },
+            { key: "Backspace", run: outdentEmptyListItem },
         ]),
         orderedListRenumber,
     ];
