@@ -210,10 +210,51 @@
   background: var(--mz-bg-hover);
 }
 
-/* Panel (search, go to line) */
-.cm-editor .cm-panels {
+/* ===================================================================
+   CM6 search panel — restyled as a VS Code-style floating widget.
+
+   The panel is installed with `search({ top: true })` in Editor.tsx,
+   so it renders inside `.cm-panels.cm-panels-top` at the top of the
+   editor. We then absolute-position it in the top-right corner and
+   hide every piece of native markup we don't want (replace input,
+   replace buttons, "all" button, status line, label text) so the
+   visible chrome matches VS Code's find-in-file widget: a narrow
+   rounded bar with the query input, three toggle icons, match
+   counter, prev/next arrows and close.
+   =================================================================== */
+
+.cm-editor {
+  /* The search panel is positioned relative to the editor. Without
+     `position: relative` it would anchor to the nearest positioned
+     ancestor (the split pane or the window) and drift wildly as the
+     user resizes panes. */
+  position: relative;
+}
+
+.cm-editor .cm-panels.cm-panels-top {
+  position: absolute;
+  top: 8px;
+  right: 16px;
+  left: auto;
+  width: auto;
+  max-width: calc(100% - 24px);
+  background: transparent;
+  border: none;
+  z-index: 20;
+  padding: 0;
+  pointer-events: none;
+}
+
+.cm-editor .cm-panels.cm-panels-top > .cm-panel {
+  pointer-events: auto;
+}
+
+/* Hide the native bottom panel entirely — we only use top panels.
+   Belt-and-suspenders: in case some future code path opens a
+   different panel at the bottom. */
+.cm-editor .cm-panels-bottom {
   background: var(--mz-bg-secondary);
-  border-bottom: 1px solid var(--mz-border);
+  border-top: 1px solid var(--mz-border);
 }
 
 html[data-theme="dark"] .cm-editor .cm-panels-bottom {
@@ -224,49 +265,162 @@ html[data-theme="light"] .cm-editor .cm-panels-bottom {
   border-top: 1px solid #ddd;
 }
 
-.cm-editor .cm-panel input {
+/* The search panel itself — VS Code look: tight padding, rounded
+   corners, single row, subtle shadow. */
+.cm-editor .cm-panel.cm-search {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  background: var(--mz-bg-secondary);
+  border: 1px solid var(--mz-border);
+  border-radius: var(--mz-radius-md);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  min-height: 32px;
+  font-family: var(--mz-font-sans);
+  font-size: var(--mz-font-size-sm);
+}
+
+/* Hide the textual labels CM6 inserts before the query and replace
+   inputs ("Find:", "Replace:"). VS Code doesn't show them; the
+   magnifier placeholder in the input is enough. */
+.cm-editor .cm-panel.cm-search > label {
+  display: none;
+}
+
+/* Hide the replace row entirely. We expose only find in the first
+   iteration — the user didn't ask for replace and keeping it would
+   force a taller two-row panel. */
+.cm-editor .cm-panel.cm-search input[name="replace"],
+.cm-editor .cm-panel.cm-search button[name="replace"],
+.cm-editor .cm-panel.cm-search button[name="replaceAll"] {
+  display: none;
+}
+
+/* Hide the "match all" / "selection" secondary buttons — the prev/
+   next arrows and close button cover the common flow, and hiding
+   them keeps the widget narrow. */
+.cm-editor .cm-panel.cm-search button[name="select"] {
+  display: none;
+}
+
+/* Query input */
+.cm-editor .cm-panel.cm-search input[name="search"] {
+  flex: 1;
+  min-width: 180px;
+  max-width: 240px;
+  height: 24px;
+  padding: 2px 8px;
   background: var(--mz-bg-primary);
   color: var(--mz-text-primary);
   border: 1px solid var(--mz-border);
   border-radius: var(--mz-radius-sm);
-  padding: 2px 6px;
   font-family: var(--mz-font-sans);
+  font-size: var(--mz-font-size-sm);
+  outline: none;
 }
 
-.cm-editor .cm-panel button {
-  background: var(--mz-bg-tertiary);
-  color: var(--mz-text-secondary);
-  border: 1px solid var(--mz-border);
-  border-radius: var(--mz-radius-sm);
-  padding: 2px 8px;
-  cursor: pointer;
-  font-family: var(--mz-font-sans);
+.cm-editor .cm-panel.cm-search input[name="search"]:focus {
+  border-color: var(--mz-accent);
+  box-shadow: 0 0 0 1px var(--mz-accent);
 }
 
-.cm-editor .cm-panel button:hover {
-  background: var(--mz-bg-hover);
-}
-
-.cm-editor .cm-search .mz-search-match-counter {
+/* Checkbox toggles (case sensitive, whole word, regex). Style them
+   as square icon buttons matching VS Code. CM6 renders them as
+   `<label><input type="checkbox"> Aa</label>` groups — style the
+   label to be the button, hide the native checkbox, and recolor on
+   :has(:checked). */
+.cm-editor .cm-panel.cm-search label:has(input[type="checkbox"]) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 48px;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  color: var(--mz-text-secondary);
+  border: 1px solid transparent;
+  border-radius: var(--mz-radius-sm);
+  cursor: pointer;
+  font-family: var(--mz-font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  user-select: none;
+  white-space: nowrap;
+  gap: 0;
+}
+
+.cm-editor .cm-panel.cm-search label:has(input[type="checkbox"]):hover {
+  background: var(--mz-bg-hover);
+}
+
+.cm-editor .cm-panel.cm-search label:has(input[type="checkbox"]:checked) {
+  background: var(--mz-accent-subtle);
+  color: var(--mz-accent);
+  border-color: var(--mz-accent);
+}
+
+.cm-editor .cm-panel.cm-search label input[type="checkbox"] {
+  display: none;
+}
+
+/* Next / Previous arrow buttons. CM6 renders them as
+   <button name="next">next</button>. Replace the text with an arrow
+   icon via ::before and hide the original text via `font-size: 0`. */
+.cm-editor .cm-panel.cm-search button[name="next"],
+.cm-editor .cm-panel.cm-search button[name="prev"],
+.cm-editor .cm-panel.cm-search button[name="close"] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: transparent;
+  color: var(--mz-text-secondary);
+  border: 1px solid transparent;
+  border-radius: var(--mz-radius-sm);
+  cursor: pointer;
+  font-size: 0;
+  line-height: 1;
+  font-family: var(--mz-font-sans);
+}
+
+.cm-editor .cm-panel.cm-search button[name="next"]:hover,
+.cm-editor .cm-panel.cm-search button[name="prev"]:hover,
+.cm-editor .cm-panel.cm-search button[name="close"]:hover {
+  background: var(--mz-bg-hover);
+  color: var(--mz-text-primary);
+}
+
+.cm-editor .cm-panel.cm-search button[name="prev"]::before {
+  content: "↑";
+  font-size: 14px;
+}
+
+.cm-editor .cm-panel.cm-search button[name="next"]::before {
+  content: "↓";
+  font-size: 14px;
+}
+
+.cm-editor .cm-panel.cm-search button[name="close"]::before {
+  content: "×";
+  font-size: 16px;
+  line-height: 1;
+}
+
+.cm-editor .cm-panel.cm-search .mz-search-match-counter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
   padding: 0 6px;
   color: var(--mz-text-muted);
-  font-size: var(--mz-font-size-xs);
+  font-size: 11px;
   font-variant-numeric: tabular-nums;
-}
-
-.cm-editor .cm-search button[name="close"] {
-  position: relative;
-  min-width: 26px;
-  font-size: 0;
-}
-
-.cm-editor .cm-search button[name="close"]::before {
-  font-size: var(--mz-font-size-base);
-  line-height: 1;
+  white-space: nowrap;
 }
 
 /* Fold gutter */
@@ -900,4 +1054,147 @@ html[data-theme="light"] .cm-editor .cm-panels-bottom {
 .mz-reading-view .katex-display {
   margin: 0;
   overflow-x: auto;
+}
+
+/* ===================================================================
+   Reading-mode floating find panel (ReadingFindPanel.tsx)
+   Mirrors the VS Code-style look of the CM6 `.cm-search` rules
+   above, so the widget looks identical whether you open it in
+   reading mode or in source / live-preview.
+   =================================================================== */
+
+.mz-reading-find-panel {
+  position: absolute;
+  top: 8px;
+  right: 16px;
+  z-index: 20;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  background: var(--mz-bg-secondary);
+  border: 1px solid var(--mz-border);
+  border-radius: var(--mz-radius-md);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  min-height: 32px;
+  font-family: var(--mz-font-sans);
+  font-size: var(--mz-font-size-sm);
+}
+
+.mz-reading-find-input {
+  flex: 1;
+  min-width: 180px;
+  max-width: 240px;
+  height: 24px;
+  padding: 2px 8px;
+  background: var(--mz-bg-primary);
+  color: var(--mz-text-primary);
+  border: 1px solid var(--mz-border);
+  border-radius: var(--mz-radius-sm);
+  font-family: var(--mz-font-sans);
+  font-size: var(--mz-font-size-sm);
+  outline: none;
+}
+
+.mz-reading-find-input:focus {
+  border-color: var(--mz-accent);
+  box-shadow: 0 0 0 1px var(--mz-accent);
+}
+
+.mz-reading-find-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  color: var(--mz-text-secondary);
+  border: 1px solid transparent;
+  border-radius: var(--mz-radius-sm);
+  cursor: pointer;
+  font-family: var(--mz-font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.mz-reading-find-toggle input[type="checkbox"] {
+  /* Keep the checkbox accessible in the DOM for form-submit /
+     screen-reader purposes but visually replaced by the surrounding
+     label (which styles itself as the toggle button). */
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.mz-reading-find-toggle:hover {
+  background: var(--mz-bg-hover);
+}
+
+.mz-reading-find-toggle.mz-reading-find-toggle-active {
+  background: var(--mz-accent-subtle);
+  color: var(--mz-accent);
+  border-color: var(--mz-accent);
+}
+
+.mz-reading-find-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 64px;
+  padding: 0 6px;
+  color: var(--mz-text-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.mz-reading-find-count-error {
+  color: var(--mz-error);
+  font-weight: 700;
+}
+
+.mz-reading-find-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: transparent;
+  color: var(--mz-text-secondary);
+  border: 1px solid transparent;
+  border-radius: var(--mz-radius-sm);
+  cursor: pointer;
+  font-family: var(--mz-font-sans);
+  font-size: 14px;
+  line-height: 1;
+}
+
+.mz-reading-find-btn:hover {
+  background: var(--mz-bg-hover);
+  color: var(--mz-text-primary);
+}
+
+/* Highlight for matches found by ReadingFindPanel. `<mark>` defaults
+   to a browser-native yellow background; we override it to the same
+   accent color the CM6 `.cm-searchMatch` uses so the visual language
+   stays consistent between modes. The `-current` variant is the one
+   the user is navigating through — brighter so the eye tracks it. */
+.mz-reading-view .mz-reading-find-match {
+  background: var(--mz-syntax-highlight-bg);
+  color: inherit;
+  padding: 0;
+  border-radius: 2px;
+}
+
+.mz-reading-view .mz-reading-find-match-current {
+  background: rgba(255, 170, 0, 0.55);
+  outline: 1.5px solid rgba(255, 140, 0, 0.95);
 }

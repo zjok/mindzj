@@ -1,11 +1,6 @@
 mod api;
 mod kernel;
-// Kept available but no longer installed at startup — see the note at
-// the call site below (removed) and the header comment in
-// `keyboard_hook.rs`. Re-enable the `install` call if we ever need the
-// low-level hook again.
 #[cfg(windows)]
-#[allow(dead_code)]
 mod keyboard_hook;
 
 use api::settings_api::{apply_window_state, load_window_state_sync};
@@ -40,6 +35,132 @@ fn apply_hires_icon(window: &tauri::WebviewWindow) {
         Err(e) => {
             tracing::warn!("failed to decode APP_ICON_PNG: {}", e);
         }
+    }
+}
+
+/// Windows-only: disable WebView2's built-in browser accelerator keys
+/// AND the default context menu.
+///
+/// Why: with the stock WebView2 settings, keyboard shortcuts like
+/// Ctrl+F (find-in-page popup), F5 / Ctrl+R (refresh), Ctrl+P (print),
+/// and the Alt-to-activate-menu-bar behaviour are handled inside the
+/// webview BEFORE our DOM `keydown` listener sees them. The user kept
+/// hitting this when focus was on the tab bar or sidebar: bare Alt
+/// put the webview into menu mode, and the very next letter press
+/// (e.g. G) fired the webview's built-in find-in-page dialog instead
+/// of our Alt+G screenshot handler.
+///
+/// `SetAreBrowserAcceleratorKeysEnabled(false)` turns the whole family
+/// off in one call. We re-implement the shortcuts we actually want
+/// (Ctrl+F → in-app search, F12 → devtools) via the existing DOM
+/// keydown handler in `App.tsx`, so disabling the webview's versions
+/// doesn't lose functionality.
+///
+/// Also disables the default right-click menu. The frontend has
+/// already suppressed it via a `contextmenu` preventDefault listener
+/// (see App.tsx:608), but doing it at the WebView2 layer too stops
+/// the menu from flashing on slow paints.
+///
+/// Non-fatal: any step that fails is logged and swallowed — the app
+/// keeps working, just with the default WebView2 settings.
+#[cfg(windows)]
+fn disable_webview2_browser_accelerator_keys(window: &tauri::WebviewWindow) {
+    use webview2_com::Microsoft::Web::WebView2::Win32::{
+        ICoreWebView2Settings3, ICoreWebView2_2,
+    };
+    // NOTE: `windows_core::Interface` — NOT `windows::core::Interface` —
+    // because `webview2-com-sys 0.38` was generated against
+    // `windows-core 0.61` and its COM interfaces only implement
+    // `Interface` from that exact version. `windows 0.58` ships its
+    // own `windows_core 0.58` under the `windows::core::` path and
+    // `cast::<ICoreWebView2Settings3>()` would fail to resolve if we
+    // reached for it here.
+    use windows_core::Interface;
+
+    let label = window.label().to_string();
+    let result = window.with_webview(move |webview| unsafe {
+        // `controller().CoreWebView2()` → the underlying
+        // `ICoreWebView2` instance for this webview. Tauri only
+        // exposes `controller()` on Windows, so this whole block is
+        // already inside `#[cfg(windows)]`.
+        let controller = webview.controller();
+        let core_webview = match controller.CoreWebView2() {
+            Ok(c) => c,
+            Err(e) => {
+                tracing::warn!(
+                    "[webview2] CoreWebView2() failed on '{}': {:?}",
+                    label,
+                    e,
+                );
+                return;
+            }
+        };
+
+        // `Settings()` returns `ICoreWebView2Settings`, which doesn't
+        // have `AreBrowserAcceleratorKeysEnabled`. We need to cast to
+        // the newer `ICoreWebView2Settings3` — shipped in WebView2
+        // 88.0.705 / March 2021, so effectively always present on any
+        // system that can install our app.
+        let settings = match core_webview.Settings() {
+            Ok(s) => s,
+            Err(e) => {
+                tracing::warn!(
+                    "[webview2] Settings() failed on '{}': {:?}",
+                    label,
+                    e,
+                );
+                return;
+            }
+        };
+
+        // Default context menus off. Purely defensive — the JS side
+        // already cancels `contextmenu` — but this prevents the
+        // briefest paint of the native menu on slow frames.
+        if let Err(e) = settings.SetAreDefaultContextMenusEnabled(false) {
+            tracing::warn!(
+                "[webview2] SetAreDefaultContextMenusEnabled(false) failed on '{}': {:?}",
+                label,
+                e,
+            );
+        }
+
+        match settings.cast::<ICoreWebView2Settings3>() {
+            Ok(settings3) => {
+                if let Err(e) = settings3.SetAreBrowserAcceleratorKeysEnabled(false) {
+                    tracing::warn!(
+                        "[webview2] SetAreBrowserAcceleratorKeysEnabled(false) failed on '{}': {:?}",
+                        label,
+                        e,
+                    );
+                } else {
+                    tracing::info!(
+                        "[webview2] browser accelerator keys disabled on '{}'",
+                        label,
+                    );
+                }
+            }
+            Err(e) => {
+                tracing::warn!(
+                    "[webview2] cast to ICoreWebView2Settings3 failed on '{}': {:?}",
+                    label,
+                    e,
+                );
+            }
+        }
+
+        // Silence the unused-import warning on the ICoreWebView2_2
+        // name — keeping the import available makes it easy to add
+        // `NavigationStarting`-style callbacks here later without
+        // chasing down the correct crate path again.
+        let _ = std::marker::PhantomData::<ICoreWebView2_2>;
+    });
+
+    if let Err(e) = result {
+        tracing::warn!(
+            "[webview2] with_webview on '{}' failed to schedule: {:?}",
+            window.label(),
+            e,
+        );
     }
 }
 
@@ -210,6 +331,8 @@ async fn open_vault_window(
     let window = builder.build().map_err(|e| e.to_string())?;
 
     apply_hires_icon(&window);
+    #[cfg(windows)]
+    disable_webview2_browser_accelerator_keys(&window);
 
     // Apply full state (handles maximized flag and finalizes size/position)
     if let Some(ref s) = saved_state {
@@ -363,6 +486,8 @@ async fn open_file_in_split_window(
     .map_err(|e| e.to_string())?;
 
     apply_hires_icon(&new_window);
+    #[cfg(windows)]
+    disable_webview2_browser_accelerator_keys(&new_window);
 
     let _ = new_window.show();
     let _ = new_window.set_focus();
@@ -436,6 +561,8 @@ async fn open_image_in_new_window(
     .map_err(|e| e.to_string())?;
 
     apply_hires_icon(&new_window);
+    #[cfg(windows)]
+    disable_webview2_browser_accelerator_keys(&new_window);
 
     let _ = new_window.show();
     let _ = new_window.set_focus();
@@ -520,6 +647,8 @@ pub fn run() {
         .setup(|app| {
             if let Some(main_window) = app.get_webview_window("main") {
                 apply_hires_icon(&main_window);
+                #[cfg(windows)]
+                disable_webview2_browser_accelerator_keys(&main_window);
                 if let Some(state) = load_window_state_sync(&app.handle()) {
                     apply_window_state(&main_window, &state);
                 } else {
@@ -544,20 +673,20 @@ pub fn run() {
                 }
                 let _ = main_window.show();
             }
-            // NOTE: the global `WH_KEYBOARD_LL` keyboard hook used
-            // to be installed here to make Ctrl+Alt+Left/Right tab-
-            // switching beat Intel Graphics Command Center's own
-            // hook. It's been disabled at user request — while the
-            // proc itself only consumed Ctrl+Alt+Left/Right and
-            // CallNextHookEx-passed everything else, simply having
-            // a WH_KEYBOARD_LL hook installed caused Windows system
-            // shortcuts like Win+F / Win+E / Win+R to stop working
-            // while MindZJ held focus. The Tauri global-shortcut
-            // plugin registration for CommandOrControl+Alt+Left/Right
-            // in App.tsx still handles tab-switching on machines
-            // without an Intel driver hook. See keyboard_hook.rs for
-            // the full background if the Intel-hook problem comes
-            // back and we need to revisit.
+            // Install the low-level keyboard hook on Windows so
+            // Ctrl+Alt+Left/Right tab-switching works even when
+            // Intel/AMD graphics drivers have their own
+            // WH_KEYBOARD_LL hook fighting for the same combo.
+            // See keyboard_hook.rs for the full rationale. The hook
+            // only consumes Ctrl+Alt+Left/Right; every other
+            // keystroke (including Win+letter combos used by the
+            // Windows shell) is forwarded unchanged via
+            // `CallNextHookEx`, so it does not disable Win+F / Win+E
+            // / Win+R etc. at the OS level.
+            #[cfg(windows)]
+            {
+                keyboard_hook::install(app.handle());
+            }
             Ok(())
         })
         // Register all Tauri commands (the Core API layer)

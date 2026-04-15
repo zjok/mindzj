@@ -1272,8 +1272,24 @@ const App: Component = () => {
         ) {
             e.preventDefault();
             e.stopPropagation();
-            // Grab the active EditorView from the plugin API
-            // surface that Editor.tsx keeps up-to-date.
+
+            // Route to the mode-appropriate find panel. Reading mode
+            // has no CodeMirror instance so `openSearchPanel` would
+            // be a no-op — instead we fire a DOM event that the
+            // mounted ReadingView listens for (see the
+            // `mindzj:open-reading-find` handler in
+            // `ReadingView.tsx`). Only the active reading pane
+            // listens, so split reading views behave independently.
+            const activePath = activePanePath() ?? vaultStore.activeFile()?.path ?? null;
+            const activeMode = editorStore.getViewModeForFile(activePath);
+            if (activeMode === "reading") {
+                document.dispatchEvent(new CustomEvent("mindzj:open-reading-find"));
+                return;
+            }
+
+            // Source / live-preview modes: drive CM6's built-in
+            // search state. The panel UI is styled as a VS Code
+            // floating widget via `.cm-panels-top` CSS in editor.css.
             const api = (window as any).__mindzj_plugin_editor_api;
             const cmView = api?.cm as EditorView | undefined;
             if (cmView) {

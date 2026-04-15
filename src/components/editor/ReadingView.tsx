@@ -31,6 +31,7 @@ import { vaultStore } from "../../stores/vault";
 import { editorStore } from "../../stores/editor";
 import { settingsStore } from "../../stores/settings";
 import { ContextMenu, type MenuItem } from "../common/ContextMenu";
+import { ReadingFindPanel } from "./ReadingFindPanel";
 import katex from "katex";
 import { resolveImageAssetUrl } from "../../utils/vaultPaths";
 import { openFileRouted } from "../../utils/openFileRouted";
@@ -949,6 +950,7 @@ export const ReadingView: Component<ReadingViewProps> = (props) => {
         y: number;
         items: MenuItem[];
     } | null>(null);
+    const [findPanelOpen, setFindPanelOpen] = createSignal(false);
     const resolvedFile = createMemo(() => props.file ?? vaultStore.activeFile());
     const isPaneActive = () => props.isActive ?? true;
 
@@ -1181,11 +1183,28 @@ export const ReadingView: Component<ReadingViewProps> = (props) => {
             }
         };
         document.addEventListener("mindzj:editor-command", handler);
+
+        // Ctrl+F in reading mode: show the floating find panel. The
+        // event is dispatched from App.tsx's global keydown handler
+        // when the active pane is in reading mode (CM6 modes take the
+        // `openSearchPanel(cmView)` path instead). Only the pane that
+        // currently owns focus should open — otherwise pressing Ctrl+F
+        // with two split reading panes would pop a panel in each.
+        const handleOpenFind = () => {
+            if (!isPaneActive()) return;
+            setFindPanelOpen(true);
+        };
+        document.addEventListener("mindzj:open-reading-find", handleOpenFind);
+
         onCleanup(() => {
             document.removeEventListener("mindzj:editor-command", handler);
             document.removeEventListener(
                 "mindzj:remember-active-viewport",
                 handleRememberViewport,
+            );
+            document.removeEventListener(
+                "mindzj:open-reading-find",
+                handleOpenFind,
             );
             // If we unmount while a flash is still pending, clear
             // it so the `<mark>` doesn't outlive its container (if
@@ -1530,6 +1549,13 @@ export const ReadingView: Component<ReadingViewProps> = (props) => {
                     background: "var(--mz-bg-primary)",
                     "min-height": "0",
                     visibility: "hidden",
+                    // `position: relative` so the find panel, which
+                    // uses `position: absolute` to float in the top-
+                    // right corner, anchors to this scroll container
+                    // instead of the nearest positioned ancestor
+                    // (which would otherwise be the pane or the
+                    // window, making the panel drift with scroll).
+                    position: "relative",
                 }}
                 onMouseDown={() => activatePane()}
                 onFocusIn={() => activatePane()}
@@ -1545,6 +1571,13 @@ export const ReadingView: Component<ReadingViewProps> = (props) => {
                         "box-sizing": "border-box",
                     }}
                 />
+                <Show when={findPanelOpen()}>
+                    <ReadingFindPanel
+                        container={containerRef ?? null}
+                        scrollContainer={scrollContainerRef ?? null}
+                        onClose={() => setFindPanelOpen(false)}
+                    />
+                </Show>
             </div>
             <Show when={contextMenu()}>
                 {(menu) => (

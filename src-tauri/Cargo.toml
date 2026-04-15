@@ -114,6 +114,24 @@ windows = { version = "0.58", features = [
     "Win32_System_LibraryLoader",
     "Win32_System_Threading",
 ] }
+# Used from the Tauri `setup()` hook to flip the WebView2
+# `AreBrowserAcceleratorKeysEnabled` setting to `false`. Without that,
+# WebView2 swallows accelerator keystrokes like Ctrl+F / F5 / Alt-menu
+# activation before the DOM keydown listener has a chance to handle
+# them — which was letting Alt+G (or similar) pop up WebView2's
+# built-in find dialog when focus wasn't inside the editor.
+#
+# The version is pinned to match Tauri 2.10's transitive dep so Cargo
+# doesn't link two copies of webview2-com into the final binary.
+webview2-com = "0.38"
+# `webview2-com-sys 0.38` is generated against `windows-core 0.61`, so
+# its COM interfaces only implement the `Interface` trait from that
+# version. We keep our own `windows = "0.58"` for the keyboard-hook
+# module, and add a separate `windows-core = "0.61"` dep purely so the
+# `cast::<ICoreWebView2Settings3>()` call in
+# `disable_webview2_browser_accelerator_keys` can resolve the right
+# trait impl.
+windows-core = "0.61"
 
 [features]
 default = []

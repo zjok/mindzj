@@ -33,7 +33,7 @@ import {
     indentUnit,
 } from "@codemirror/language";
 import { tags as t_ } from "@lezer/highlight";
-import { searchKeymap } from "@codemirror/search";
+import { search, searchKeymap } from "@codemirror/search";
 import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
 import { invoke } from "@tauri-apps/api/core";
 import { vaultStore } from "../../stores/vault";
@@ -706,8 +706,14 @@ export const Editor: Component<EditorProps> = (props) => {
 
             // List continuation (auto-continue on Enter, indent/outdent)
             listContinuationExtension(),
-           
-            
+
+            // Install the search state/extension so the Ctrl+F panel
+            // mounts at the TOP of the editor instead of the default
+            // bottom position. CSS in editor.css then absolute-
+            // positions that top panel as a floating VS Code-style
+            // find widget in the top-right corner.
+            search({ top: true }),
+
             searchCounterExtension(),
 
             // Search-reveal flash highlight — temporary decoration
