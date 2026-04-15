@@ -104,8 +104,40 @@ function insertLiteralTab(view: EditorView): boolean {
     return true;
 }
 
+/**
+ * Tab on a list line that already has ONLY a marker (no content yet)
+ * — e.g. `- `, `\t- `, `1. ` — indents the marker by exactly one
+ * level. This is the case that fires on the SECOND and subsequent
+ * Tab presses after Shift+Enter: the first Tab turns an empty line
+ * into a child list item (`\t- `), and each further Tab bumps that
+ * indent by one more level (`\t\t- `, `\t\t\t- `, …). Without this
+ * handler the second Tab would fall through to `insertLiteralTab`
+ * and the user would end up with a literal tab sitting INSIDE the
+ * list item's content area instead of a deeper indent on the marker.
+ */
+function indentEmptyListItem(view: EditorView): boolean {
+    const context = getCollapsedLineContext(view);
+    if (!context) return false;
+
+    const { line } = context;
+    const emptyInfo = getEmptyContinuationInfo(line.text);
+    if (!emptyInfo) return false;
+    if (emptyInfo.kind === "blockquote") return false;
+
+    const newText = `${emptyInfo.indent}${LIST_INDENT_UNIT}${emptyInfo.marker}`;
+    view.dispatch({
+        changes: { from: line.from, to: line.to, insert: newText },
+        selection: { anchor: line.from + newText.length },
+    });
+    return true;
+}
+
 function handleTab(view: EditorView): boolean {
-    return createChildListItem(view) || insertLiteralTab(view);
+    return (
+        createChildListItem(view) ||
+        indentEmptyListItem(view) ||
+        insertLiteralTab(view)
+    );
 }
 
 function outdentCurrentLine(view: EditorView): boolean {

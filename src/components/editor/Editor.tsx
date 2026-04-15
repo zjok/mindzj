@@ -959,6 +959,48 @@ export const Editor: Component<EditorProps> = (props) => {
                                         changes: { from: pos, insert: imageRef },
                                         selection: { anchor: pos + imageRef.length },
                                     });
+
+                                    // Windows clipboard often carries a CF_HTML
+                                    // representation of the same screenshot
+                                    // alongside the raw bitmap — typically
+                                    // `<img …><br>` with a trailing <br> tag
+                                    // added by the Windows shell. Even though
+                                    // we preventDefault the paste and take
+                                    // the image/png path above, some WebView2
+                                    // releases still drop the HTML fragment
+                                    // into the contenteditable, leaving a
+                                    // stray `<br>` immediately after our
+                                    // inserted image reference. Sweep it up
+                                    // here — single `<br>`, `<br/>`, or
+                                    // `<br />` with optional leading whitespace
+                                    // — so the user never sees it in the
+                                    // source markdown.
+                                    const afterPos = pos + imageRef.length;
+                                    const afterState = view.state;
+                                    if (afterPos <= afterState.doc.length) {
+                                        const tailLen = Math.min(
+                                            16,
+                                            afterState.doc.length - afterPos,
+                                        );
+                                        if (tailLen > 0) {
+                                            const tail = afterState.doc.sliceString(
+                                                afterPos,
+                                                afterPos + tailLen,
+                                            );
+                                            const brMatch = tail.match(
+                                                /^\s*<br\s*\/?\s*>/i,
+                                            );
+                                            if (brMatch) {
+                                                view.dispatch({
+                                                    changes: {
+                                                        from: afterPos,
+                                                        to: afterPos + brMatch[0].length,
+                                                        insert: "",
+                                                    },
+                                                });
+                                            }
+                                        }
+                                    }
                                 } catch (e) {
                                     console.error("[Editor] Failed to save pasted image:", e);
                                 }

@@ -2,6 +2,7 @@ import { Component, Show, createSignal, onMount, onCleanup } from "solid-js";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { invoke } from "@tauri-apps/api/core";
 import { createPersistableWindowState } from "../../utils/windowState";
+import { editorStore } from "../../stores/editor";
 
 /**
  * Window control buttons (minimize, maximize/restore, close).
@@ -34,6 +35,17 @@ export const WindowControls: Component = () => {
     // (no JS races) and because earlier revisions found both JS paths
     // flaky on Windows.
     const close = async () => {
+        // Flush any pending unsaved file content BEFORE the workspace
+        // flush and window-state save — user changes made inside the
+        // 2s auto-save debounce window would otherwise be dropped on
+        // close. `flushAllPendingSaves` iterates every scheduled
+        // auto-save, clears its timer, and writes the latest
+        // captured content to disk in parallel.
+        try {
+            await editorStore.flushAllPendingSaves();
+        } catch (e) {
+            console.warn("[WindowControls] flushAllPendingSaves failed:", e);
+        }
         try {
             await (window as any).__mindzj_flush_workspace?.();
         } catch (e) {

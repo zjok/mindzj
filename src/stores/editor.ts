@@ -108,6 +108,13 @@ function createEditorStore() {
   // Auto-save timers, keyed by file path so each tab can debounce
   // independently.
   const saveTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  // Latest content each pending auto-save is about to write. Kept in
+  // sync with `saveTimers` — every `scheduleAutoSave` call overwrites
+  // the entry so the Map always holds the MOST RECENT content the
+  // user typed. Needed by `flushAllPendingSaves` below: the setTimeout
+  // callback owns the content via closure, which isn't reachable from
+  // the outside, so we mirror it here.
+  const pendingSaveContent = new Map<string, string>();
 
   // ── Heading & anchor tracking for backlink updates ──
   // Stores the last-known headings per file and the list of anchors
@@ -161,12 +168,14 @@ function createEditorStore() {
   // Schedule auto-save after edits (2 second debounce)
   function scheduleAutoSave(relativePath: string, content: string) {
     markDirty(relativePath);
+    pendingSaveContent.set(relativePath, content);
 
     const existing = saveTimers.get(relativePath);
     if (existing) clearTimeout(existing);
 
     const t = setTimeout(async () => {
       saveTimers.delete(relativePath);
+      pendingSaveContent.delete(relativePath);
       try {
         await vaultStore.saveFile(relativePath, content);
         clearDirty(relativePath);
@@ -188,6 +197,7 @@ function createEditorStore() {
       clearTimeout(timer);
       saveTimers.delete(path);
     }
+    pendingSaveContent.delete(path);
     clearDirty(path);
   }
 
@@ -198,6 +208,7 @@ function createEditorStore() {
       clearTimeout(existing);
       saveTimers.delete(relativePath);
     }
+    pendingSaveContent.delete(relativePath);
     try {
       await vaultStore.saveFile(relativePath, content);
       clearDirty(relativePath);
@@ -205,6 +216,45 @@ function createEditorStore() {
       console.error("Force save failed:", e);
       throw e;
     }
+  }
+
+  /**
+   * Immediately flush every pending auto-save to disk, bypassing the
+   * 2-second debounce. Called from the window-close handler so the
+   * user doesn't lose the last few keystrokes when they close the app
+   * within the debounce window.
+   *
+   * Uses `pendingSaveContent` as the source of truth for each path's
+   * latest content — the running setTimeout callback captures the
+   * same string via closure but isn't externally invocable, so we
+   * mirror it on each `scheduleAutoSave` call and read it back here.
+   *
+   * All writes are awaited in parallel. Individual failures are
+   * logged but don't short-circuit the batch: we'd rather save 9 of
+   * 10 tabs than lose all 10 because one write errored.
+   */
+  async function flushAllPendingSaves(): Promise<void> {
+    const entries = Array.from(pendingSaveContent.entries());
+    if (entries.length === 0) return;
+
+    const saves = entries.map(([path, content]) => {
+      const timer = saveTimers.get(path);
+      if (timer) {
+        clearTimeout(timer);
+        saveTimers.delete(path);
+      }
+      pendingSaveContent.delete(path);
+      return vaultStore
+        .saveFile(path, content)
+        .then(() => {
+          clearDirty(path);
+          checkHeadingChanges(path, content);
+        })
+        .catch((e) => {
+          console.error("Flush save failed for", path, e);
+        });
+    });
+    await Promise.all(saves);
   }
 
   // Update content stats
@@ -477,6 +527,7 @@ function createEditorStore() {
     cancelAutoSave,
     storeHeadings,
     forceSave,
+    flushAllPendingSaves,
     updateStats,
     cycleViewMode,
     zoomEditorText,
