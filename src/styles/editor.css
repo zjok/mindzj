@@ -120,42 +120,20 @@
   padding: 0 2px 0 0;
 }
 
-/* Hanging-indent for wrapped list lines.
-   The `listWrapDeco` decoration in livePreview.ts / listStyleExtension.ts
-   adds the `mz-list-wrap-line` class and sets two CSS custom
-   properties on the `.cm-line` wrapper:
-     --mz-list-wrap-tabs   → indent level (number of tab stops)
-     --mz-list-wrap-marker → marker width in chars (`- ` = 2, `1. ` = 3)
-
-   Previously we wrapped the content portion of the line in an
-   `inline-block` span with a calc() width so everything after the
-   marker flowed inside that fixed-width box. That approach worked
-   but interacted badly with CM6's search-match highlighting — the
-   `<span class="cm-searchMatch-selected">` span ended up nested
-   inside the inline-block, and some browser combinations rendered
-   the highlight as if the match had taken the full content box
-   width, visually pushing surrounding text onto a new line.
-
-   The text-indent / padding-left pair below achieves the same
-   hanging-indent effect without introducing an inline-block layer:
-     - padding-left shifts ALL content in the line rightward by the
-       total indent (leading tabs + marker width), creating the
-       "hanging" left margin.
-     - text-indent pulls ONLY the first visual line back by the same
-       amount, so the bullet / ordered marker lands at x=0 as
-       before, while continuation lines stay at x=padding-left and
-       line up with the content start.
-   Search-match spans are now plain inline `<span>`s inside a block
-   `.cm-line` — the highlight background wraps tightly around the
-   matched characters the same way it does in reading mode. */
 .cm-editor .cm-line.mz-list-wrap-line {
   min-width: 0;
+}
+
+.cm-editor .cm-line.mz-list-wrap-line .mz-lp-list-content {
   --_wrap: calc(
     var(--mz-list-wrap-tabs, 0) * var(--mz-list-indent-step, 40px)
     + var(--mz-list-wrap-marker, 0) * 1ch
   );
-  padding-left: var(--_wrap);
-  text-indent: calc(-1 * var(--_wrap));
+  display: inline-block;
+  vertical-align: top;
+  width: calc(100% - var(--_wrap));
+  min-width: 0;
+  white-space: break-spaces;
   overflow-wrap: anywhere;
   word-break: break-word;
 }
