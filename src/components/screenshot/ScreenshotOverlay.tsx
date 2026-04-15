@@ -34,6 +34,13 @@ interface Annotation {
   bounds?: Rect;
 }
 
+interface TextInputState {
+  x: number;
+  y: number;
+  visible: boolean;
+  sessionId: number;
+}
+
 interface ScreenshotOverlayProps {
   screenshotBase64: string;
   onClose: () => void;
@@ -74,11 +81,31 @@ function moveAnnotation(a: Annotation, dx: number, dy: number): Annotation {
   };
 }
 
+function measureTextAnnotationBounds(text: string, fontSize: number): { w: number; h: number } {
+  if (typeof document === "undefined") {
+    return { w: text.length * fontSize * 0.65, h: fontSize + 8 };
+  }
+  const probe = document.createElement("canvas");
+  const ctx = probe.getContext("2d");
+  if (!ctx) {
+    return { w: text.length * fontSize * 0.65, h: fontSize + 8 };
+  }
+  ctx.font = `${fontSize}px system-ui`;
+  const metrics = ctx.measureText(text);
+  const width = Math.max(metrics.width, text.length * fontSize * 0.65);
+  const height = Math.max(
+    fontSize,
+    (metrics.actualBoundingBoxAscent || fontSize * 0.8) + (metrics.actualBoundingBoxDescent || fontSize * 0.2),
+  );
+  return { w: width + 8, h: height + 8 };
+}
+
 // ---------------------------------------------------------------------------
 // Main Component
 // ---------------------------------------------------------------------------
 
 export const ScreenshotOverlay: Component<ScreenshotOverlayProps> = (props) => {
+  let nextTextInputSessionId = 1;
   // --- Phase ---
   const [phase, setPhase] = createSignal<"select" | "annotate">("select");
 
@@ -130,7 +157,7 @@ export const ScreenshotOverlay: Component<ScreenshotOverlayProps> = (props) => {
   const [movingAnno, setMovingAnno] = createSignal(false);
   const [annoMoveStart, setAnnoMoveStart] = createSignal<{ x: number; y: number }>({ x: 0, y: 0 });
   // Text
-  const [textInput, setTextInput] = createSignal<{ x: number; y: number; visible: boolean }>({ x: 0, y: 0, visible: false });
+  const [textInput, setTextInput] = createSignal<TextInputState>({ x: 0, y: 0, visible: false, sessionId: 0 });
   const [textValue, setTextValue] = createSignal("");
   // Right-click drag to reposition the Phase 2 annotation window.
   // The offset is applied as a CSS `translate()` on the annotation
@@ -165,9 +192,20 @@ export const ScreenshotOverlay: Component<ScreenshotOverlayProps> = (props) => {
         else if (!e.shiftKey && e.key === "z") { e.preventDefault(); undo(); }
       }
     };
+    const handleDelete = (e: KeyboardEvent) => {
+      if (phase() !== "annotate") return;
+      if (e.key !== "Delete" && e.key !== "Backspace") return;
+      const id = selectedAnnoId();
+      if (id == null) return;
+      e.preventDefault();
+      pushAnnotations(annotations().filter((a) => a.id !== id));
+      setSelectedAnnoId(null);
+      redrawAnnotations();
+    };
     document.addEventListener("keydown", handleEsc, true);
     document.addEventListener("keydown", handleCtrlZ, true);
-    onCleanup(() => { document.removeEventListener("keydown", handleEsc, true); document.removeEventListener("keydown", handleCtrlZ, true); });
+    document.addEventListener("keydown", handleDelete, true);
+    onCleanup(() => { document.removeEventListener("keydown", handleEsc, true); document.removeEventListener("keydown", handleCtrlZ, true); document.removeEventListener("keydown", handleDelete, true); });
   });
 
   // ─── Coordinate helpers ────────────────────────────────────────────
@@ -456,12 +494,12 @@ export const ScreenshotOverlay: Component<ScreenshotOverlayProps> = (props) => {
     // (or clicks "select" tool on the canvas), commit/discard
     // the current text input first.
     if (textInput().visible && tool !== "text") {
+      const sessionId = textInput().sessionId;
       const txt = textValue().trim();
       if (txt) {
-        commitText();
+        commitText(sessionId);
       } else {
-        setTextInput({ ...textInput(), visible: false });
-        setTextValue("");
+        discardTextInput(sessionId);
       }
     }
 
@@ -487,17 +525,16 @@ export const ScreenshotOverlay: Component<ScreenshotOverlayProps> = (props) => {
       // at the new click position. This supports the workflow:
       // click → type → click elsewhere → text saves + new input.
       if (textInput().visible) {
+        const sessionId = textInput().sessionId;
         const txt = textValue().trim();
         if (txt) {
-          commitText();
+          commitText(sessionId);
         } else {
           // Empty or whitespace-only → discard silently
-          setTextInput({ ...textInput(), visible: false });
-          setTextValue("");
+          discardTextInput(sessionId);
         }
       }
-      setTextInput({ x: e.clientX, y: e.clientY, visible: true });
-      setTextValue("");
+      openTextInput(e.clientX, e.clientY);
       return;
     }
 
@@ -549,16 +586,39 @@ export const ScreenshotOverlay: Component<ScreenshotOverlayProps> = (props) => {
     redrawAnnotations();
   }
 
-  function commitText() {
+  function openTextInput(x: number, y: number) {
+    setTextInput({
+      x,
+      y,
+      visible: true,
+      sessionId: nextTextInputSessionId++,
+    });
+    setTextValue("");
+  }
+
+  function discardTextInput(expectedSessionId?: number) {
+    const input = textInput();
+    if (expectedSessionId != null && input.sessionId !== expectedSessionId) return;
+    setTextInput({ ...input, visible: false });
+    setTextValue("");
+  }
+
+  function commitText(expectedSessionId?: number) {
+    const input = textInput();
+    if (!input.visible) return;
+    if (expectedSessionId != null && input.sessionId !== expectedSessionId) return;
     const txt = textValue().trim();
-    if (!txt) { setTextInput({ ...textInput(), visible: false }); return; }
-    const pos = annoPos({ clientX: textInput().x, clientY: textInput().y } as MouseEvent);
+    if (!txt) {
+      discardTextInput(input.sessionId);
+      return;
+    }
+    const pos = annoPos({ clientX: input.x, clientY: input.y } as MouseEvent);
     const fs = activeFontSize();
     const ann: Annotation = { id: _nextId++, tool: "text", color: activeColor(), lineWidth: activeLineWidth(), points: [pos], text: txt, fontSize: fs };
-    ann.bounds = { x: pos.x - 4, y: pos.y - fs - 4, w: txt.length * fs * 0.65, h: fs + 8 };
+    const measured = measureTextAnnotationBounds(txt, fs);
+    ann.bounds = { x: pos.x - 4, y: pos.y - 4, w: measured.w, h: measured.h };
     pushAnnotations([...annotations(), ann]);
-    setTextInput({ ...textInput(), visible: false });
-    setTextValue("");
+    discardTextInput(input.sessionId);
     redrawAnnotations();
   }
 
@@ -804,23 +864,36 @@ export const ScreenshotOverlay: Component<ScreenshotOverlayProps> = (props) => {
               which made the input appear far from the click point
               when it was inside the transformed div. */}
           <Show when={textInput().visible}>
-            <input type="text" value={textValue()} onInput={(e) => setTextValue(e.currentTarget.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") commitText(); if (e.key === "Escape") { setTextInput({ ...textInput(), visible: false }); setTextValue(""); } }}
-              onBlur={() => {
-                // Auto-save on blur: non-empty → commit, empty → discard.
-                const txt = textValue().trim();
-                if (txt) { commitText(); } else { setTextInput({ ...textInput(), visible: false }); setTextValue(""); }
-              }}
-              ref={(el) => {
-                // Guarantee the cursor is inside the input every
-                // time it appears. `autofocus` only works on the
-                // first mount; for subsequent re-shows (e.g. user
-                // clicks a new position) we need a programmatic
-                // focus call. The `setTimeout(0)` defers to the
-                // next microtask so the DOM is fully settled.
-                setTimeout(() => el.focus(), 0);
-              }}
-              style={{ position: "fixed", left: textInput().x + "px", top: textInput().y + "px", background: "transparent", border: `2px solid ${activeColor()}`, color: activeColor(), "font-size": `${activeFontSize()}px`, padding: "4px 8px", "border-radius": "4px", outline: "none", "min-width": "120px", "font-family": "system-ui", "z-index": "100001" }} />
+            {(() => {
+              const sessionId = textInput().sessionId;
+              return (
+                <input type="text" value={textValue()} onInput={(e) => setTextValue(e.currentTarget.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") { e.preventDefault(); commitText(sessionId); }
+                    if (e.key === "Escape") { e.preventDefault(); discardTextInput(sessionId); }
+                  }}
+                  onBlur={() => {
+                    // Auto-save on blur: non-empty → commit, empty → discard.
+                    const txt = textValue().trim();
+                    if (txt) { commitText(sessionId); } else { discardTextInput(sessionId); }
+                  }}
+                  ref={(el) => {
+                    // Guarantee the cursor is inside the input every
+                    // time it appears. `autofocus` only works on the
+                    // first mount; for subsequent re-shows (e.g. user
+                    // clicks a new position) we need a programmatic
+                    // focus call. The `setTimeout(0)` defers to the
+                    // next microtask so the DOM is fully settled.
+                    setTimeout(() => {
+                      const input = textInput();
+                      if (input.visible && input.sessionId === sessionId) {
+                        el.focus();
+                      }
+                    }, 0);
+                  }}
+                  style={{ position: "fixed", left: textInput().x + "px", top: textInput().y + "px", background: "transparent", border: `2px solid ${activeColor()}`, color: activeColor(), "font-size": `${activeFontSize()}px`, padding: "4px 8px", "border-radius": "4px", outline: "none", "min-width": "120px", "font-family": "system-ui", "z-index": "100001" }} />
+              );
+            })()}
           </Show>
 
           {/* Toolbar */}

@@ -27,9 +27,16 @@ function insertPlainNewlineAfterList(view: EditorView): boolean {
     if (selection.head !== line.to) return false;
     if (!isListItemLine(line.text)) return false;
 
+    // `scrollIntoView: true` — when the cursor was on the last visible
+    // line and the user presses Shift+Enter, the new line would
+    // otherwise land beneath the viewport with no autoscroll. CM6's
+    // default keybindings pass this flag through the dispatch; we
+    // have to do the same because this handler intercepts the key
+    // BEFORE the default handler can add it.
     view.dispatch({
         changes: { from: selection.head, insert: "\n" },
         selection: { anchor: selection.head + 1 },
+        scrollIntoView: true,
     });
     return true;
 }
@@ -46,6 +53,7 @@ function continueList(view: EditorView): boolean {
         view.dispatch({
             changes: { from: line.from, to: line.to, insert: "" },
             selection: { anchor: line.from },
+            scrollIntoView: true,
         });
         return true;
     }
@@ -57,6 +65,7 @@ function continueList(view: EditorView): boolean {
     view.dispatch({
         changes: { from: selection.head, insert },
         selection: { anchor: selection.head + insert.length },
+        scrollIntoView: true,
     });
     return true;
 }

@@ -12,6 +12,7 @@ import {
     SortBar,
     allFoldersCollapsed,
     resetFolderVisibilityState,
+    loadFolderState,
     saveFolderState,
     setAllFoldersVisibility,
     type SortMode,
@@ -1006,6 +1007,18 @@ const App: Component = () => {
                 if (ws.active_file) {
                     try { vaultStore.switchToFile(ws.active_file); } catch { /* skip */ }
                 }
+            }
+            // Load persisted folder expand/collapse state BEFORE the
+            // sidebar becomes visible. Previously this ran in the
+            // FileTree component's own onMount which fires AFTER the
+            // bootstrapping gate drops — so for one frame the user
+            // saw every folder in the default "collapsed" state,
+            // then the saved state snapped in. Loading here keeps
+            // the folder tree visually stable from the first paint.
+            try {
+                await loadFolderState();
+            } catch (e) {
+                console.warn("[vault-open] loadFolderState failed:", e);
             }
             // Load enabled plugins
             await pluginStore.loadAllPlugins();

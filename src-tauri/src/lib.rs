@@ -1,6 +1,11 @@
 mod api;
 mod kernel;
+// Kept available but no longer installed at startup — see the note at
+// the call site below (removed) and the header comment in
+// `keyboard_hook.rs`. Re-enable the `install` call if we ever need the
+// low-level hook again.
 #[cfg(windows)]
+#[allow(dead_code)]
 mod keyboard_hook;
 
 use api::settings_api::{apply_window_state, load_window_state_sync};
@@ -539,15 +544,20 @@ pub fn run() {
                 }
                 let _ = main_window.show();
             }
-            // Install the low-level keyboard hook on Windows so
-            // Ctrl+Alt+Left/Right tab-switching works even when
-            // Intel/AMD graphics drivers have their own
-            // WH_KEYBOARD_LL hook fighting for the same combo.
-            // See keyboard_hook.rs for the full rationale.
-            #[cfg(windows)]
-            {
-                keyboard_hook::install(app.handle());
-            }
+            // NOTE: the global `WH_KEYBOARD_LL` keyboard hook used
+            // to be installed here to make Ctrl+Alt+Left/Right tab-
+            // switching beat Intel Graphics Command Center's own
+            // hook. It's been disabled at user request — while the
+            // proc itself only consumed Ctrl+Alt+Left/Right and
+            // CallNextHookEx-passed everything else, simply having
+            // a WH_KEYBOARD_LL hook installed caused Windows system
+            // shortcuts like Win+F / Win+E / Win+R to stop working
+            // while MindZJ held focus. The Tauri global-shortcut
+            // plugin registration for CommandOrControl+Alt+Left/Right
+            // in App.tsx still handles tab-switching on machines
+            // without an Intel driver hook. See keyboard_hook.rs for
+            // the full background if the Intel-hook problem comes
+            // back and we need to revisit.
             Ok(())
         })
         // Register all Tauri commands (the Core API layer)

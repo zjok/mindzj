@@ -120,16 +120,22 @@
   padding: 0 2px 0 0;
 }
 
-/* Hanging indent for list items — wrapped text aligns with content after marker.
-   --mz-list-wrap-tabs:   tab indent levels (unitless)
-   --mz-list-wrap-marker: marker char count (unitless, e.g. "- "=2, "1. "=3) */
 .cm-editor .cm-line.mz-list-wrap-line {
+  min-width: 0;
+}
+
+.cm-editor .cm-line.mz-list-wrap-line .mz-lp-list-content {
   --_wrap: calc(
     var(--mz-list-wrap-tabs, 0) * var(--mz-list-indent-step, 40px)
     + var(--mz-list-wrap-marker, 0) * 1ch
   );
-  padding-left: var(--_wrap);
-  text-indent: calc(var(--_wrap) * -1);
+  display: inline-block;
+  vertical-align: top;
+  width: calc(100% - var(--_wrap));
+  min-width: 0;
+  white-space: break-spaces;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 /* Links */
@@ -625,10 +631,16 @@ html[data-theme="light"] .cm-editor .cm-panels-bottom {
   position: relative;
 }
 
+/* Vertical guide line for nested lists. The nested <ul>/<ol> sits
+   inside the parent <li>'s content box, which starts `1ch` to the
+   right of where the parent's bullet/number marker is drawn (the li
+   has `padding-left: 1ch` and the bullet lives at `left: 0` of the
+   li). To line the guide up directly under the parent's marker we
+   offset the line `-1ch` from the nested list's own origin. */
 .mz-reading-view li > .mz-rv-list::before {
   content: "";
   position: absolute;
-  left: 0;
+  left: -1ch;
   top: 0;
   bottom: 0;
   width: 1px;
@@ -640,9 +652,14 @@ html[data-theme="light"] .cm-editor .cm-panels-bottom {
   list-style: none;
 }
 
+/* Unordered-list items in reading view use `padding-left: 1ch` so the
+   bullet's LEFT edge (at `left: 0` of the li, with no X translate)
+   lines up with where the `1.` would start on an ordered-list line
+   above or below. 1ch matches the live-preview bullet anchor width
+   exactly so the two modes stay visually in sync. */
 .mz-reading-view .mz-rv-list-ul:not(.mz-rv-task-list) > li {
   position: relative;
-  padding-left: 0.95em;
+  padding-left: 1ch;
 }
 
 .mz-reading-view .mz-rv-list-ul:not(.mz-rv-task-list) > li::before {
@@ -650,11 +667,11 @@ html[data-theme="light"] .cm-editor .cm-panels-bottom {
   position: absolute;
   left: 0;
   top: 0.86em;
-  width: 0.42em;
-  height: 0.42em;
+  width: 0.3em;
+  height: 0.3em;
   border-radius: 999px;
   background: var(--mz-text-muted);
-  transform: translate(-50%, -50%);
+  transform: translateY(-50%);
   pointer-events: none;
 }
 

@@ -42,6 +42,7 @@ import { settingsStore } from "../../stores/settings";
 import { ContextMenu, type MenuItem } from "../common/ContextMenu";
 import { livePreviewExtension } from "./extensions/livePreview";
 import { listContinuationExtension } from "./extensions/listContinuation";
+import { listStyleExtension } from "./extensions/listStyleExtension";
 
 import { searchCounterExtension } from "./extensions/searchCounter";
 
@@ -103,34 +104,6 @@ function buildZoomTheme(pxSize: number) {
             fontSize: `${pxSize}px`,
         },
     });
-}
-
-function normalizeHotkeyKey(key: string): string {
-    const normalized = key.length === 1 ? key.toUpperCase() : key;
-    if (normalized === "+" || normalized === "ADD" || normalized === "Plus") return "=";
-    if (normalized === "SUBTRACT" || normalized === "Minus") return "-";
-    if (normalized === "ArrowLeft") return "Left";
-    if (normalized === "ArrowRight") return "Right";
-    if (normalized === "ArrowUp") return "Up";
-    if (normalized === "ArrowDown") return "Down";
-    if (normalized === " ") return "Space";
-    return normalized;
-}
-
-function matchesHotkey(event: KeyboardEvent, combo: string): boolean {
-    const parts = combo.split("+");
-    const keyPart = parts[parts.length - 1];
-    const needCtrl = parts.includes("Ctrl");
-    const needShift = parts.includes("Shift");
-    const needAlt = parts.includes("Alt");
-    const needMeta = parts.includes("Meta");
-
-    if (needCtrl !== (event.ctrlKey || event.metaKey)) return false;
-    if (needShift !== event.shiftKey) return false;
-    if (needAlt !== event.altKey) return false;
-    if (needMeta && !event.metaKey) return false;
-
-    return normalizeHotkeyKey(event.key) === normalizeHotkeyKey(keyPart);
 }
 
 export const Editor: Component<EditorProps> = (props) => {
@@ -213,11 +186,6 @@ export const Editor: Component<EditorProps> = (props) => {
     function getActiveViewMode(): ViewMode {
         const path = currentFilePath ?? resolvedFile()?.path ?? null;
         return props.viewMode ?? editorStore.getViewModeForFile(path);
-    }
-
-    function getHotkey(command: string, defaultKeys: string): string {
-        const overrides = settingsStore.settings().hotkey_overrides || {};
-        return overrides[command] || defaultKeys;
     }
 
     function switchTabFromEditor(direction: "prev" | "next"): boolean {
@@ -758,6 +726,14 @@ export const Editor: Component<EditorProps> = (props) => {
             // makes the visible line taller than CM6's measured height,
             // which breaks arrow-key movement and click positioning.
             ...(isSourceMode ? [sourceHeadingLineExtension()] : []),
+
+            // Source mode: apply the shared list-styling extension so
+            // ordered/unordered lists render with the same bullet,
+            // ordered-marker color, hanging-indent wrap and nested
+            // guide lines as live-preview. In live-preview mode the
+            // same visuals are supplied by `livePreviewExtension`
+            // below (which owns a superset of the list logic).
+            ...(isSourceMode ? listStyleExtension() : []),
 
             // Live Preview extension (only in live-preview mode).
             // Block widgets (blockWidgetExtension) are NOT included here —

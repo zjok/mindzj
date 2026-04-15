@@ -555,6 +555,7 @@ const strikethroughDeco = Decoration.mark({ class: "mz-lp-strikethrough" });
 const highlightDeco = Decoration.mark({ class: "mz-lp-highlight" });
 const inlineCodeDeco = Decoration.mark({ class: "mz-lp-inline-code" });
 const orderedMarkerDeco = Decoration.mark({ class: "mz-lp-ordered-marker" });
+const listContentDeco = Decoration.mark({ class: "mz-lp-list-content" });
 const linkDeco = Decoration.mark({ class: "mz-lp-link" });
 // linkUrlDeco removed — link URLs are hidden in preview
 // Blockquote + HR: same reasoning as headings — use line decorations so
@@ -571,11 +572,6 @@ function listGuideDeco(level: number): Decoration {
     });
 }
 
-/**
- * Line decoration for list hanging indent.
- * Split into tab-part (px via --mz-list-indent-step) + marker-part (ch)
- * so zoom / font-size changes stay correct.
- */
 function listWrapDeco(level: number, markerChars: number): Decoration {
     return Decoration.line({
         class: "mz-list-wrap-line",
@@ -767,14 +763,10 @@ function buildDecorationsImpl(
             // --- Unordered list bullet (plain, not a task item) ---
             // Replace the `-`, `*`, or `+` marker with a round bullet.
             // Leading whitespace (tabs) is kept — it provides the natural
-            // indentation.  The CSS padding class is skipped for tab-
-            // indented lines (see list-lines section below).
+            // indentation.
             const bulletMatch = text.match(/^(\s*)([-*+])(\s)/);
             if (bulletMatch) {
                 const markerStart = line.from + bulletMatch[1].length;
-                // Replace ONLY the marker character (1 char).
-                // The trailing space is kept so character widths stay
-                // identical to the raw text — no positional shift.
                 const markerEnd = markerStart + 1;
                 decorations.push(
                     Decoration.replace({ widget: bulletWidget }).range(
@@ -782,6 +774,15 @@ function buildDecorationsImpl(
                         markerEnd,
                     ),
                 );
+            }
+        }
+
+        const listInfo = getContinuationInfo(text);
+        if (listInfo && listInfo.kind !== "blockquote") {
+            const contentStart =
+                line.from + listInfo.rawIndent.length + listInfo.marker.length;
+            if (contentStart < line.to) {
+                decorations.push(listContentDeco.range(contentStart, line.to));
             }
         }
 
@@ -1236,13 +1237,26 @@ const livePreviewTheme = EditorView.baseTheme({
     // `-` / `*` / `+` char is inline-replaced with this widget on
     // non-cursor lines; when the cursor enters the line the real
     // character is visible again for editing.
+    //
+    // Width is `1ch` — the exact width of the `-` character it
+    // replaces — so the visual flow matches both (a) the cursor-line
+    // version of the same line (where the raw `-` is visible) and (b)
+    // the `markerChars * 1ch` allocation the `.mz-list-wrap-line`
+    // hanging-indent CSS carves out for marker+space. If the anchor
+    // were wider than 1ch the content's inline-block would overflow
+    // and push "abc" onto the next visual line.
     ".mz-lp-bullet-anchor": {
         display: "inline-block",
-        width: "0.95em",
+        width: "1ch",
         height: "1em",
         position: "relative",
         verticalAlign: "middle",
     },
+    // The dot's LEFT edge sits at x=0 of the anchor so it left-aligns
+    // with the `1` in `1. …` on an ordered-list line directly above
+    // or below. The previous `translate(-50%, -50%)` put the dot's
+    // CENTER at x=0 (i.e. extending 0.15em into the margin) which
+    // drifted visibly away from the ordered-list digit.
     ".mz-lp-bullet": {
         position: "absolute",
         left: "0",
@@ -1251,7 +1265,7 @@ const livePreviewTheme = EditorView.baseTheme({
         height: "0.3em",
         borderRadius: "999px",
         background: "var(--mz-text-muted)",
-        transform: "translate(-50%, -50%)",
+        transform: "translateY(-50%)",
         pointerEvents: "none",
     },
     ".mz-lp-ordered-marker": {
@@ -1445,14 +1459,14 @@ function buildLineDecorations(
             decos.push(blockquoteLineDeco.range(line.from));
         }
 
-        // --- List lines: guide lines + hanging indent ---
+        // --- List lines ---
         {
             const listInfo = getContinuationInfo(text);
             if (listInfo && listInfo.kind !== "blockquote") {
+                decos.push(listWrapDeco(listInfo.level, listInfo.marker.length).range(line.from));
                 if (listInfo.level > 0) {
                     decos.push(listGuideDeco(listInfo.level).range(line.from));
                 }
-                decos.push(listWrapDeco(listInfo.level, listInfo.marker.length).range(line.from));
             }
         }
 
