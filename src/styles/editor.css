@@ -197,6 +197,19 @@
   background: var(--mz-syntax-highlight-bg);
   color: inherit;
   border-radius: 2px;
+  /* CM6 can materialize overlap between search matches and our
+     list-content decoration as a single span carrying BOTH classes.
+     Force search highlights back to plain inline flow so they never
+     inherit the list-content inline-block width box and push trailing
+     text onto the next visual line. */
+  display: inline !important;
+  width: auto !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  vertical-align: baseline !important;
+  white-space: inherit !important;
 }
 
 .cm-editor .cm-searchMatch-selected {
@@ -718,18 +731,6 @@ html[data-theme="light"] .cm-editor .cm-panel.mz-search-panel {
   line-height: 1.7;
 }
 
-/* Empty-line placeholder paragraphs emitted by ReadingView so a run
-   of blank source lines survives the markdown-to-HTML render as real
-   vertical space (rather than collapsing to nothing the way the
-   default markdown spec says they should). Fixed height + zero
-   margin keeps each blank line roughly one editor line tall, so the
-   reading view's spacing matches the source. */
-.mz-reading-view p.mz-rv-empty-line {
-  margin: 0;
-  height: 1.7em;
-  line-height: 1.7;
-}
-
 /* Bold / italic */
 .mz-reading-view strong { font-weight: 700; color: var(--mz-syntax-bold); }
 .mz-reading-view em { font-style: italic; color: var(--mz-syntax-italic); }
@@ -882,6 +883,14 @@ html[data-theme="light"] .cm-editor .cm-panel.mz-search-panel {
   border-radius: 999px;
   background: var(--mz-text-muted);
   transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.mz-reading-view .mz-rv-empty-list-slot {
+  display: inline-block;
+  width: 0;
+  min-height: 1.7em;
+  vertical-align: top;
   pointer-events: none;
 }
 

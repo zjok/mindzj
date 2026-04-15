@@ -145,7 +145,11 @@ function renderReadingListItem(
             `<div class="mz-rv-task-item-content"><span>${content}</span>`
         );
     }
-    return `<li data-line="${token.line}">${content}`;
+    const body =
+        token.content.trim() === ""
+            ? '<span class="mz-rv-empty-list-slot" aria-hidden="true"></span>'
+            : content;
+    return `<li data-line="${token.line}">${body}`;
 }
 
 function renderReadingListTokens(
@@ -406,19 +410,10 @@ function markdownToHtml(md: string, ctx: RenderContext): string {
         }
 
         // --- Empty line ---
-        //
-        // Emit a visible empty-paragraph marker so blank lines in
-        // source survive into reading mode as actual vertical space.
-        // The default markdown collapse (which just skips blank
-        // lines, generating no HTML at all) means a user who types
-        // three blank lines between two paragraphs sees zero gap
-        // in reading mode — the two paragraphs abut with only their
-        // own margins. `<p class="mz-rv-empty-line"></p>` gives each
-        // blank line its own line-height-sized slot, so the reading
-        // view spacing matches what the editor shows.
+        // Reading mode should collapse blank source lines instead of
+        // emitting placeholder paragraphs, so we just skip them.
         if (line.trim() === "") {
             closeList();
-            html.push(`<p class="mz-rv-empty-line" data-line="${i}"></p>`);
             i++;
             continue;
         }
