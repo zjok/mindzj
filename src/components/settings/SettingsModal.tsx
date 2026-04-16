@@ -1924,8 +1924,9 @@ const PluginSettingsPanel: Component<{ pluginId: string }> = (props) => {
                 <button
                   onClick={async () => {
                     try {
-                      const shell = await import("@tauri-apps/plugin-shell");
-                      await shell.open(info().dir_path);
+                      await invoke("open_path_in_file_manager", {
+                        absolutePath: info().dir_path,
+                      });
                     } catch (e) {
                       console.error("Open folder failed:", e);
                     }

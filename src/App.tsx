@@ -286,6 +286,7 @@ const App: Component = () => {
     }
 
     function handleTabSelect(path: string) {
+        document.dispatchEvent(new CustomEvent("mindzj:remember-active-viewport"));
         setPanePath(activePaneSlot(), path);
         vaultStore.switchToFile(path);
     }

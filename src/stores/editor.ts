@@ -14,6 +14,7 @@ type FileScrollPositionMap = Record<string, Partial<Record<ViewMode, number>>>;
 type FileTopLineMap = Record<string, number>;
 type FileViewModeMap = Record<string, ViewMode>;
 type FileEditableViewModeMap = Record<string, EditableViewMode>;
+type FileCursorSelectionMap = Record<string, { anchor: number; head: number }>;
 
 export interface EditorWorkspaceState {
   file_scroll_positions?: FileScrollPositionMap;
@@ -43,6 +44,8 @@ function createEditorStore() {
   const [fileScrollPositions, setFileScrollPositions] =
     createSignal<FileScrollPositionMap>({});
   const [fileTopLines, setFileTopLines] = createSignal<FileTopLineMap>({});
+  const [fileCursorSelections, setFileCursorSelections] =
+    createSignal<FileCursorSelectionMap>({});
   const [fileViewModes, setFileViewModes] = createSignal<FileViewModeMap>({});
   const [fileLastNonReadingViewModes, setFileLastNonReadingViewModes] =
     createSignal<FileEditableViewModeMap>({});
@@ -353,6 +356,31 @@ function createEditorStore() {
     return lastScrollLine();
   }
 
+  function setFileCursorSelection(
+    path: string | null | undefined,
+    selection: { anchor: number; head: number } | null,
+  ) {
+    if (!path || !selection) return;
+    if (
+      !Number.isFinite(selection.anchor) ||
+      !Number.isFinite(selection.head)
+    ) {
+      return;
+    }
+    const anchor = Math.max(0, Math.round(selection.anchor));
+    const head = Math.max(0, Math.round(selection.head));
+    setFileCursorSelections((prev) => {
+      const current = prev[path];
+      if (current?.anchor === anchor && current?.head === head) return prev;
+      return { ...prev, [path]: { anchor, head } };
+    });
+  }
+
+  function getFileCursorSelection(path: string | null | undefined) {
+    if (!path) return null;
+    return fileCursorSelections()[path] ?? null;
+  }
+
   // Toggle view mode: source → live-preview → reading → source
   function cycleViewMode(path = activeFilePath()) {
     switch (getViewModeForFile(path)) {
@@ -389,6 +417,7 @@ function createEditorStore() {
   function resetWorkspaceState() {
     setFileScrollPositions({});
     setFileTopLines({});
+    setFileCursorSelections({});
     setFileViewModes({});
     setFileLastNonReadingViewModes({});
     setLastScrollLine(null);
@@ -407,6 +436,13 @@ function createEditorStore() {
       return next;
     });
     setFileTopLines((prev) => {
+      if (!(oldPath in prev)) return prev;
+      const next = { ...prev };
+      next[newPath] = next[oldPath]!;
+      delete next[oldPath];
+      return next;
+    });
+    setFileCursorSelections((prev) => {
       if (!(oldPath in prev)) return prev;
       const next = { ...prev };
       next[newPath] = next[oldPath]!;
@@ -454,6 +490,7 @@ function createEditorStore() {
 
     setFileScrollPositions((prev) => dropKeys(prev));
     setFileTopLines((prev) => dropKeys(prev));
+    setFileCursorSelections((prev) => dropKeys(prev));
     setFileViewModes((prev) => dropKeys(prev));
     setFileLastNonReadingViewModes((prev) => dropKeys(prev));
     setDirtyPaths((prev) => {
@@ -510,6 +547,7 @@ function createEditorStore() {
     lastNonReadingViewMode,
     fileScrollPositions,
     fileTopLines,
+    fileCursorSelections,
     fileViewModes,
     fileLastNonReadingViewModes,
     // Actions
@@ -523,6 +561,8 @@ function createEditorStore() {
     getFileScrollPosition,
     setFileTopLine,
     getFileTopLine,
+    setFileCursorSelection,
+    getFileCursorSelection,
     scheduleAutoSave,
     cancelAutoSave,
     storeHeadings,

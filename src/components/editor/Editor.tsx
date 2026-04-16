@@ -241,6 +241,23 @@ export const Editor: Component<EditorProps> = (props) => {
         const mode = getActiveViewMode();
         editorStore.setFileScrollPosition(path, mode, view.scrollDOM.scrollTop);
         editorStore.setFileTopLine(path, getTopVisibleLine(view));
+        const selection = view.state.selection.main;
+        editorStore.setFileCursorSelection(path, {
+            anchor: selection.anchor,
+            head: selection.head,
+        });
+    }
+
+    function restoreEditorSelection(view: EditorView, path: string) {
+        const stored = editorStore.getFileCursorSelection(path);
+        if (!stored) return;
+        const len = view.state.doc.length;
+        view.dispatch({
+            selection: {
+                anchor: Math.min(stored.anchor, len),
+                head: Math.min(stored.head, len),
+            },
+        });
     }
 
     function restoreEditorViewport(
@@ -475,6 +492,7 @@ export const Editor: Component<EditorProps> = (props) => {
             currentViewMode = getActiveViewMode();
             createEditorView(activeFile.content);
             if (editorView) {
+                restoreEditorSelection(editorView, activeFile.path);
                 restoreEditorViewport(editorView, activeFile.path, currentViewMode!, false);
             }
         }
@@ -515,6 +533,7 @@ export const Editor: Component<EditorProps> = (props) => {
                     currentViewMode = getActiveViewMode();
                     createEditorView(activeFile.content);
                     if (editorView) {
+                        restoreEditorSelection(editorView, activeFile.path);
                         restoreEditorViewport(editorView, activeFile.path, currentViewMode!, true);
                     }
                 }
@@ -782,6 +801,14 @@ export const Editor: Component<EditorProps> = (props) => {
                 // the cursor by one viewport page. This matches VS
                 // Code / Obsidian / the web default behaviour the
                 // user explicitly asked us to preserve.
+                ...(isLivePreview
+                    ? [
+                        { key: "ArrowUp", run: (v: EditorView) => moveCursorByLogicalLine(v, -1, false) },
+                        { key: "ArrowDown", run: (v: EditorView) => moveCursorByLogicalLine(v, 1, false) },
+                        { key: "Shift-ArrowUp", run: (v: EditorView) => moveCursorByLogicalLine(v, -1, true) },
+                        { key: "Shift-ArrowDown", run: (v: EditorView) => moveCursorByLogicalLine(v, 1, true) },
+                    ]
+                    : []),
                 ...defaultKeymap,
                 ...historyKeymap,
                 // Redo: Ctrl+Shift+Z (Obsidian-style, overrides default Ctrl+Y)
@@ -859,6 +886,13 @@ export const Editor: Component<EditorProps> = (props) => {
                     const line = update.state.doc.lineAt(pos);
                     editorStore.setCursorLine(line.number);
                     editorStore.setCursorCol(pos - line.from + 1);
+                }
+                if (update.selectionSet && currentFilePath) {
+                    const selection = update.state.selection.main;
+                    editorStore.setFileCursorSelection(currentFilePath, {
+                        anchor: selection.anchor,
+                        head: selection.head,
+                    });
                 }
             }),
 
@@ -1118,6 +1152,26 @@ export const Editor: Component<EditorProps> = (props) => {
             editorView.requestMeasure();
             editorView.dispatch({});
         });
+    }
+
+    function moveCursorByLogicalLine(view: EditorView, direction: -1 | 1, extend: boolean): boolean {
+        const selection = view.state.selection.main;
+        const currentLine = view.state.doc.lineAt(selection.head);
+        const targetLineNumber = currentLine.number + direction;
+        if (targetLineNumber < 1 || targetLineNumber > view.state.doc.lines) {
+            return false;
+        }
+
+        const targetLine = view.state.doc.line(targetLineNumber);
+        const column = selection.head - currentLine.from;
+        const targetPos = Math.min(targetLine.from + column, targetLine.to);
+        view.dispatch({
+            selection: extend
+                ? EditorSelection.range(selection.anchor, targetPos)
+                : EditorSelection.cursor(targetPos),
+            effects: EditorView.scrollIntoView(targetPos),
+        });
+        return true;
     }
 
     async function copySelection(view: EditorView) {
@@ -1532,11 +1586,15 @@ export const Editor: Component<EditorProps> = (props) => {
             case "codeblock": {
                 const sel = view.state.selection.main;
                 const text = view.state.sliceDoc(sel.from, sel.to);
+                const insert = `\`\`\`\n${text}\n\`\`\``;
                 view.dispatch({
                     changes: {
                         from: sel.from,
                         to: sel.to,
-                        insert: `\`\`\`\n${text || "code"}\n\`\`\``,
+                        insert,
+                    },
+                    selection: {
+                        anchor: sel.from + 3,
                     },
                 });
                 break;
