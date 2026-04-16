@@ -2,14 +2,18 @@ mod api;
 mod kernel;
 // Kept on disk for reference / rollback but NOT installed at startup.
 // The low-level WH_KEYBOARD_LL hook used to install here was the only
-// reliable way to claim Ctrl+Alt+Left/Right tab-switching against
-// Intel graphics driver hotkeys — but the user reports that having
-// it installed keeps Win+F and other Windows shell shortcuts from
-// reaching the OS. Those shortcuts matter more to their workflow
-// than Ctrl+Alt+Arrow, so the hook stays uninstalled. The Tauri
-// global-shortcut plugin registration in App.tsx still handles
-// Ctrl+Alt+Arrow via `RegisterHotKey` on machines where no graphics
-// driver hook is grabbing those keys first.
+// in-process way to claim Ctrl+Alt+Left/Right tab-switching against
+// Intel graphics driver hotkeys — but any `WH_KEYBOARD_LL` the app
+// installs joins the system-wide hook chain, and even though the
+// hook proc only consumes Ctrl+Alt+Arrow (falling through via
+// `CallNextHookEx` for everything else), the added latency trips
+// `LowLevelHooksTimeout` on this user's machine and causes Windows
+// to silently drop Win+F, Win+E and PowerToys hotkeys. The correct
+// fix is to disable Intel's screen-rotation hotkeys at the source
+// (Intel Graphics Command Center → System → Hot Keys → off, or
+// disable the `igfxHK` startup task). With Intel's hook out of the
+// chain, Ctrl+Alt+Arrow arrives at the DOM keydown listener
+// unmolested and the in-JS `handleTabSwitchKeydown` handles it.
 #[cfg(windows)]
 #[allow(dead_code)]
 mod keyboard_hook;
@@ -684,13 +688,15 @@ pub fn run() {
                 }
                 let _ = main_window.show();
             }
-            // NOTE: `keyboard_hook::install(app.handle())` used to
-            // run here to beat Intel's graphics-driver hook for
-            // Ctrl+Alt+Arrow tab-switching. It's disabled at user
-            // request — keeping a WH_KEYBOARD_LL hook installed was
-            // blocking Win+F and related Windows shell shortcuts on
-            // the user's machine. See the top-of-file `mod
-            // keyboard_hook` comment for the full rationale.
+            // NOTE: `keyboard_hook::install(app.handle())` is
+            // deliberately NOT called here. Installing any
+            // WH_KEYBOARD_LL hook in-process adds latency to the
+            // system-wide hook chain and, on the user's machine,
+            // trips `LowLevelHooksTimeout` — Windows then drops
+            // Win+F and PowerToys hotkeys. To enable Ctrl+Alt+Arrow
+            // tab-switching, disable Intel's screen-rotation hotkeys
+            // at the source instead (see the top-of-file comment on
+            // `mod keyboard_hook`).
             Ok(())
         })
         // Register all Tauri commands (the Core API layer)

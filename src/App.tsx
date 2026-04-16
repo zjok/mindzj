@@ -604,7 +604,12 @@ const App: Component = () => {
         }
         // Use capture phase so global shortcuts (Ctrl+E, etc.) fire BEFORE
         // CodeMirror's own keydown handlers consume the event.
+        window.addEventListener("keydown", handleTabSwitchKeydown, true);
         document.addEventListener("keydown", handleGlobalKeydown, true);
+        onCleanup(() => {
+            window.removeEventListener("keydown", handleTabSwitchKeydown, true);
+            document.removeEventListener("keydown", handleGlobalKeydown, true);
+        });
 
         // Disable the native browser/webview context menu globally so that
         // items like Refresh, Save as, Print, Insert never appear.
@@ -1165,9 +1170,31 @@ const App: Component = () => {
         }
     }
 
-    function handleGlobalKeydown(e: KeyboardEvent) {
+    function getTabSwitchDirectionFromEvent(e: KeyboardEvent): "prev" | "next" | null {
+        const keyCode = e.keyCode || e.which;
+        const isLeft =
+            e.code === "ArrowLeft" ||
+            e.key === "ArrowLeft" ||
+            e.key === "Left" ||
+            keyCode === 37;
+        const isRight =
+            e.code === "ArrowRight" ||
+            e.key === "ArrowRight" ||
+            e.key === "Right" ||
+            keyCode === 39;
+        const isTabSwitchHotkey =
+            isCtrlHeld(e) &&
+            (isLeft || isRight) &&
+            ((e.shiftKey && !e.altKey) || (e.altKey && !e.shiftKey));
+
+        if (!isTabSwitchHotkey) return null;
+        return isLeft ? "prev" : "next";
+    }
+
+    function handleTabSwitchKeydown(e: KeyboardEvent): boolean {
         // ═══════════════════════════════════════════════════════════
-        //  Ctrl+Alt+Left / Ctrl+Alt+Right → switch to prev/next tab.
+        //  Ctrl+Shift+Left / Ctrl+Shift+Right → switch to prev/next tab.
+        //  Ctrl+Alt+Left / Ctrl+Alt+Right is kept as a compatibility alias.
         // ═══════════════════════════════════════════════════════════
         //
         // This check is DELIBERATELY placed at the very top of the
@@ -1198,34 +1225,25 @@ const App: Component = () => {
         // devtools; the next press will dump the event details to
         // the console so we can see exactly what the webview is
         // sending.
-        if (
-            isCtrlHeld(e) &&
-            e.altKey &&
-            !e.shiftKey &&
-            (e.code === "ArrowLeft" ||
-                e.code === "ArrowRight" ||
-                e.key === "ArrowLeft" ||
-                e.key === "ArrowRight" ||
-                e.key === "Left" ||
-                e.key === "Right")
-        ) {
-            if (localStorage.getItem("mindzj-debug-tab-switch") === "1") {
-                // eslint-disable-next-line no-console
-                console.debug(
-                    "[tab-switch] Ctrl+Alt+Arrow caught",
-                    { key: e.key, code: e.code, ctrl: e.ctrlKey, alt: e.altKey },
-                );
-            }
-            e.preventDefault();
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-            const goLeft =
-                e.code === "ArrowLeft" ||
-                e.key === "ArrowLeft" ||
-                e.key === "Left";
-            switchOpenTab(goLeft ? "prev" : "next");
-            return;
+        const direction = getTabSwitchDirectionFromEvent(e);
+        if (!direction) return false;
+
+        if (localStorage.getItem("mindzj-debug-tab-switch") === "1") {
+            // eslint-disable-next-line no-console
+            console.debug(
+                "[tab-switch] Ctrl+Shift/Alt+Arrow caught",
+                { key: e.key, code: e.code, keyCode: e.keyCode, ctrl: e.ctrlKey, shift: e.shiftKey, alt: e.altKey },
+            );
         }
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        switchOpenTab(direction);
+        return true;
+    }
+
+    function handleGlobalKeydown(e: KeyboardEvent) {
+        if (handleTabSwitchKeydown(e)) return;
 
         // NOTE: the bare-Alt preventDefault guard that used to live
         // here has been removed. It was originally needed to stop

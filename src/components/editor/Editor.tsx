@@ -795,6 +795,8 @@ export const Editor: Component<EditorProps> = (props) => {
             ...((window as any).__mindzj_plugin_cm_extensions ?? []),
 
             keymap.of([
+                { key: "Mod-Shift-ArrowLeft", run: () => switchTabFromEditor("prev") },
+                { key: "Mod-Shift-ArrowRight", run: () => switchTabFromEditor("next") },
                 // PageUp / PageDown intentionally NOT overridden here —
                 // we fall through to `defaultKeymap` which binds them
                 // to `cursorPageUp` / `cursorPageDown`, i.e. scroll
@@ -898,7 +900,8 @@ export const Editor: Component<EditorProps> = (props) => {
 
             EditorView.domEventHandlers({
                 keydown(event) {
-                    // Ctrl+Alt+Left / Ctrl+Alt+Right → switch tabs.
+                    // Ctrl+Shift+Left / Ctrl+Shift+Right → switch tabs.
+                    // Ctrl+Alt+Left / Ctrl+Alt+Right remains an alias.
                     //
                     // Hard-coded match (not `matchesHotkey`) and uses
                     // both `event.code` and `event.key` so non-US
@@ -907,23 +910,30 @@ export const Editor: Component<EditorProps> = (props) => {
                     // is the capture-phase document listener in
                     // App.tsx, which calls stopImmediatePropagation
                     // before this handler would ever see the event.
+                    const keyCode = event.keyCode || event.which;
+                    const isHorizontalArrow =
+                        event.code === "ArrowLeft" ||
+                        event.code === "ArrowRight" ||
+                        event.key === "ArrowLeft" ||
+                        event.key === "ArrowRight" ||
+                        event.key === "Left" ||
+                        event.key === "Right" ||
+                        keyCode === 37 ||
+                        keyCode === 39;
                     if (
                         (event.ctrlKey || event.metaKey) &&
-                        event.altKey &&
-                        !event.shiftKey &&
-                        (event.code === "ArrowLeft" ||
-                            event.code === "ArrowRight" ||
-                            event.key === "ArrowLeft" ||
-                            event.key === "ArrowRight" ||
-                            event.key === "Left" ||
-                            event.key === "Right")
+                        isHorizontalArrow &&
+                        ((event.shiftKey && !event.altKey) ||
+                            (event.altKey && !event.shiftKey))
                     ) {
                         event.preventDefault();
                         event.stopPropagation();
+                        event.stopImmediatePropagation?.();
                         const goLeft =
                             event.code === "ArrowLeft" ||
                             event.key === "ArrowLeft" ||
-                            event.key === "Left";
+                            event.key === "Left" ||
+                            keyCode === 37;
                         return switchTabFromEditor(goLeft ? "prev" : "next");
                     }
                     return false;
