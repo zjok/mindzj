@@ -362,6 +362,21 @@ export const WelcomeScreen: Component = () => {
           position: "relative",
         }}
       >
+        <img
+          src="/mindzj-logo.png"
+          alt="MindZJ logo"
+          width="64"
+          height="64"
+          style={{
+            width: "64px",
+            height: "64px",
+            "border-radius": "12px",
+            "image-rendering": "auto",
+            "user-select": "none",
+            "-webkit-user-drag": "none",
+          }}
+        />
+
         <div
           style={{
             "font-size": "64px",
