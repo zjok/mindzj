@@ -1386,6 +1386,7 @@ const livePreviewTheme = EditorView.baseTheme({
         position: "absolute",
         left: "0.5ch",
         top: "50%",
+        marginLeft: "3px",
         width: "0.3em",
         height: "0.3em",
         borderRadius: "999px",

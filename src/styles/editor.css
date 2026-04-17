@@ -863,20 +863,17 @@ html[data-theme="light"] .cm-editor .cm-panel.mz-search-panel {
   list-style: none;
 }
 
-/* Unordered-list items in reading view use `padding-left: 1ch` so the
-   bullet's LEFT edge (at `left: 0` of the li, with no X translate)
-   lines up with where the `1.` would start on an ordered-list line
-   above or below. 1ch matches the live-preview bullet anchor width
-   exactly so the two modes stay visually in sync. */
+/* Match ordered-list layout: text keeps the shared li padding, while the
+   custom bullet sits in the marker gutter to the left of the text. */
 .mz-reading-view .mz-rv-list-ul:not(.mz-rv-task-list) > li {
   position: relative;
-  padding-left: 1ch;
+  padding-left: 4px;
 }
 
 .mz-reading-view .mz-rv-list-ul:not(.mz-rv-task-list) > li::before {
   content: "";
   position: absolute;
-  left: 0;
+  left: -1em;
   top: 0.86em;
   width: 0.3em;
   height: 0.3em;
