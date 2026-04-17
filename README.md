@@ -3,7 +3,6 @@
   MindZJ — AI-native, CLI-first, Open-Source Offline Note System
 </h1>
 
-
 <p align="center">
   <em>A fully open-source local note-taking app that takes the best of <a href="https://obsidian.md">Obsidian</a> and pushes further on AI integration, CLI workflows and plugin sandboxing.</em>
 </p>
@@ -23,7 +22,6 @@
   <img src="https://img.shields.io/badge/Tauri-2.0-purple" alt="Tauri" />
   <img src="https://img.shields.io/badge/Platform-Windows%20%26%20macOS%20%26%20Linux-orange" alt="Platform" />
 </p>
-
 
 <p align="center">
   <strong>🌐 README available in:</strong>
@@ -63,6 +61,29 @@
   <em>Editing Markdown with live preview</em>
 </p>
 
+<p align="center">
+  <img src="docs/img01.png" alt="MindZJ Demo" width="800" />
+  <br/>
+  <em>MindZJ Main Interface</em>
+</p>
+
+<p align="center">
+  <img src="docs/img02.png" alt="MindZJ Demo" width="800" />
+  <br/>
+  <em>Math Formulas</em>
+</p>
+
+<p align="center">
+  <img src="docs/img03.png" alt="MindZJ Demo" width="800" />
+  <br/>
+  <em>MindZJ Markdown Basics</em>
+</p>
+
+<p align="center">
+  <img src="docs/img04.png" alt="MindZJMap Demo" width="800" />
+  <br/>
+  <em>MindZJ Plugins</em>
+</p>
 
 ---
 
@@ -153,24 +174,24 @@ The installer will be in `src-tauri/target/release/bundle/`.
 
 All shortcuts are rebindable in **Settings → Hotkeys**.
 
-| Action              | Default Shortcut |
-| ------------------- | ---------------- |
-| New note            | `Ctrl + N`       |
-| Save                | `Ctrl + S`       |
-| Command palette     | `Ctrl + P`       |
-| Toggle view mode    | `Ctrl + E`       |
-| Toggle sidebar      | `Ctrl + \``      |
-| Settings            | `Ctrl + ,`       |
-| Search in vault     | `Ctrl + Shift + F` |
-| Find in note        | `Ctrl + F`       |
-| Task list           | `Ctrl + L`       |
-| Bold                | `Ctrl + B`       |
-| Italic              | `Ctrl + I`       |
-| Inline code         | `Ctrl + Shift + E` |
-| Heading 1–6         | `Ctrl + 1` … `Ctrl + 6` |
-| Zoom editor text    | `Ctrl + Mouse Wheel` |
-| Zoom UI             | `Ctrl + =` / `Ctrl + -` |
-| Screenshot          | `Alt + G`        |
+| Action           | Default Shortcut        |
+| ---------------- | ----------------------- |
+| New note         | `Ctrl + N`              |
+| Save             | `Ctrl + S`              |
+| Command palette  | `Ctrl + P`              |
+| Toggle view mode | `Ctrl + E`              |
+| Toggle sidebar   | `Ctrl + \``             |
+| Settings         | `Ctrl + ,`              |
+| Search in vault  | `Ctrl + Shift + F`      |
+| Find in note     | `Ctrl + F`              |
+| Task list        | `Ctrl + L`              |
+| Bold             | `Ctrl + B`              |
+| Italic           | `Ctrl + I`              |
+| Inline code      | `Ctrl + Shift + E`      |
+| Heading 1–6      | `Ctrl + 1` … `Ctrl + 6` |
+| Zoom editor text | `Ctrl + Mouse Wheel`    |
+| Zoom UI          | `Ctrl + =` / `Ctrl + -` |
+| Screenshot       | `Alt + G`               |
 
 ---
 
@@ -221,14 +242,14 @@ mindzj/
 
 ### Technology Stack
 
-| Layer             | Technology                       |
-| ----------------- | -------------------------------- |
-| Desktop / mobile  | Tauri 2.0 (Rust + WebView)       |
-| Frontend          | SolidJS + TypeScript             |
-| Editor            | CodeMirror 6                     |
-| Styling           | UnoCSS + CSS variables           |
-| Search            | tantivy (Rust full-text search)  |
-| CLI               | Rust (clap)                      |
+| Layer            | Technology                      |
+| ---------------- | ------------------------------- |
+| Desktop / mobile | Tauri 2.0 (Rust + WebView)      |
+| Frontend         | SolidJS + TypeScript            |
+| Editor           | CodeMirror 6                    |
+| Styling          | UnoCSS + CSS variables          |
+| Search           | tantivy (Rust full-text search) |
+| CLI              | Rust (clap)                     |
 
 ---
 

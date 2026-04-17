@@ -3,7 +3,6 @@
   MindZJ — KI-native, CLI-first, quelloffene Offline-Notiz­anwendung
 </h1>
 
-
 <p align="center">
   <em>Eine vollständig quelloffene lokale Notizanwendung, die das Beste aus <a href="https://obsidian.md">Obsidian</a> übernimmt und bei KI-Integration, CLI-Workflows und Plugin-Sandboxing einen Schritt weiter geht.</em>
 </p>
@@ -23,7 +22,6 @@
   <img src="https://img.shields.io/badge/Tauri-2.0-purple" alt="Tauri" />
   <img src="https://img.shields.io/badge/Plattform-Windows%20%26%20macOS%20%26%20Linux-orange" alt="Platform" />
 </p>
-
 
 <p align="center">
   <strong>🌐 Weitere Sprachen:</strong>
@@ -63,6 +61,29 @@
   <em>Markdown-Bearbeitung mit Live-Vorschau, Backlinks und Befehlspalette</em>
 </p>
 
+<p align="center">
+  <img src="../docs/img01.png" alt="MindZJ Demo" width="800" />
+  <br/>
+  <em>MindZJ Hauptoberfläche</em>
+</p>
+
+<p align="center">
+  <img src="../docs/img02.png" alt="MindZJ Demo" width="800" />
+  <br/>
+  <em>Mathematische Formeln</em>
+</p>
+
+<p align="center">
+  <img src="../docs/img03.png" alt="MindZJ Demo" width="800" />
+  <br/>
+  <em>MindZJ Markdown-Grundlagen</em>
+</p>
+
+<p align="center">
+  <img src="../docs/img04.png" alt="MindZJMap Demo" width="800" />
+  <br/>
+  <em>MindZJ Plugins</em>
+</p>
 
 ---
 
@@ -153,24 +174,24 @@ Das Artefakt landet in `src-tauri/target/release/bundle/`.
 
 Alle Kürzel sind in **Einstellungen → Hotkeys** neu belegbar.
 
-| Aktion                | Standard                |
-| --------------------- | ----------------------- |
-| Neue Notiz            | `Ctrl + N`              |
-| Speichern             | `Ctrl + S`              |
-| Befehlspalette        | `Ctrl + P`              |
-| Modus umschalten      | `Ctrl + E`              |
-| Seitenleiste          | `Ctrl + \``             |
-| Einstellungen         | `Ctrl + ,`              |
-| Vault-Suche           | `Ctrl + Shift + F`      |
-| In Notiz suchen       | `Ctrl + F`              |
-| Aufgabenliste         | `Ctrl + L`              |
-| Fett                  | `Ctrl + B`              |
-| Kursiv                | `Ctrl + I`              |
-| Inline-Code           | `Ctrl + Shift + E`      |
-| Überschrift 1–6       | `Ctrl + 1` … `Ctrl + 6` |
-| Editor-Textzoom       | `Ctrl + Mausrad`        |
-| UI-Zoom               | `Ctrl + =` / `Ctrl + -` |
-| Screenshot            | `Alt + G`               |
+| Aktion           | Standard                |
+| ---------------- | ----------------------- |
+| Neue Notiz       | `Ctrl + N`              |
+| Speichern        | `Ctrl + S`              |
+| Befehlspalette   | `Ctrl + P`              |
+| Modus umschalten | `Ctrl + E`              |
+| Seitenleiste     | `Ctrl + \``             |
+| Einstellungen    | `Ctrl + ,`              |
+| Vault-Suche      | `Ctrl + Shift + F`      |
+| In Notiz suchen  | `Ctrl + F`              |
+| Aufgabenliste    | `Ctrl + L`              |
+| Fett             | `Ctrl + B`              |
+| Kursiv           | `Ctrl + I`              |
+| Inline-Code      | `Ctrl + Shift + E`      |
+| Überschrift 1–6  | `Ctrl + 1` … `Ctrl + 6` |
+| Editor-Textzoom  | `Ctrl + Mausrad`        |
+| UI-Zoom          | `Ctrl + =` / `Ctrl + -` |
+| Screenshot       | `Alt + G`               |
 
 ---
 
@@ -221,14 +242,14 @@ mindzj/
 
 ### Technologie-Stack
 
-| Ebene                 | Technologie                      |
-| --------------------- | -------------------------------- |
-| Desktop / Mobile      | Tauri 2.0 (Rust + WebView)       |
-| Frontend              | SolidJS + TypeScript             |
-| Editor                | CodeMirror 6                     |
-| Styling               | UnoCSS + CSS-Variablen           |
-| Suche                 | tantivy (Rust-Volltextsuche)     |
-| CLI                   | Rust (clap)                      |
+| Ebene            | Technologie                  |
+| ---------------- | ---------------------------- |
+| Desktop / Mobile | Tauri 2.0 (Rust + WebView)   |
+| Frontend         | SolidJS + TypeScript         |
+| Editor           | CodeMirror 6                 |
+| Styling          | UnoCSS + CSS-Variablen       |
+| Suche            | tantivy (Rust-Volltextsuche) |
+| CLI              | Rust (clap)                  |
 
 ---
 

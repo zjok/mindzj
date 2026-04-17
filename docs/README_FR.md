@@ -23,7 +23,6 @@
   <img src="https://img.shields.io/badge/Plateforme-Windows%20%26%20macOS%20%26%20Linux-orange" alt="Platform" />
 </p>
 
-
 <p align="center">
   <strong>🌐 Autres langues :</strong>
   <a href="../README.md">English</a> |
@@ -62,6 +61,29 @@
   <em>Édition Markdown avec prévisualisation en direct, backlinks et palette de commandes</em>
 </p>
 
+<p align="center">
+  <img src="../docs/img01.png" alt="MindZJ Demo" width="800" />
+  <br/>
+  <em>Interface principale de MindZJ</em>
+</p>
+
+<p align="center">
+  <img src="../docs/img02.png" alt="MindZJ Demo" width="800" />
+  <br/>
+  <em>Formules mathématiques</em>
+</p>
+
+<p align="center">
+  <img src="../docs/img03.png" alt="MindZJ Demo" width="800" />
+  <br/>
+  <em>Bases du Markdown dans MindZJ</em>
+</p>
+
+<p align="center">
+  <img src="../docs/img04.png" alt="MindZJMap Demo" width="800" />
+  <br/>
+  <em>Plugins MindZJ</em>
+</p>
 
 ---
 
@@ -220,14 +242,14 @@ mindzj/
 
 ### Pile technique
 
-| Couche               | Technologie                      |
-| -------------------- | -------------------------------- |
-| Desktop / mobile     | Tauri 2.0 (Rust + WebView)       |
-| Frontend             | SolidJS + TypeScript             |
-| Éditeur              | CodeMirror 6                     |
-| Styling              | UnoCSS + variables CSS           |
-| Recherche            | tantivy (recherche plein texte)  |
-| CLI                  | Rust (clap)                      |
+| Couche           | Technologie                     |
+| ---------------- | ------------------------------- |
+| Desktop / mobile | Tauri 2.0 (Rust + WebView)      |
+| Frontend         | SolidJS + TypeScript            |
+| Éditeur          | CodeMirror 6                    |
+| Styling          | UnoCSS + variables CSS          |
+| Recherche        | tantivy (recherche plein texte) |
+| CLI              | Rust (clap)                     |
 
 ---
 

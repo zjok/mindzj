@@ -23,7 +23,6 @@
   <img src="https://img.shields.io/badge/Plataforma-Windows%20%26%20macOS%20%26%20Linux-orange" alt="Platform" />
 </p>
 
-
 <p align="center">
   <strong>🌐 Otros idiomas:</strong>
   <a href="../README.md">English</a> |
@@ -62,6 +61,29 @@
   <em>Edición Markdown con vista previa en vivo, backlinks y paleta de comandos</em>
 </p>
 
+<p align="center">
+  <img src="../docs/img01.png" alt="MindZJ Demo" width="800" />
+  <br/>
+  <em>Interfaz principal de MindZJ</em>
+</p>
+
+<p align="center">
+  <img src="../docs/img02.png" alt="MindZJ Demo" width="800" />
+  <br/>
+  <em>Fórmulas matemáticas</em>
+</p>
+
+<p align="center">
+  <img src="../docs/img03.png" alt="MindZJ Demo" width="800" />
+  <br/>
+  <em>Conceptos básicos de Markdown en MindZJ</em>
+</p>
+
+<p align="center">
+  <img src="../docs/img04.png" alt="MindZJMap Demo" width="800" />
+  <br/>
+  <em>Plugins de MindZJ</em>
+</p>
 
 ---
 
@@ -152,24 +174,24 @@ El artefacto se genera en `src-tauri/target/release/bundle/`.
 
 Todos los atajos se pueden reasignar en **Configuración → Atajos**.
 
-| Acción                  | Predeterminado          |
-| ----------------------- | ----------------------- |
-| Nota nueva              | `Ctrl + N`              |
-| Guardar                 | `Ctrl + S`              |
-| Paleta de comandos      | `Ctrl + P`              |
-| Alternar modo           | `Ctrl + E`              |
-| Alternar barra lateral  | `Ctrl + \``             |
-| Configuración           | `Ctrl + ,`              |
-| Búsqueda en el Vault    | `Ctrl + Shift + F`      |
-| Búsqueda en la nota     | `Ctrl + F`              |
-| Lista de tareas         | `Ctrl + L`              |
-| Negrita                 | `Ctrl + B`              |
-| Cursiva                 | `Ctrl + I`              |
-| Código en línea         | `Ctrl + Shift + E`      |
-| Título 1–6              | `Ctrl + 1` … `Ctrl + 6` |
-| Zoom texto del editor   | `Ctrl + rueda`          |
-| Zoom UI                 | `Ctrl + =` / `Ctrl + -` |
-| Captura de pantalla     | `Alt + G`               |
+| Acción                 | Predeterminado          |
+| ---------------------- | ----------------------- |
+| Nota nueva             | `Ctrl + N`              |
+| Guardar                | `Ctrl + S`              |
+| Paleta de comandos     | `Ctrl + P`              |
+| Alternar modo          | `Ctrl + E`              |
+| Alternar barra lateral | `Ctrl + \``             |
+| Configuración          | `Ctrl + ,`              |
+| Búsqueda en el Vault   | `Ctrl + Shift + F`      |
+| Búsqueda en la nota    | `Ctrl + F`              |
+| Lista de tareas        | `Ctrl + L`              |
+| Negrita                | `Ctrl + B`              |
+| Cursiva                | `Ctrl + I`              |
+| Código en línea        | `Ctrl + Shift + E`      |
+| Título 1–6             | `Ctrl + 1` … `Ctrl + 6` |
+| Zoom texto del editor  | `Ctrl + rueda`          |
+| Zoom UI                | `Ctrl + =` / `Ctrl + -` |
+| Captura de pantalla    | `Alt + G`               |
 
 ---
 
@@ -220,14 +242,14 @@ mindzj/
 
 ### Stack tecnológico
 
-| Capa                 | Tecnología                       |
-| -------------------- | -------------------------------- |
-| Escritorio / móvil   | Tauri 2.0 (Rust + WebView)       |
-| Frontend             | SolidJS + TypeScript             |
-| Editor               | CodeMirror 6                     |
-| Estilos              | UnoCSS + variables CSS           |
-| Búsqueda             | tantivy (búsqueda Rust)          |
-| CLI                  | Rust (clap)                      |
+| Capa               | Tecnología                 |
+| ------------------ | -------------------------- |
+| Escritorio / móvil | Tauri 2.0 (Rust + WebView) |
+| Frontend           | SolidJS + TypeScript       |
+| Editor             | CodeMirror 6               |
+| Estilos            | UnoCSS + variables CSS     |
+| Búsqueda           | tantivy (búsqueda Rust)    |
+| CLI                | Rust (clap)                |
 
 ---
 

@@ -3,7 +3,6 @@
   MindZJ —— AI 原生、CLI 优先的开源离线笔记系统
 </h1>
 
-
 <p align="center">
   <em>一款完全开源的本地笔记软件，借鉴 <a href="https://obsidian.md">Obsidian</a> 的核心理念，在 AI 集成、CLI 操作和插件安全方面做出差异化突破。</em>
 </p>
@@ -23,7 +22,6 @@
   <img src="https://img.shields.io/badge/Tauri-2.0-purple" alt="Tauri" />
   <img src="https://img.shields.io/badge/平台-Windows%20%26%20macOS%20%26%20Linux-orange" alt="Platform" />
 </p>
-
 
 <p align="center">
   <strong>🌐 其他语言：</strong>
@@ -63,6 +61,29 @@
   <em>Markdown 实时预览、双向链接以及命令面板</em>
 </p>
 
+<p align="center">
+  <img src="../docs/img01.png" alt="MindZJ Demo" width="800" />
+  <br/>
+  <em>MindZJ 主界面</em>
+</p>
+
+<p align="center">
+  <img src="../docs/img02.png" alt="MindZJ Demo" width="800" />
+  <br/>
+  <em>数学公式</em>
+</p>
+
+<p align="center">
+  <img src="../docs/img03.png" alt="MindZJ Demo" width="800" />
+  <br/>
+  <em>MindZJ Markdown 基础</em>
+</p>
+
+<p align="center">
+  <img src="../docs/img04.png" alt="MindZJMap Demo" width="800" />
+  <br/>
+  <em>MindZJ 插件</em>
+</p>
 
 ---
 
@@ -153,24 +174,24 @@ npm run tauri:build
 
 所有快捷键均可在 **设置 → 快捷键** 中重新绑定。
 
-| 操作             | 默认快捷键          |
-| ---------------- | ------------------- |
-| 新建笔记         | `Ctrl + N`          |
-| 保存             | `Ctrl + S`          |
-| 命令面板         | `Ctrl + P`          |
-| 切换视图模式     | `Ctrl + E`          |
-| 切换侧边栏       | `Ctrl + \``         |
-| 设置             | `Ctrl + ,`          |
-| 全局搜索         | `Ctrl + Shift + F`  |
-| 当前笔记内搜索   | `Ctrl + F`          |
-| 任务列表         | `Ctrl + L`          |
-| 加粗             | `Ctrl + B`          |
-| 斜体             | `Ctrl + I`          |
-| 行内代码         | `Ctrl + Shift + E`  |
-| 标题 1–6         | `Ctrl + 1` … `Ctrl + 6` |
-| 编辑器文字缩放   | `Ctrl + 鼠标滚轮`   |
-| 界面缩放         | `Ctrl + =` / `Ctrl + -` |
-| 截图             | `Alt + G`           |
+| 操作           | 默认快捷键              |
+| -------------- | ----------------------- |
+| 新建笔记       | `Ctrl + N`              |
+| 保存           | `Ctrl + S`              |
+| 命令面板       | `Ctrl + P`              |
+| 切换视图模式   | `Ctrl + E`              |
+| 切换侧边栏     | `Ctrl + \``             |
+| 设置           | `Ctrl + ,`              |
+| 全局搜索       | `Ctrl + Shift + F`      |
+| 当前笔记内搜索 | `Ctrl + F`              |
+| 任务列表       | `Ctrl + L`              |
+| 加粗           | `Ctrl + B`              |
+| 斜体           | `Ctrl + I`              |
+| 行内代码       | `Ctrl + Shift + E`      |
+| 标题 1–6       | `Ctrl + 1` … `Ctrl + 6` |
+| 编辑器文字缩放 | `Ctrl + 鼠标滚轮`       |
+| 界面缩放       | `Ctrl + =` / `Ctrl + -` |
+| 截图           | `Alt + G`               |
 
 ---
 
@@ -221,14 +242,14 @@ mindzj/
 
 ### 技术栈
 
-| 层级              | 技术                             |
-| ----------------- | -------------------------------- |
-| 桌面/移动框架     | Tauri 2.0（Rust + WebView）      |
-| 前端              | SolidJS + TypeScript             |
-| 编辑器            | CodeMirror 6                     |
-| 样式              | UnoCSS + CSS 变量                |
-| 搜索              | tantivy（Rust 全文搜索）          |
-| CLI               | Rust（clap）                     |
+| 层级          | 技术                        |
+| ------------- | --------------------------- |
+| 桌面/移动框架 | Tauri 2.0（Rust + WebView） |
+| 前端          | SolidJS + TypeScript        |
+| 编辑器        | CodeMirror 6                |
+| 样式          | UnoCSS + CSS 变量           |
+| 搜索          | tantivy（Rust 全文搜索）    |
+| CLI           | Rust（clap）                |
 
 ---
 

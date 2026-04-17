@@ -3,7 +3,6 @@
   MindZJ — AI ネイティブ・CLI ファーストなオープンソースのオフラインノートシステム
 </h1>
 
-
 <p align="center">
   <em><a href="https://obsidian.md">Obsidian</a> の良さを受け継ぎつつ、AI 連携・CLI ワークフロー・プラグインサンドボックスをさらに一歩進めた、完全オープンソースのローカルノートアプリです。</em>
 </p>
@@ -23,7 +22,6 @@
   <img src="https://img.shields.io/badge/Tauri-2.0-purple" alt="Tauri" />
   <img src="https://img.shields.io/badge/Platform-Windows%20%26%20macOS%20%26%20Linux-orange" alt="Platform" />
 </p>
-
 
 <p align="center">
   <strong>🌐 他の言語:</strong>
@@ -63,6 +61,29 @@
   <em>Markdown のライブプレビュー、バックリンク、コマンドパレット</em>
 </p>
 
+<p align="center">
+  <img src="../docs/img01.png" alt="MindZJ Demo" width="800" />
+  <br/>
+  <em>MindZJ メイン画面</em>
+</p>
+
+<p align="center">
+  <img src="../docs/img02.png" alt="MindZJ Demo" width="800" />
+  <br/>
+  <em>数式</em>
+</p>
+
+<p align="center">
+  <img src="../docs/img03.png" alt="MindZJ Demo" width="800" />
+  <br/>
+  <em>MindZJ Markdown の基礎</em>
+</p>
+
+<p align="center">
+  <img src="../docs/img04.png" alt="MindZJMap Demo" width="800" />
+  <br/>
+  <em>MindZJ プラグイン</em>
+</p>
 
 ---
 
@@ -153,24 +174,24 @@ npm run tauri:build
 
 すべてのショートカットは **設定 → ホットキー** で再割り当て可能です。
 
-| 操作                  | デフォルト           |
-| --------------------- | -------------------- |
-| 新しいノート          | `Ctrl + N`           |
-| 保存                  | `Ctrl + S`           |
-| コマンドパレット      | `Ctrl + P`           |
-| 表示モード切替        | `Ctrl + E`           |
-| サイドバー切替        | `Ctrl + \``          |
-| 設定                  | `Ctrl + ,`           |
-| Vault 内検索          | `Ctrl + Shift + F`   |
-| ノート内検索          | `Ctrl + F`           |
-| タスクリスト          | `Ctrl + L`           |
-| 太字                  | `Ctrl + B`           |
-| イタリック            | `Ctrl + I`           |
-| インラインコード      | `Ctrl + Shift + E`   |
-| 見出し 1–6            | `Ctrl + 1` … `Ctrl + 6` |
-| エディタ文字ズーム    | `Ctrl + ホイール`    |
-| UI ズーム             | `Ctrl + =` / `Ctrl + -` |
-| スクリーンショット    | `Alt + G`            |
+| 操作               | デフォルト              |
+| ------------------ | ----------------------- |
+| 新しいノート       | `Ctrl + N`              |
+| 保存               | `Ctrl + S`              |
+| コマンドパレット   | `Ctrl + P`              |
+| 表示モード切替     | `Ctrl + E`              |
+| サイドバー切替     | `Ctrl + \``             |
+| 設定               | `Ctrl + ,`              |
+| Vault 内検索       | `Ctrl + Shift + F`      |
+| ノート内検索       | `Ctrl + F`              |
+| タスクリスト       | `Ctrl + L`              |
+| 太字               | `Ctrl + B`              |
+| イタリック         | `Ctrl + I`              |
+| インラインコード   | `Ctrl + Shift + E`      |
+| 見出し 1–6         | `Ctrl + 1` … `Ctrl + 6` |
+| エディタ文字ズーム | `Ctrl + ホイール`       |
+| UI ズーム          | `Ctrl + =` / `Ctrl + -` |
+| スクリーンショット | `Alt + G`               |
 
 ---
 
@@ -221,14 +242,14 @@ mindzj/
 
 ### 技術スタック
 
-| レイヤー               | 技術                             |
-| ---------------------- | -------------------------------- |
-| デスクトップ / モバイル | Tauri 2.0 (Rust + WebView)       |
-| フロントエンド          | SolidJS + TypeScript             |
-| エディタ                | CodeMirror 6                     |
-| スタイリング            | UnoCSS + CSS 変数                |
-| 検索                    | tantivy (Rust 全文検索)           |
-| CLI                     | Rust (clap)                      |
+| レイヤー                | 技術                       |
+| ----------------------- | -------------------------- |
+| デスクトップ / モバイル | Tauri 2.0 (Rust + WebView) |
+| フロントエンド          | SolidJS + TypeScript       |
+| エディタ                | CodeMirror 6               |
+| スタイリング            | UnoCSS + CSS 変数          |
+| 検索                    | tantivy (Rust 全文検索)    |
+| CLI                     | Rust (clap)                |
 
 ---
 
