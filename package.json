@@ -11,7 +11,7 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build",
+    "tauri:build": "node scripts/clean-bundle.mjs && tauri build",
     "bump": "node scripts/bump-version.mjs",
     "lint": "eslint src --ext .ts,.tsx",
     "typecheck": "tsc --noEmit",
