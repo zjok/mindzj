@@ -22,7 +22,7 @@ import {
     EditorView,
     WidgetType,
 } from "@codemirror/view";
-import { Range, StateField, Transaction } from "@codemirror/state";
+import { EditorSelection, Range, StateField, Transaction } from "@codemirror/state";
 import katex from "katex";
 import { invoke } from "@tauri-apps/api/core";
 import { resolveImageAssetUrl } from "../../../utils/vaultPaths";
@@ -617,6 +617,131 @@ function syncListGuideMetrics(view: EditorView) {
     view.contentDOM.style.setProperty("--mz-list-indent-step", `${indentWidth}px`);
     view.contentDOM.style.setProperty("--mz-list-guide-offset", `${guideOffset}px`);
 }
+
+function eventTargetElement(target: EventTarget | null): Element | null {
+    if (target instanceof Element) return target;
+    return target instanceof Node ? target.parentElement : null;
+}
+
+function isUnorderedListLine(text: string): boolean {
+    return /^\s*[-*+]\s+/.test(text);
+}
+
+function isFenceLine(text: string): boolean {
+    return /^(`{3,}|~{3,})/.test(text);
+}
+
+function lineFromDomTarget(
+    view: EditorView,
+    target: EventTarget | null,
+): { element: HTMLElement; line: ReturnType<typeof view.state.doc.line> } | null {
+    const lineElement = eventTargetElement(target)?.closest(".cm-line");
+    if (!(lineElement instanceof HTMLElement) || !view.dom.contains(lineElement)) {
+        return null;
+    }
+
+    try {
+        return {
+            element: lineElement,
+            line: view.state.doc.lineAt(view.posAtDOM(lineElement, 0)),
+        };
+    } catch {
+        return null;
+    }
+}
+
+function visibleTextRight(element: HTMLElement): number | null {
+    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+    let maxRight: number | null = null;
+    let node: Node | null;
+
+    while ((node = walker.nextNode())) {
+        const range = document.createRange();
+        range.selectNodeContents(node);
+        for (const rect of Array.from(range.getClientRects())) {
+            if (rect.width > 0.5) {
+                maxRight = maxRight === null ? rect.right : Math.max(maxRight, rect.right);
+            }
+        }
+        range.detach();
+    }
+
+    return maxRight;
+}
+
+function domCaretPositionFromPoint(view: EditorView, event: MouseEvent): number | null {
+    try {
+        const caretPosition = document.caretPositionFromPoint?.(
+            event.clientX,
+            event.clientY,
+        );
+        if (caretPosition) {
+            return view.posAtDOM(caretPosition.offsetNode, caretPosition.offset);
+        }
+
+        const legacyDocument = document as Document & {
+            caretRangeFromPoint?: (x: number, y: number) => globalThis.Range | null;
+        };
+        const caretRange = legacyDocument.caretRangeFromPoint?.(
+            event.clientX,
+            event.clientY,
+        );
+        if (caretRange) {
+            return view.posAtDOM(caretRange.startContainer, caretRange.startOffset);
+        }
+    } catch {
+        return null;
+    }
+
+    return null;
+}
+
+function clampToLine(pos: number, line: { from: number; to: number }): number {
+    return Math.min(line.to, Math.max(line.from, pos));
+}
+
+const listLineBoundaryClickHandler = EditorView.domEventHandlers({
+    mousedown(event: MouseEvent, view: EditorView) {
+        if (event.button !== 0 || event.ctrlKey || event.metaKey || event.altKey) {
+            return false;
+        }
+
+        const domLine = lineFromDomTarget(view, event.target);
+        if (!domLine || !isUnorderedListLine(domLine.line.text)) return false;
+
+        const nextLine =
+            domLine.line.number < view.state.doc.lines
+                ? view.state.doc.line(domLine.line.number + 1)
+                : null;
+        const needsBoundaryCorrection =
+            domLine.line.text.includes("[[") ||
+            (nextLine !== null && isFenceLine(nextLine.text));
+        if (!needsBoundaryCorrection) return false;
+
+        const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
+        if (pos === null) return false;
+
+        const mappedLine = view.state.doc.lineAt(pos);
+        if (mappedLine.number === domLine.line.number) return false;
+
+        const caretPos = domCaretPositionFromPoint(view, event);
+        const textRight = visibleTextRight(domLine.element);
+        const targetPos =
+            caretPos !== null && caretPos >= domLine.line.from && caretPos <= domLine.line.to
+                ? caretPos
+                : textRight !== null && event.clientX >= textRight - 1
+                    ? domLine.line.to
+                    : clampToLine(pos, domLine.line);
+
+        event.preventDefault();
+        view.dispatch({
+            selection: EditorSelection.cursor(targetPos),
+            scrollIntoView: true,
+        });
+        view.focus();
+        return true;
+    },
+});
 // Code fence + content + table line decorations (Obsidian-style: keep the
 // raw source visible AND cursor-navigable; use CSS to make it LOOK like a
 // rendered code block / table).
@@ -1165,9 +1290,12 @@ const livePreviewTheme = EditorView.baseTheme({
     // Styled as a complete bordered box with rounded corners. Each
     // line keeps its raw text cursor-addressable; the CSS makes the
     // lines look like a unified code block.
+    // 0.88em * 1.99 ~= the normal 1.75 line height, keeping click hit
+    // testing aligned with CM6's measured line boxes inside code blocks.
     ".cm-line.mz-lp-code-fence-open": {
         fontFamily: "var(--mz-font-mono)",
         fontSize: "0.88em",
+        lineHeight: "1.99",
         color: "var(--mz-text-muted)",
         background: "var(--mz-syntax-code-bg)",
         borderTop: "1px solid var(--mz-border)",
@@ -1177,11 +1305,11 @@ const livePreviewTheme = EditorView.baseTheme({
         borderTopRightRadius: "6px",
         paddingLeft: "12px",
         paddingTop: "4px",
-        marginTop: "4px",
     },
     ".cm-line.mz-lp-code-fence-close": {
         fontFamily: "var(--mz-font-mono)",
         fontSize: "0.88em",
+        lineHeight: "1.99",
         color: "var(--mz-text-muted)",
         background: "var(--mz-syntax-code-bg)",
         borderBottom: "1px solid var(--mz-border)",
@@ -1191,11 +1319,11 @@ const livePreviewTheme = EditorView.baseTheme({
         borderBottomRightRadius: "6px",
         paddingLeft: "12px",
         paddingBottom: "4px",
-        marginBottom: "4px",
     },
     ".cm-line.mz-lp-code-content-line": {
         fontFamily: "var(--mz-font-mono)",
         fontSize: "0.88em",
+        lineHeight: "1.99",
         background: "var(--mz-syntax-code-bg)",
         color: "var(--mz-text-primary)",
         borderLeft: "1px solid var(--mz-border)",
@@ -1252,20 +1380,17 @@ const livePreviewTheme = EditorView.baseTheme({
         position: "relative",
         verticalAlign: "middle",
     },
-    // The dot's LEFT edge sits at x=0 of the anchor so it left-aligns
-    // with the `1` in `1. …` on an ordered-list line directly above
-    // or below. The previous `translate(-50%, -50%)` put the dot's
-    // CENTER at x=0 (i.e. extending 0.15em into the margin) which
-    // drifted visibly away from the ordered-list digit.
+    // Center the rendered dot inside the same `1ch` marker cell used by
+    // the raw `-` character and by the list guide background.
     ".mz-lp-bullet": {
         position: "absolute",
-        left: "0",
+        left: "0.5ch",
         top: "50%",
         width: "0.3em",
         height: "0.3em",
         borderRadius: "999px",
         background: "var(--mz-text-muted)",
-        transform: "translateY(-50%)",
+        transform: "translate(-50%, -50%)",
         pointerEvents: "none",
     },
     ".mz-lp-ordered-marker": {
@@ -1585,6 +1710,7 @@ function createLivePreviewPlugin(vaultRoot: string, currentFilePath: string) {
 export function livePreviewExtension(vaultRoot: string, currentFilePath: string) {
     return [
         livePreviewTheme,
+        listLineBoundaryClickHandler,
         lineDecorationField,
         createLivePreviewPlugin(vaultRoot, currentFilePath),
     ];

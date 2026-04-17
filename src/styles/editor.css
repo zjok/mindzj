@@ -670,8 +670,8 @@ html[data-theme="light"] .cm-editor .cm-panel.mz-search-panel {
 }
 
 /* ── Nested list guide lines ──
-   Draw one guide at the middle of each indent unit and clip the
-   repeating background to the current nesting depth. */
+   Draw one guide through the center of each list marker cell and clip
+   the repeating background to the current nesting depth. */
 .cm-editor .cm-content .cm-line.mz-lp-list-guides {
   background-image:
     repeating-linear-gradient(
@@ -680,9 +680,9 @@ html[data-theme="light"] .cm-editor .cm-panel.mz-search-panel {
       var(--mz-border) 1px,
       transparent 1px,
       transparent var(--mz-list-indent-step)
-    );
+  );
   background-repeat: no-repeat;
-  background-position: 0 0;
+  background-position: 0.5ch 0;
   background-size: calc(var(--mz-list-level, 0) * var(--mz-list-indent-step)) 100%;
 }
 

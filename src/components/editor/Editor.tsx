@@ -805,6 +805,12 @@ export const Editor: Component<EditorProps> = (props) => {
                 // user explicitly asked us to preserve.
                 ...(isLivePreview
                     ? [
+                        { key: "Home", run: (v: EditorView) => moveCursorToLogicalLineBoundary(v, "start", false) },
+                        { key: "End", run: (v: EditorView) => moveCursorToLogicalLineBoundary(v, "end", false) },
+                        { key: "Shift-Home", run: (v: EditorView) => moveCursorToLogicalLineBoundary(v, "start", true) },
+                        { key: "Shift-End", run: (v: EditorView) => moveCursorToLogicalLineBoundary(v, "end", true) },
+                        { key: "Mod-Shift-Home", run: (v: EditorView) => moveCursorToLogicalLineBoundary(v, "start", true) },
+                        { key: "Mod-Shift-End", run: (v: EditorView) => moveCursorToLogicalLineBoundary(v, "end", true) },
                         { key: "ArrowUp", run: (v: EditorView) => moveCursorByLogicalLine(v, -1, false) },
                         { key: "ArrowDown", run: (v: EditorView) => moveCursorByLogicalLine(v, 1, false) },
                         { key: "Shift-ArrowUp", run: (v: EditorView) => moveCursorByLogicalLine(v, -1, true) },
@@ -1180,6 +1186,23 @@ export const Editor: Component<EditorProps> = (props) => {
                 ? EditorSelection.range(selection.anchor, targetPos)
                 : EditorSelection.cursor(targetPos),
             effects: EditorView.scrollIntoView(targetPos),
+        });
+        return true;
+    }
+
+    function moveCursorToLogicalLineBoundary(
+        view: EditorView,
+        boundary: "start" | "end",
+        extend: boolean,
+    ): boolean {
+        const selection = view.state.selection.main;
+        const line = view.state.doc.lineAt(selection.head);
+        const targetPos = boundary === "start" ? line.from : line.to;
+        view.dispatch({
+            selection: extend
+                ? EditorSelection.range(selection.anchor, targetPos)
+                : EditorSelection.cursor(targetPos),
+            scrollIntoView: true,
         });
         return true;
     }

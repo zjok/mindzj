@@ -353,11 +353,8 @@ function createListStylePlugin() {
 
 const listStyleTheme = EditorView.baseTheme({
     // Anchor width is `1ch` — the exact width of the `-` character it
-    // replaces. See the long comment in livePreview.ts's copy of the
-    // same rule for why; briefly, the `.mz-list-wrap-line` CSS budgets
-    // `markerChars * 1ch` for the marker area, and a wider anchor
-    // would overflow the row and force the content's inline-block to
-    // wrap visually.
+    // replaces. Keep the dot centered in that marker cell so it lines
+    // up with the source `-` and the list guide background.
     ".mz-lp-bullet-anchor": {
         display: "inline-block",
         width: "1ch",
@@ -367,13 +364,13 @@ const listStyleTheme = EditorView.baseTheme({
     },
     ".mz-lp-bullet": {
         position: "absolute",
-        left: "0",
+        left: "0.5ch",
         top: "50%",
         width: "0.3em",
         height: "0.3em",
         borderRadius: "999px",
         background: "var(--mz-text-muted)",
-        transform: "translateY(-50%)",
+        transform: "translate(-50%, -50%)",
         pointerEvents: "none",
     },
     ".mz-lp-ordered-marker": {

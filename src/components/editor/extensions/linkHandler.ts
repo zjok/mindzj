@@ -205,6 +205,31 @@ function jumpToFootnote(view: EditorView, fnId: string): void {
 // Ctrl hover visual feedback
 // ---------------------------------------------------------------------------
 
+function eventTargetElement(target: EventTarget | null): Element | null {
+    if (target instanceof Element) return target;
+    return target instanceof Node ? target.parentElement : null;
+}
+
+function renderedLinkFromEvent(event: MouseEvent, view: EditorView): HTMLElement | null {
+    const link = eventTargetElement(event.target)?.closest(".mz-lp-link");
+    return link instanceof HTMLElement && view.dom.contains(link) ? link : null;
+}
+
+function linkClickPosition(
+    view: EditorView,
+    event: MouseEvent,
+    link: HTMLElement | null,
+): number | null {
+    if (link) {
+        try {
+            return view.posAtDOM(link, 0);
+        } catch {
+            // Fall back to coordinate mapping below.
+        }
+    }
+    return view.posAtCoords({ x: event.clientX, y: event.clientY });
+}
+
 /**
  * Link click handler — uses MOUSEDOWN so we intercept BEFORE CodeMirror
  * moves the cursor (which would make the line the "cursor line" and
@@ -218,9 +243,11 @@ function jumpToFootnote(view: EditorView, fnId: string): void {
  */
 const linkClickHandler = EditorView.domEventHandlers({
     mousedown(event: MouseEvent, view: EditorView) {
+        const renderedLink = renderedLinkFromEvent(event, view);
+
         // --- Ctrl+Click always navigates ---
         if (event.ctrlKey || event.metaKey) {
-            const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
+            const pos = linkClickPosition(view, event, renderedLink);
             if (pos === null) return false;
             // Delay slightly so CM6 doesn't also move cursor
             event.preventDefault();
@@ -229,9 +256,8 @@ const linkClickHandler = EditorView.domEventHandlers({
         }
 
         // --- Plain click on a rendered link (non-cursor line) ---
-        const target = event.target as HTMLElement;
-        if (target.closest(".mz-lp-link")) {
-            const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
+        if (renderedLink) {
+            const pos = linkClickPosition(view, event, renderedLink);
             if (pos === null) return false;
 
             // Verify this is NOT the cursor line (double-check: on cursor
