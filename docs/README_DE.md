@@ -56,9 +56,9 @@
 ## Vorschau
 
 <p align="center">
-  <img src="../docs/mindzj.gif" alt="MindZJ Hauptansicht" width="800" />
+  <img src="../docs/img00.png" alt="MindZJ Demo" width="800" />
   <br/>
-  <em>Markdown-Bearbeitung mit Live-Vorschau, Backlinks und Befehlspalette</em>
+  <em>Welcome</em>
 </p>
 
 <p align="center">
@@ -83,6 +83,12 @@
   <img src="../docs/img04.png" alt="MindZJMap Demo" width="800" />
   <br/>
   <em>Plugins</em>
+</p>
+
+<p align="center">
+  <img src="../docs/mindzj.gif" alt="MindZJ Hauptansicht" width="800" />
+  <br/>
+  <em>Markdown-Bearbeitung mit Live-Vorschau, Backlinks und Befehlspalette</em>
 </p>
 
 ---

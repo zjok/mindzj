@@ -56,9 +56,9 @@
 ## プレビュー
 
 <p align="center">
-  <img src="../docs/mindzj.gif" alt="MindZJ メイン画面" width="800" />
+  <img src="../docs/img00.png" alt="MindZJ Demo" width="800" />
   <br/>
-  <em>Markdown のライブプレビュー、バックリンク、コマンドパレット</em>
+  <em>Welcome</em>
 </p>
 
 <p align="center">
@@ -83,6 +83,12 @@
   <img src="../docs/img04.png" alt="MindZJ Demo" width="800" />
   <br/>
   <em>MindZJ プラグイン</em>
+</p>
+
+<p align="center">
+  <img src="../docs/mindzj.gif" alt="MindZJ メイン画面" width="800" />
+  <br/>
+  <em>Markdown のライブプレビュー、バックリンク、コマンドパレット</em>
 </p>
 
 ---

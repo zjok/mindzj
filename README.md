@@ -56,9 +56,9 @@
 ## Preview
 
 <p align="center">
-  <img src="docs/mindzj.gif" alt="MindZJ Main Interface" width="800" />
+  <img src="docs/img00.png" alt="MindZJ Welcome" width="800" />
   <br/>
-  <em>Editing Markdown with live preview</em>
+  <em>MindZJ Welcome</em>
 </p>
 
 <p align="center">
@@ -83,6 +83,12 @@
   <img src="docs/img04.png" alt="MindZJ Plugins" width="800" />
   <br/>
   <em>MindZJ Plugins</em>
+</p>
+
+<p align="center">
+  <img src="docs/mindzj.gif" alt="MindZJ Main Interface" width="800" />
+  <br/>
+  <em>Editing Markdown with live preview</em>
 </p>
 
 ---

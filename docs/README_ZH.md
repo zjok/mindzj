@@ -56,9 +56,9 @@
 ## 预览
 
 <p align="center">
-  <img src="../docs/mindzj.gif" alt="MindZJ 主界面" width="800" />
+  <img src="../docs/img00.png" alt="MindZJ Demo" width="800" />
   <br/>
-  <em>Markdown 实时预览、双向链接以及命令面板</em>
+  <em>MindZJ 首页</em>
 </p>
 
 <p align="center">
@@ -83,6 +83,12 @@
   <img src="../docs/img04.png" alt="MindZJ Plugins" width="800" />
   <br/>
   <em>插件</em>
+</p>
+
+<p align="center">
+  <img src="../docs/mindzj.gif" alt="MindZJ 主界面" width="800" />
+  <br/>
+  <em>Markdown 实时预览、双向链接以及命令面板</em>
 </p>
 
 ---

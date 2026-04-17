@@ -56,9 +56,9 @@
 ## Vista previa
 
 <p align="center">
-  <img src="../docs/mindzj.gif" alt="Interfaz principal de MindZJ" width="800" />
+  <img src="../docs/img00.png" alt="MindZJ Demo" width="800" />
   <br/>
-  <em>Edición Markdown con vista previa en vivo, backlinks y paleta de comandos</em>
+  <em>Welcome</em>
 </p>
 
 <p align="center">
@@ -83,6 +83,12 @@
   <img src="../docs/img04.png" alt="MindZJ Demo" width="800" />
   <br/>
   <em>Plugins de MindZJ</em>
+</p>
+
+<p align="center">
+  <img src="../docs/mindzj.gif" alt="Interfaz principal de MindZJ" width="800" />
+  <br/>
+  <em>Edición Markdown con vista previa en vivo, backlinks y paleta de comandos</em>
 </p>
 
 ---
