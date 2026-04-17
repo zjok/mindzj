@@ -76,13 +76,13 @@
 <p align="center">
   <img src="../docs/img03.png" alt="MindZJ Demo" width="800" />
   <br/>
-  <em>MindZJ Markdown 基础</em>
+  <em>Markdown</em>
 </p>
 
 <p align="center">
-  <img src="../docs/img04.png" alt="MindZJMap Demo" width="800" />
+  <img src="../docs/img04.png" alt="MindZJ Plugins" width="800" />
   <br/>
-  <em>MindZJ 插件</em>
+  <em>插件</em>
 </p>
 
 ---

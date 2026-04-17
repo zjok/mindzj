@@ -64,7 +64,7 @@
 <p align="center">
   <img src="../docs/img01.png" alt="MindZJ Demo" width="800" />
   <br/>
-  <em>MindZJ Hauptoberfläche</em>
+  <em>Hauptoberfläche</em>
 </p>
 
 <p align="center">
@@ -76,13 +76,13 @@
 <p align="center">
   <img src="../docs/img03.png" alt="MindZJ Demo" width="800" />
   <br/>
-  <em>MindZJ Markdown-Grundlagen</em>
+  <em>Markdown-Grundlagen</em>
 </p>
 
 <p align="center">
   <img src="../docs/img04.png" alt="MindZJMap Demo" width="800" />
   <br/>
-  <em>MindZJ Plugins</em>
+  <em>Plugins</em>
 </p>
 
 ---

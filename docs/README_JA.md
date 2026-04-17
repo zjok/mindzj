@@ -80,7 +80,7 @@
 </p>
 
 <p align="center">
-  <img src="../docs/img04.png" alt="MindZJMap Demo" width="800" />
+  <img src="../docs/img04.png" alt="MindZJ Demo" width="800" />
   <br/>
   <em>MindZJ プラグイン</em>
 </p>
