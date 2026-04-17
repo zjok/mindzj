@@ -851,7 +851,7 @@ html[data-theme="light"] .cm-editor .cm-panel.mz-search-panel {
 .mz-reading-view li > .mz-rv-list::before {
   content: "";
   position: absolute;
-  left: -1ch;
+  left: -2ch;
   top: 0;
   bottom: 0;
   width: 1px;
