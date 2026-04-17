@@ -72,15 +72,31 @@ if (dry) {
   process.exit(0);
 }
 
-const run = (cmd) => {
+const run = (cmd, { allowFail = false } = {}) => {
   console.log(`  $ ${cmd}`);
-  execSync(cmd, { cwd: root, stdio: "inherit" });
+  try {
+    execSync(cmd, { cwd: root, stdio: "inherit" });
+  } catch (err) {
+    if (allowFail) {
+      console.log(`  (skipped — ${cmd} returned non-zero, continuing)`);
+      return;
+    }
+    throw err;
+  }
 };
 
 console.log("");
 run(`git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml cli/Cargo.toml`);
-run(`git commit -m "chore: bump version to ${version}"`);
+// Commit may fail if version files weren't actually changed (e.g. re-running
+// bump with the same version). That's OK — we still proceed to tag + push.
+run(`git commit -m "chore: bump version to ${version}"`, { allowFail: true });
+// Tag may fail if it already exists locally. We delete + re-create to ensure
+// it points at the current HEAD.
+run(`git tag -d v${version}`, { allowFail: true });
 run(`git tag v${version}`);
+// Delete the remote tag (if it exists) before re-pushing, so workflow
+// re-triggers on the current HEAD instead of being a no-op.
+run(`git push origin :refs/tags/v${version}`, { allowFail: true });
 run(`git push origin main`);
 run(`git push origin v${version}`);
 
