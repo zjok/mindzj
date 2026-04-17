@@ -82,8 +82,10 @@ enum NoteAction {
     Create {
         /// Note name (without .md extension)
         name: String,
-        /// Initial content (optional)
-        #[arg(short, long)]
+        /// Initial content (optional). `allow_hyphen_values` so markdown
+        /// bullets like `--content "- foo"` are treated as a value, not
+        /// a short option.
+        #[arg(short, long, allow_hyphen_values = true)]
         content: Option<String>,
         /// Read note content from stdin
         #[arg(long)]
@@ -97,8 +99,8 @@ enum NoteAction {
     Write {
         /// Note name or path
         name: String,
-        /// New content
-        #[arg(short, long)]
+        /// New content. Accepts markdown that starts with `-` / `--`.
+        #[arg(short, long, allow_hyphen_values = true)]
         content: Option<String>,
         /// Read note content from stdin
         #[arg(long)]
@@ -112,8 +114,8 @@ enum NoteAction {
     Append {
         /// Note name or path
         name: String,
-        /// Content to append
-        #[arg(short, long)]
+        /// Content to append. Accepts markdown that starts with `-` / `--`.
+        #[arg(short, long, allow_hyphen_values = true)]
         content: Option<String>,
         /// Read appended content from stdin
         #[arg(long)]
