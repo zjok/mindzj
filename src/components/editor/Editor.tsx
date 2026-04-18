@@ -1160,14 +1160,28 @@ export const Editor: Component<EditorProps> = (props) => {
         // Rehydrate the undo/redo history saved by the previous view
         // instance (if any) for this file path. `persistCurrentHistory`
         // stashes a JSON snapshot before every destroy/unmount and
-        // before every `currentFilePath` change. We consume the entry
-        // on successful restore so a later unrelated rebuild doesn't
-        // replay an outdated snapshot on top of current history.
+        // before every `currentFilePath` change.
+        //
+        // Restoration is gated on `historyJson.doc === content`: the
+        // history's change objects encode offsets into the exact
+        // document they were recorded against. When the snapshot's
+        // doc and the incoming content diverge (file reloaded from
+        // disk by the watcher, split pane showing another revision,
+        // programmatic setValue from a plugin, etc.) we drop the
+        // stale entry and take the byte-identical pre-history-
+        // persistence path — plain `EditorState.create` — so auto-
+        // save and every other extension behave exactly as they did
+        // before the history-preservation feature landed.
         const historyJson = currentFilePath
             ? editorStore.getFileHistoryState(currentFilePath)
             : null;
+        const canRestoreHistory =
+            historyJson != null &&
+            typeof historyJson.doc === "string" &&
+            historyJson.doc === content &&
+            historyJson.history != null;
         let state: EditorState;
-        if (historyJson) {
+        if (canRestoreHistory) {
             try {
                 state = EditorState.fromJSON(
                     historyJson,
@@ -1180,9 +1194,13 @@ export const Editor: Component<EditorProps> = (props) => {
                     "[Editor] Failed to restore history state; starting fresh.",
                     err,
                 );
+                editorStore.clearFileHistoryState(currentFilePath!);
                 state = EditorState.create({ doc: content, extensions });
             }
         } else {
+            if (historyJson && currentFilePath) {
+                editorStore.clearFileHistoryState(currentFilePath);
+            }
             state = EditorState.create({ doc: content, extensions });
         }
 
