@@ -798,6 +798,42 @@ function clearReadingFlash(): void {
     }
 }
 
+// Outline-click flash: tracks the heading element (if any) that
+// currently has the `.mz-search-flash` class applied by an outline
+// jump. Kept at module scope for the same reasons as
+// `_readingFlashMark` — re-clicks on a different outline entry should
+// clear the old flash before starting a new one.
+let _outlineFlashEl: HTMLElement | null = null;
+let _outlineFlashTimer: number | null = null;
+
+/**
+ * Apply the outline-flash class to a heading element for ~1 second,
+ * producing a full-row background block in reading mode that mirrors
+ * the CM6 line flash used in source / live-preview. Background is
+ * `--mz-accent` at 20% opacity (see `.mz-outline-flash` in editor.css).
+ *
+ * The class is toggled in-place (no DOM restructuring), so reading
+ * scroll offsets and nested element state stay stable.
+ */
+function flashReadingOutlineHeading(el: HTMLElement): void {
+    if (_outlineFlashTimer != null) {
+        clearTimeout(_outlineFlashTimer);
+        _outlineFlashTimer = null;
+    }
+    if (_outlineFlashEl && _outlineFlashEl !== el) {
+        _outlineFlashEl.classList.remove("mz-outline-flash");
+    }
+    el.classList.add("mz-outline-flash");
+    _outlineFlashEl = el;
+    _outlineFlashTimer = window.setTimeout(() => {
+        _outlineFlashTimer = null;
+        if (_outlineFlashEl) {
+            _outlineFlashEl.classList.remove("mz-outline-flash");
+            _outlineFlashEl = null;
+        }
+    }, 1000);
+}
+
 /**
  * Scroll an element into the middle of a scroll container without
  * using `scrollIntoView({ block: "center" })`, which produces a
@@ -1153,6 +1189,13 @@ export const ReadingView: Component<ReadingViewProps> = (props) => {
                     const targetTop = target.getBoundingClientRect().top;
                     const offset = targetTop - containerTop + scrollContainerRef.scrollTop;
                     scrollContainerRef.scrollTop = offset;
+
+                    // Paint the same search-reveal flash on the heading
+                    // element for ~1s so the user's eye can latch onto
+                    // where the outline click landed. Reuses the
+                    // `.mz-search-flash` class so the colour matches
+                    // the search-selection flash in CM6 modes.
+                    flashReadingOutlineHeading(target);
                 }
             } else if (detail?.command === "search-reveal") {
                 // The search-reveal command may arrive BEFORE the

@@ -563,6 +563,23 @@ html[data-theme="light"] .cm-editor .cm-panel.mz-search-panel {
   }
 }
 
+/* Outline-click heading flash. Painted for ~1s (timer managed in
+   Editor.tsx / ReadingView.tsx) after the user clicks a heading in
+   the outline panel. Uses the theme accent colour at 20% opacity —
+   `color-mix()` derives it at CSS-resolve time so custom accents set
+   via `document.documentElement.style.setProperty('--mz-accent', …)`
+   flow through automatically.
+
+   `!important` on the background is required because the editor
+   theme's `.cm-activeLine` rule (injected by CM6 at runtime) also
+   paints the line background, and the outline click always lands
+   on the active line. Without !important the accent flash would be
+   hidden behind the active-line hover background. */
+.cm-editor .mz-outline-flash,
+.mz-reading-view .mz-outline-flash {
+  background: color-mix(in srgb, var(--mz-accent) 20%, transparent) !important;
+}
+
 .cm-editor .mz-lp-inline-code {
   font-family: var(--mz-font-mono);
   font-size: 0.9em;

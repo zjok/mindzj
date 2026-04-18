@@ -18,6 +18,7 @@ import {
 import {
     defaultKeymap,
     history,
+    historyField,
     historyKeymap,
     undo,
     redo,
@@ -58,6 +59,7 @@ import {
 import { linkHandlerExtension } from "./extensions/linkHandler";
 import { sourceHeadingLineExtension } from "./extensions/sourceHeadingLine";
 import {
+    addLineFlash,
     addSearchFlash,
     clearSearchFlash,
     searchFlashField,
@@ -246,6 +248,23 @@ export const Editor: Component<EditorProps> = (props) => {
             anchor: selection.anchor,
             head: selection.head,
         });
+    }
+
+    // Snapshot the current editor's undo/redo history to the store under
+    // `currentFilePath`. MUST be called before we either destroy the view
+    // (mode switch, line-numbers toggle, component unmount) OR update
+    // `currentFilePath` (file switch). The restore happens inside
+    // `createEditorView` via `editorStore.getFileHistoryState`.
+    function persistCurrentHistory() {
+        if (!editorView || !currentFilePath) return;
+        try {
+            const json = editorView.state.toJSON({ history: historyField });
+            editorStore.setFileHistoryState(currentFilePath, json);
+        } catch {
+            // Serialization failures are non-fatal — the worst case is
+            // that undo history for this rebuild is lost (i.e. the
+            // pre-fix behavior). Never throw and break the rebuild.
+        }
     }
 
     function restoreEditorSelection(view: EditorView, path: string) {
@@ -529,6 +548,10 @@ export const Editor: Component<EditorProps> = (props) => {
                     }
 
                     rememberEditorViewport();
+                    // Persist under the OLD `currentFilePath` before we
+                    // reassign it — otherwise the history for the tab we
+                    // just left would get keyed under the incoming tab.
+                    persistCurrentHistory();
                     currentFilePath = activeFile.path;
                     currentViewMode = getActiveViewMode();
                     createEditorView(activeFile.content);
@@ -553,6 +576,11 @@ export const Editor: Component<EditorProps> = (props) => {
                 if (!containerRef || !currentFilePath) return;
                 if (mode !== currentViewMode) {
                     rememberEditorViewport();
+                    // Stash undo/redo history so the Ctrl+Z chain
+                    // survives the source ↔ live-preview rebuild that
+                    // follows. `createEditorView` consumes this on the
+                    // next tick.
+                    persistCurrentHistory();
                     currentViewMode = mode;
                     const activeFile = resolvedFile();
                     if (activeFile) {
@@ -659,6 +687,7 @@ export const Editor: Component<EditorProps> = (props) => {
                     ? editorView.state.doc.toString()
                     : activeFile.content;
                 rememberEditorViewport();
+                persistCurrentHistory();
                 createEditorView(currentContent);
                 if (editorView && currentFilePath) {
                     restoreEditorViewport(
@@ -1128,7 +1157,34 @@ export const Editor: Component<EditorProps> = (props) => {
             EditorView.lineWrapping,
         ];
 
-        const state = EditorState.create({ doc: content, extensions });
+        // Rehydrate the undo/redo history saved by the previous view
+        // instance (if any) for this file path. `persistCurrentHistory`
+        // stashes a JSON snapshot before every destroy/unmount and
+        // before every `currentFilePath` change. We consume the entry
+        // on successful restore so a later unrelated rebuild doesn't
+        // replay an outdated snapshot on top of current history.
+        const historyJson = currentFilePath
+            ? editorStore.getFileHistoryState(currentFilePath)
+            : null;
+        let state: EditorState;
+        if (historyJson) {
+            try {
+                state = EditorState.fromJSON(
+                    historyJson,
+                    { extensions },
+                    { history: historyField },
+                );
+                editorStore.clearFileHistoryState(currentFilePath!);
+            } catch (err) {
+                console.warn(
+                    "[Editor] Failed to restore history state; starting fresh.",
+                    err,
+                );
+                state = EditorState.create({ doc: content, extensions });
+            }
+        } else {
+            state = EditorState.create({ doc: content, extensions });
+        }
 
         editorView = new EditorView({ state, parent: containerRef });
         syncPluginEditorBindings(editorView);
@@ -1576,6 +1632,13 @@ export const Editor: Component<EditorProps> = (props) => {
                 handleEditorCommand,
             );
             document.removeEventListener("mindzj:insert-text", handleInsertText);
+            // Persist undo/redo history BEFORE destroying the view so
+            // the next Editor remount (e.g. after exiting reading mode)
+            // can restore the chain. This is the Ctrl+E toggle path —
+            // SolidJS unmounts the whole component when switching to
+            // reading mode, so the createEffect-based persist sites
+            // above don't cover it.
+            persistCurrentHistory();
             if (editorView) {
                 editorView.destroy();
                 editorView = null;
@@ -1763,12 +1826,41 @@ export const Editor: Component<EditorProps> = (props) => {
             case "goto-line": {
                 // Scroll to a specific line number (0-based from Outline)
                 // Position the heading at the TOP of the viewport (not center)
+                // and paint a full-line flash on the heading row for
+                // ~1s using the same colour as the search-reveal flash.
+                // Flash is line-level (not mark-level) so the whole row
+                // highlights, matching the "heading row background
+                // block" UX requested by the user.
                 const lineNum = Math.min(detail.line + 1, view.state.doc.lines);
                 const lineInfo = view.state.doc.line(lineNum);
                 view.dispatch({
                     selection: { anchor: lineInfo.from },
-                    effects: EditorView.scrollIntoView(lineInfo.from, { y: "start", yMargin: 0 }),
+                    effects: [
+                        EditorView.scrollIntoView(lineInfo.from, { y: "start", yMargin: 0 }),
+                        addLineFlash.of(lineInfo.from),
+                    ],
                 });
+
+                // Reuse the same flash timer that search-reveal uses —
+                // re-clicks on the Outline while a flash is still
+                // fading cancel the previous timer so the new one
+                // survives its full lifetime.
+                if (searchFlashTimer) {
+                    clearTimeout(searchFlashTimer);
+                    searchFlashTimer = null;
+                }
+                const targetView = view;
+                searchFlashTimer = setTimeout(() => {
+                    searchFlashTimer = null;
+                    try {
+                        targetView.dispatch({
+                            effects: clearSearchFlash.of(null),
+                        });
+                    } catch {
+                        // View destroyed between dispatch and timeout —
+                        // safe to ignore, the StateField is gone too.
+                    }
+                }, 1000);
                 break;
             }
             case "search-reveal": {

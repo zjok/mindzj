@@ -127,6 +127,33 @@ function createEditorStore() {
   const _fileContent   = new Map<string, string>();       // raw content at last snapshot
   const _fileAnchors   = new Map<string, string[]>();     // anchors referenced by other files
 
+  // ── Undo/redo history persistence across editor rebuilds ──
+  // CodeMirror's history lives in its EditorState. Rebuilding the
+  // EditorView (view-mode switch, line-numbers toggle, reading-mode
+  // toggle that unmounts Editor entirely) wipes that state, so
+  // Ctrl+Z stops working. We snapshot the serialized history before
+  // every rebuild/unmount and restore it on the next creation —
+  // keyed by file path so split panes / tab switches keep their own
+  // histories. Entries are consumed (cleared) on successful restore
+  // to prevent stale snapshots from being re-applied to a state that
+  // already owns the current history.
+  const _fileHistoryStates = new Map<string, any>();
+
+  function setFileHistoryState(path: string, state: any): void {
+    if (!path || state == null) return;
+    _fileHistoryStates.set(path, state);
+  }
+
+  function getFileHistoryState(path: string | null | undefined): any | null {
+    if (!path) return null;
+    return _fileHistoryStates.get(path) ?? null;
+  }
+
+  function clearFileHistoryState(path: string | null | undefined): void {
+    if (!path) return;
+    _fileHistoryStates.delete(path);
+  }
+
   /** Snapshot headings + content of a file (call when opening a view). */
   function storeHeadings(path: string, content: string) {
     _fileHeadings.set(path, extractHeadings(content));
@@ -423,6 +450,7 @@ function createEditorStore() {
     setLastScrollLine(null);
     setFallbackViewMode("live-preview");
     setFallbackLastNonReadingViewMode("live-preview");
+    _fileHistoryStates.clear();
   }
 
   function renameFileState(oldPath: string, newPath: string) {
@@ -470,6 +498,10 @@ function createEditorStore() {
       next.add(newPath);
       return next;
     });
+    if (_fileHistoryStates.has(oldPath)) {
+      _fileHistoryStates.set(newPath, _fileHistoryStates.get(oldPath));
+      _fileHistoryStates.delete(oldPath);
+    }
   }
 
   function removeFileState(path: string, recursive = false) {
@@ -508,6 +540,9 @@ function createEditorStore() {
       }
       return changed ? next : prev;
     });
+    for (const key of Array.from(_fileHistoryStates.keys())) {
+      if (matches(key)) _fileHistoryStates.delete(key);
+    }
   }
 
   // Zoom editor text (Ctrl + mousewheel).
@@ -563,6 +598,9 @@ function createEditorStore() {
     getFileTopLine,
     setFileCursorSelection,
     getFileCursorSelection,
+    setFileHistoryState,
+    getFileHistoryState,
+    clearFileHistoryState,
     scheduleAutoSave,
     cancelAutoSave,
     storeHeadings,
