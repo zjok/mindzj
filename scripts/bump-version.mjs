@@ -12,6 +12,8 @@
  *      - src-tauri/tauri.conf.json
  *      - src-tauri/Cargo.toml
  *      - cli/Cargo.toml
+ *      - src/components/settings/SettingsModal.tsx (APP_VERSION constant
+ *        shown in Settings → About)
  *   2. Runs: git add → git commit → git tag v{version} → git push → git push --tags
  */
 
@@ -50,6 +52,15 @@ const files = [
     find: /^version\s*=\s*"[^"]+"/m,
     replace: `version = "${version}"`,
   },
+  {
+    // Version string rendered in Settings → About as
+    // `{t("common.version")} {APP_VERSION}`. Keep in lockstep with
+    // package.json / tauri.conf.json so every shipped build shows
+    // the tagged version, not a stale literal.
+    path: "src/components/settings/SettingsModal.tsx",
+    find: /const APP_VERSION\s*=\s*"[^"]+"/,
+    replace: `const APP_VERSION = "${version}"`,
+  },
 ];
 
 console.log(`\n  Bumping to ${version}${dry ? " (dry run)" : ""}\n`);
@@ -86,7 +97,7 @@ const run = (cmd, { allowFail = false } = {}) => {
 };
 
 console.log("");
-run(`git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml cli/Cargo.toml`);
+run(`git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml cli/Cargo.toml src/components/settings/SettingsModal.tsx`);
 // Commit may fail if version files weren't actually changed (e.g. re-running
 // bump with the same version). That's OK — we still proceed to tag + push.
 run(`git commit -m "chore: bump version to ${version}"`, { allowFail: true });
