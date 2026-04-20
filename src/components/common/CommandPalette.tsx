@@ -19,13 +19,26 @@ import { t } from "../../i18n";
 interface PaletteItem {
   id: string;
   label: string;
-  category: "file" | "command";
+  category: "file" | "command" | "create";
   description?: string;
   action: () => void | Promise<void>;
 }
 
+/**
+ * Two palette modes:
+ *   - "commands": show built-in + plugin commands only. Bound to
+ *     Ctrl+P. Placeholder reads "Select a command…".
+ *   - "files":    show notes + a "Create new note" action when the
+ *     query doesn't match an existing file. Bound to Ctrl+O.
+ *     Placeholder reads "Find or create a note…".
+ * The split mirrors Obsidian's Ctrl+P (command palette) and
+ * Ctrl+O (quick switcher / find-or-create).
+ */
+export type CommandPaletteMode = "commands" | "files";
+
 interface CommandPaletteProps {
   onClose: () => void;
+  mode?: CommandPaletteMode;
 }
 
 function flattenEntries(
@@ -56,6 +69,7 @@ function flattenEntries(
 }
 
 export const CommandPalette: Component<CommandPaletteProps> = (props) => {
+  const mode = (): CommandPaletteMode => props.mode ?? "commands";
   const [query, setQuery] = createSignal("");
   const [selectedIndex, setSelectedIndex] = createSignal(0);
   let inputRef: HTMLInputElement | undefined;
@@ -116,27 +130,62 @@ export const CommandPalette: Component<CommandPaletteProps> = (props) => {
     })),
   ]);
 
-  const filteredItems = createMemo(() => {
-    const q = query().toLowerCase().trim();
-    const items = [...commands(), ...flattenEntries(vaultStore.fileTree())];
+  const filteredItems = createMemo<PaletteItem[]>(() => {
+    const rawQuery = query().trim();
+    const q = rawQuery.toLowerCase();
 
-    // Previously capped at 20 unconditionally. That made the arrow
-    // keys unable to reach item #21+ even though the scroll area
-    // could hold them, so I relaxed the cap: show the first 50 when
-    // there's no query (so the palette doesn't take seconds to
-    // render on vaults with thousands of files), and the first 200
-    // filtered matches when the user is typing — that's plenty of
-    // fuzzy-match results in practice.
-    if (!q) {
-      return items.slice(0, 50);
+    // Mode-based item pool. Commands mode shows only commands;
+    // files mode shows only files (plus a synthetic "Create" item
+    // when the query doesn't match an existing file name).
+    const currentMode = mode();
+    const base: PaletteItem[] =
+      currentMode === "commands"
+        ? commands()
+        : flattenEntries(vaultStore.fileTree());
+
+    const matched = !q
+      ? base.slice(0, 50)
+      : base
+          .filter((item) => {
+            const target = `${item.label} ${item.description || ""}`.toLowerCase();
+            return q.split("").every((char) => target.includes(char));
+          })
+          .slice(0, 200);
+
+    // In files mode: offer a "Create new note" action at the top
+    // whenever the user's typed query isn't already an exact
+    // filename match. This is the "or create" half of the
+    // Ctrl+O = "Find or create note" workflow.
+    if (currentMode === "files" && rawQuery.length > 0) {
+      const lowered = rawQuery.toLowerCase();
+      const exists = matched.some((item) => {
+        if (item.category !== "file") return false;
+        const candidate = item.label.toLowerCase();
+        return (
+          candidate === lowered ||
+          candidate === `${lowered}.md` ||
+          item.description?.toLowerCase() === lowered
+        );
+      });
+      if (!exists) {
+        const fileName = rawQuery.toLowerCase().endsWith(".md")
+          ? rawQuery
+          : `${rawQuery}.md`;
+        const createItem: PaletteItem = {
+          id: `create:${fileName}`,
+          label: t("commandPalette.createNote", { name: fileName }),
+          category: "create",
+          description: t("commandPalette.createNoteDescription"),
+          action: async () => {
+            await vaultStore.createFile(fileName, "");
+            await vaultStore.openFile(fileName);
+          },
+        };
+        return [createItem, ...matched];
+      }
     }
 
-    return items
-      .filter((item) => {
-        const target = `${item.label} ${item.description || ""}`.toLowerCase();
-        return q.split("").every((char) => target.includes(char));
-      })
-      .slice(0, 200);
+    return matched;
   });
 
   const runSelected = async () => {
@@ -274,7 +323,11 @@ export const CommandPalette: Component<CommandPaletteProps> = (props) => {
           <input
             ref={inputRef}
             type="text"
-            placeholder={t("commandPalette.placeholder")}
+            placeholder={
+              mode() === "files"
+                ? t("commandPalette.filePlaceholder")
+                : t("commandPalette.commandPlaceholder")
+            }
             value={query()}
             onInput={(event) => {
               setQuery(event.currentTarget.value);
@@ -335,12 +388,18 @@ export const CommandPalette: Component<CommandPaletteProps> = (props) => {
                     "text-align": "center",
                     "flex-shrink": "0",
                     color:
-                      item.category === "file"
-                        ? "var(--mz-accent)"
-                        : "var(--mz-text-muted)",
+                      item.category === "create"
+                        ? "var(--mz-success)"
+                        : item.category === "file"
+                          ? "var(--mz-accent)"
+                          : "var(--mz-text-muted)",
                   }}
                 >
-                  {item.category === "file" ? "📄" : "⌘"}
+                  {item.category === "create"
+                    ? "+"
+                    : item.category === "file"
+                      ? "📄"
+                      : "⌘"}
                 </span>
 
                 <div style={{ flex: "1", "min-width": "0" }}>

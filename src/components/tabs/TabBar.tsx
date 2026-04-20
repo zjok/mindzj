@@ -122,6 +122,7 @@ interface TabBarProps {
   onReorder?: (fromIdx: number, toIdx: number) => void;
   onOpenSplit?: (path: string, direction: SplitDirection) => void;
   onSetViewMode?: (path: string, mode: ViewMode) => void;
+  onRevealInTree?: (path: string) => void;
 }
 
 interface ContextMenuItem {
@@ -151,7 +152,7 @@ export const TabBar: Component<TabBarProps> = (props) => {
     entries: ContextEntry[];
   } | null>(null);
   const [tooltip, setTooltip] = createSignal<{
-    label: string;
+    fullPath: string;
     x: number;
     y: number;
     placement: "top" | "bottom";
@@ -218,8 +219,8 @@ export const TabBar: Component<TabBarProps> = (props) => {
     const closeAll = () => {
       for (const openFile of [...props.files]) props.onClose(openFile.path);
     };
-    const copyPath = () => {
-      navigator.clipboard?.writeText(file.path).catch(() => {});
+    const revealInTree = () => {
+      props.onRevealInTree?.(file.path);
     };
     const showInFileManager = () => {
       void invoke("reveal_in_file_manager", {
@@ -241,7 +242,7 @@ export const TabBar: Component<TabBarProps> = (props) => {
     entries.push({ label: t("context.closeTabsToRight"), onClick: closeToRight });
     entries.push({ label: t("context.closeAllTabs"), onClick: closeAll, danger: true });
     entries.push({ separator: true });
-    entries.push({ label: t("context.copyPath"), onClick: copyPath });
+    entries.push({ label: t("context.revealInTree"), onClick: revealInTree });
     entries.push({ label: t("context.showInExplorer"), onClick: showInFileManager });
     if (props.onSetViewMode) {
       entries.push({ separator: true });
@@ -300,7 +301,7 @@ export const TabBar: Component<TabBarProps> = (props) => {
       const rect = element.getBoundingClientRect();
       const showBelow = rect.bottom + 44 <= window.innerHeight;
       setTooltip({
-        label: fileName(path),
+        fullPath: path,
         x: rect.left + rect.width / 2,
         y: showBelow ? rect.bottom + 8 : rect.top - 8,
         placement: showBelow ? "bottom" : "top",
@@ -723,7 +724,7 @@ export const TabBar: Component<TabBarProps> = (props) => {
                 "z-index": "2147483647",
               }}
             >
-              {tabTooltip().label}
+              {tabTooltip().fullPath}
             </div>
           )}
         </Show>

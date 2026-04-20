@@ -438,6 +438,13 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
                 onClear={() => set("highlight_color", null)}
               />
               <SettingColor
+                label={t("settings.boldColor")}
+                description={t("settings.boldColorDescription")}
+                value={s().bold_color || "#e06c75"}
+                onChange={(v) => set("bold_color", v)}
+                onClear={() => set("bold_color", null)}
+              />
+              <SettingColor
                 label={t("settings.selectionColor")}
                 description={t("settings.selectionColorDescription")}
                 value={s().selection_color || "#528bff"}

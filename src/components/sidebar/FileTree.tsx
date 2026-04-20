@@ -106,6 +106,88 @@ export function resetFolderVisibilityState() {
     folderStateLoaded = false;
 }
 
+/**
+ * Reveal a file in the tree: expand all ancestor folders, scroll the
+ * file node into view, and apply a short-lived highlight class so the
+ * eye can latch onto it. Used by the "Show in sidebar" tab action.
+ *
+ * Expansion uses `setFolderOpen` for each prefix path so the persisted
+ * folder-state respects the reveal. Scroll/highlight runs on the next
+ * animation frame to let Solid flush the folder-open updates first.
+ */
+export function revealFileInTree(path: string) {
+    if (!path) return;
+    const parts = path.split("/");
+    let currentPath = "";
+    for (let i = 0; i < parts.length - 1; i += 1) {
+        currentPath = currentPath ? `${currentPath}/${parts[i]}` : parts[i];
+        setFolderOpen(currentPath, i, true);
+    }
+
+    // Two rAFs: first lets Solid mount the newly-expanded folder
+    // children, second lets the browser lay them out so
+    // `scrollIntoView` measures the final node position.
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            const selector = `[data-entry-path="${(window.CSS?.escape ?? ((v: string) => v))(path)}"]`;
+            const target = document.querySelector(selector) as HTMLElement | null;
+            if (!target) return;
+
+            // Only scroll when the file row isn't already visible in
+            // its nearest scrollable ancestor. A small safety margin
+            // (8px on each side) keeps rows that are right against
+            // the top/bottom edge from being judged visible-but-
+            // clipped. If the row is fully visible we skip the scroll
+            // entirely so the user's current scroll position is
+            // preserved — only the highlight runs.
+            const scrollAncestor = findScrollableAncestor(target);
+            let needsScroll = true;
+            if (scrollAncestor) {
+                const ancestorRect = scrollAncestor.getBoundingClientRect();
+                const targetRect = target.getBoundingClientRect();
+                const margin = 8;
+                const fullyVisible =
+                    targetRect.top >= ancestorRect.top + margin &&
+                    targetRect.bottom <= ancestorRect.bottom - margin;
+                if (fullyVisible) needsScroll = false;
+            }
+
+            if (needsScroll) {
+                try {
+                    target.scrollIntoView({ behavior: "smooth", block: "center" });
+                } catch {
+                    target.scrollIntoView();
+                }
+            }
+            target.classList.remove("mz-file-tree-reveal-highlight");
+            void target.offsetWidth;
+            target.classList.add("mz-file-tree-reveal-highlight");
+            window.setTimeout(() => {
+                target.classList.remove("mz-file-tree-reveal-highlight");
+            }, 1500);
+        });
+    });
+}
+
+/**
+ * Walk ancestors looking for the first element whose `overflow-y`
+ * allows scrolling and whose scrollHeight actually exceeds its
+ * clientHeight. Returns null if no such ancestor exists (e.g. the
+ * tree fits entirely in its container and no scrolling is needed).
+ */
+function findScrollableAncestor(el: HTMLElement): HTMLElement | null {
+    let current: HTMLElement | null = el.parentElement;
+    while (current) {
+        const overflowY = getComputedStyle(current).overflowY;
+        const scrollable = overflowY === "auto" || overflowY === "scroll" || overflowY === "overlay";
+        if (scrollable && current.scrollHeight > current.clientHeight) {
+            return current;
+        }
+        current = current.parentElement;
+    }
+    return null;
+}
+
 // ---------------------------------------------------------------------------
 // Inline rename state (module-level so FileItem / FolderItem can access it)
 // ---------------------------------------------------------------------------

@@ -30,6 +30,16 @@ import {
     onMount,
     Show,
 } from "solid-js";
+import {
+    findQuery,
+    setFindQuery,
+    findCaseSensitive,
+    setFindCaseSensitive,
+    findWholeWord,
+    setFindWholeWord,
+    findRegex,
+    setFindRegex,
+} from "../../stores/findState";
 
 interface Props {
     /**
@@ -164,10 +174,17 @@ function unwrapMatches(root: HTMLElement) {
 }
 
 export const ReadingFindPanel: Component<Props> = (props) => {
-    const [query, setQuery] = createSignal("");
-    const [caseSensitive, setCaseSensitive] = createSignal(false);
-    const [wholeWord, setWholeWord] = createSignal(false);
-    const [useRegex, setUseRegex] = createSignal(false);
+    // Query + option toggles live in the cross-mode shared store
+    // (findState.ts) so switching between Editor and ReadingView via
+    // Ctrl+E preserves the search. Re-aliased here for readability.
+    const query = findQuery;
+    const setQuery = setFindQuery;
+    const caseSensitive = findCaseSensitive;
+    const setCaseSensitive = setFindCaseSensitive;
+    const wholeWord = findWholeWord;
+    const setWholeWord = setFindWholeWord;
+    const useRegex = findRegex;
+    const setUseRegex = setFindRegex;
     const [matches, setMatches] = createSignal<MatchInfo[]>([]);
     const [currentIdx, setCurrentIdx] = createSignal(0);
     const [regexError, setRegexError] = createSignal<string | null>(null);
@@ -306,6 +323,51 @@ export const ReadingFindPanel: Component<Props> = (props) => {
         queueMicrotask(() => {
             inputRef?.focus();
             inputRef?.select();
+        });
+
+        // External set-query event: fired by App.tsx's Ctrl+F handler
+        // when the panel is already open and the user has selected
+        // text in the reading view. Replaces the current query with
+        // the selection and refocuses so subsequent typing edits it.
+        // With no selection we only refocus — blanking the existing
+        // query just because the user pressed Ctrl+F would be an
+        // unpleasant surprise.
+        const handleSetQuery = (event: Event) => {
+            const detail = (event as CustomEvent<{ query?: string }>).detail;
+            const next = detail?.query;
+            if (typeof next === "string" && next.length > 0) {
+                setQuery(next);
+            }
+            queueMicrotask(() => {
+                if (inputRef) {
+                    inputRef.focus();
+                    inputRef.select();
+                }
+            });
+        };
+        document.addEventListener("mindzj:reading-find-set-query", handleSetQuery);
+
+        // Content-refresh event: fired by ReadingView after it swaps
+        // the rendered markdown (file open, mode switch, tab switch).
+        // The old mark spans are gone with the innerHTML replace, so
+        // rewrap matches from scratch against the new DOM.
+        const handleContentRefresh = () => {
+            refreshMatches();
+        };
+        document.addEventListener(
+            "mindzj:reading-find-refresh",
+            handleContentRefresh,
+        );
+
+        onCleanup(() => {
+            document.removeEventListener(
+                "mindzj:reading-find-set-query",
+                handleSetQuery,
+            );
+            document.removeEventListener(
+                "mindzj:reading-find-refresh",
+                handleContentRefresh,
+            );
         });
     });
 

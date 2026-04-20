@@ -72,6 +72,11 @@ export interface AppSettings {
   heading_color: string | null;
   link_color: string | null;
   highlight_color: string | null;
+  /** Bold (**text**) text color. Feeds `--mz-syntax-bold` which
+   *  source, live-preview, and reading mode all consume for their
+   *  bold styling rules. `null` = theme default (red in dark,
+   *  darker red in light). */
+  bold_color: string | null;
   /** Text selection background color. Applied to both CM6
    *  `.cm-selectionBackground` and the generic `::selection`
    *  pseudo-element via the `--mz-bg-selection` CSS variable.
@@ -138,6 +143,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   heading_color: null,
   link_color: null,
   highlight_color: null,
+  bold_color: null,
   selection_color: null,
   drag_indicator_color: null,
   css_snippet: null,
@@ -277,6 +283,18 @@ function createSettingsStore() {
       document.documentElement.style.setProperty("--mz-syntax-highlight-bg", color);
     } else {
       document.documentElement.style.removeProperty("--mz-syntax-highlight-bg");
+    }
+  });
+  createEffect(() => {
+    // Bold color override. Source (`.cm-strong`), live-preview
+    // (`.mz-lp-bold`), and reading (`.mz-reading-view strong`) all
+    // read from `--mz-syntax-bold`, so setting it once here paints
+    // every mode consistently.
+    const color = settings().bold_color;
+    if (color) {
+      document.documentElement.style.setProperty("--mz-syntax-bold", color);
+    } else {
+      document.documentElement.style.removeProperty("--mz-syntax-bold");
     }
   });
   createEffect(() => {

@@ -32,6 +32,7 @@ import { editorStore } from "../../stores/editor";
 import { settingsStore } from "../../stores/settings";
 import { ContextMenu, type MenuItem } from "../common/ContextMenu";
 import { ReadingFindPanel } from "./ReadingFindPanel";
+import { findPanelOpen, setFindPanelOpen } from "../../stores/findState";
 import katex from "katex";
 import { resolveImageAssetUrl } from "../../utils/vaultPaths";
 import { openFileRouted } from "../../utils/openFileRouted";
@@ -992,7 +993,9 @@ export const ReadingView: Component<ReadingViewProps> = (props) => {
         y: number;
         items: MenuItem[];
     } | null>(null);
-    const [findPanelOpen, setFindPanelOpen] = createSignal(false);
+    // Find panel open-state is read from the shared cross-mode
+    // signal in findState.ts so Ctrl+F survives Editor ↔ ReadingView
+    // transitions. Imported at the top of the file.
     const resolvedFile = createMemo(() => props.file ?? vaultStore.activeFile());
     const isPaneActive = () => props.isActive ?? true;
 
@@ -1172,27 +1175,41 @@ export const ReadingView: Component<ReadingViewProps> = (props) => {
             const detail = (e as CustomEvent).detail;
             if (detail?.command === "goto-line" && containerRef && scrollContainerRef) {
                 const targetLine = detail.line;
-                // Find the heading element matching the target line number
-                const headings = containerRef.querySelectorAll<HTMLElement>("[data-line]");
+                // Find an anchor element matching the target source
+                // line. Exact match first; if none, fall back to the
+                // largest `data-line` ≤ targetLine so Ctrl+G landing
+                // on a blank / list-item line still produces a
+                // useful scroll instead of silently doing nothing.
+                const anchors = containerRef.querySelectorAll<HTMLElement>("[data-line]");
                 let target: HTMLElement | null = null;
-                for (const h of headings) {
+                let bestLine = -1;
+                for (const h of anchors) {
                     const hLine = parseInt(h.getAttribute("data-line") || "-1");
                     if (hLine === targetLine) {
                         target = h;
+                        bestLine = hLine;
                         break;
                     }
+                    if (hLine >= 0 && hLine <= targetLine && hLine > bestLine) {
+                        target = h;
+                        bestLine = hLine;
+                    }
+                }
+                if (!target && anchors.length > 0) {
+                    target = anchors[0];
                 }
                 if (target) {
                     // Instant scroll (no smooth animation) — user wants
-                    // outline clicks to jump straight to the target.
+                    // outline / Ctrl+G clicks to jump straight to the
+                    // target.
                     const containerTop = scrollContainerRef.getBoundingClientRect().top;
                     const targetTop = target.getBoundingClientRect().top;
                     const offset = targetTop - containerTop + scrollContainerRef.scrollTop;
                     scrollContainerRef.scrollTop = offset;
 
-                    // Paint the same search-reveal flash on the heading
-                    // element for ~1s so the user's eye can latch onto
-                    // where the outline click landed. Reuses the
+                    // Paint the same search-reveal flash on the target
+                    // for ~1s so the user's eye can latch onto where
+                    // the goto-line landed. Reuses the
                     // `.mz-search-flash` class so the colour matches
                     // the search-selection flash in CM6 modes.
                     flashReadingOutlineHeading(target);
@@ -1338,6 +1355,16 @@ export const ReadingView: Component<ReadingViewProps> = (props) => {
                     highlightCodeBlocks(containerRef),
                     renderMermaidBlocks(containerRef),
                 ]);
+
+                // Notify the reading-mode find panel that the DOM has
+                // been replaced so it can re-wrap match spans against
+                // the new content. Without this, the panel survives a
+                // mode-switch / tab-switch but its match overlay is
+                // still attached to the previous document, leaving
+                // highlight marks stranded or absent.
+                document.dispatchEvent(
+                    new CustomEvent("mindzj:reading-find-refresh"),
+                );
 
                 // If the user is switching into Reading mode from an editing
                 // mode we have a stashed anchor line — scroll to the element

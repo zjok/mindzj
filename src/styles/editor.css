@@ -192,33 +192,54 @@
    no padding/margin — so the highlight wraps exactly the matched
    characters and never influences text layout. Same visual
    language as reading mode's `.mz-reading-find-match[-current]` so
-   Ctrl+F feels identical across source / live-preview / reading. */
-.cm-editor .cm-searchMatch {
-  background: var(--mz-syntax-highlight-bg);
-  color: inherit;
-  border-radius: 2px;
-  /* CM6 can materialize overlap between search matches and our
-     list-content decoration as a single span carrying BOTH classes.
-     Force search highlights back to plain inline flow so they never
-     inherit the list-content inline-block width box and push trailing
-     text onto the next visual line. */
+   Ctrl+F feels identical across source / live-preview / reading.
+
+   The selector list covers three overlap shapes that CM6 can emit
+   when our own list-content decoration spans the same characters
+   as a match:
+     - a plain  `<span class="cm-searchMatch">`
+     - a span nested inside `.mz-lp-list-content`
+     - a single span carrying BOTH classes (CM6's merge path)
+   All three need the same reset, so we enumerate them explicitly
+   instead of relying on ambient cascade to pick the right rule. */
+.cm-editor .cm-searchMatch,
+.cm-editor .cm-searchMatch.mz-lp-list-content,
+.cm-editor .mz-lp-list-content .cm-searchMatch,
+.cm-editor .cm-line .cm-searchMatch {
+  background: var(--mz-syntax-highlight-bg) !important;
+  color: inherit !important;
+  border-radius: 2px !important;
+  /* Force search highlights back to plain inline flow so they never
+     inherit the list-content inline-block width box (which would
+     otherwise push trailing text onto the next visual line — the
+     `search b in abcabcabc wraps the c` bug). */
   display: inline !important;
   width: auto !important;
   min-width: 0 !important;
   max-width: none !important;
+  height: auto !important;
   margin: 0 !important;
   padding: 0 !important;
+  border: 0 !important;
+  outline: none !important;
   vertical-align: baseline !important;
   white-space: inherit !important;
+  float: none !important;
+  position: static !important;
 }
 
-.cm-editor .cm-searchMatch-selected {
-  /* background: rgba(255, 170, 0, 0.55);
-  color: inherit;
-  border-radius: 2px; */
-
-  background: rgba(255, 170, 0, 0.55);
-  outline: 1.5px solid rgba(255, 140, 0, 0.95);
+.cm-editor .cm-searchMatch-selected,
+.cm-editor .cm-searchMatch.cm-searchMatch-selected,
+.cm-editor .mz-lp-list-content .cm-searchMatch-selected {
+  background: rgba(255, 170, 0, 0.55) !important;
+  /* Use `box-shadow` for the ring instead of `outline`: outline sits
+     OUTSIDE the element's box and doesn't count toward layout, but
+     some browsers still allocate paint room for it that, combined
+     with line-breaking of inline elements across visual rows, can
+     look like the match is pushing neighbouring glyphs. box-shadow
+     is purely a paint effect and is layout-neutral. */
+  box-shadow: 0 0 0 1.5px rgba(255, 140, 0, 0.95) !important;
+  outline: none !important;
 }
 
 /* Tooltip styling */
@@ -578,6 +599,231 @@ html[data-theme="light"] .cm-editor .cm-panel.mz-search-panel {
 .cm-editor .mz-outline-flash,
 .mz-reading-view .mz-outline-flash {
   background: color-mix(in srgb, var(--mz-accent) 20%, transparent) !important;
+}
+
+/* Global-search sidebar panel layout. Mirrors the in-editor
+   Ctrl+F widget (.mz-search-panel) in feel: a compact chevron that
+   toggles a second "Replace" row, line-aligned inputs, and a small
+   action icon button on the replace row for Replace-All. The two
+   widgets deliberately share visual language so users coming from
+   Ctrl+F recognise the global panel immediately. */
+.mz-global-search-row {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 3px;
+  min-height: 26px;
+}
+
+/* Sidebar text input shared by search + replace. The original
+   SearchPanel rendered the search input with inline styles; lifting
+   those into a class lets the replace input inherit the exact same
+   look without duplicating the declarations in TSX. */
+.mz-sidebar-search-input {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--mz-border);
+  background: var(--mz-bg-primary);
+  color: var(--mz-text-primary);
+  font-size: var(--mz-font-size-sm);
+  border-radius: var(--mz-radius-md);
+  outline: none;
+  font-family: var(--mz-font-sans);
+}
+
+.mz-sidebar-search-input:focus {
+  border-color: var(--mz-accent);
+}
+
+.mz-global-search-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.mz-global-search-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  background: transparent;
+  color: var(--mz-text-secondary);
+  border: 1px solid transparent;
+  border-radius: var(--mz-radius-sm);
+  cursor: pointer;
+  flex-shrink: 0;
+  transform: rotate(-90deg);
+  transition: transform 120ms ease;
+}
+
+.mz-global-search-chevron:hover {
+  background: var(--mz-bg-hover);
+  color: var(--mz-text-primary);
+}
+
+.mz-global-search-chevron-expanded {
+  transform: rotate(0deg);
+}
+
+.mz-global-search-chevron-spacer {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.mz-global-search-iconbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  background: transparent;
+  color: var(--mz-text-secondary);
+  border: 1px solid transparent;
+  border-radius: var(--mz-radius-sm);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.mz-global-search-iconbtn:hover {
+  background: var(--mz-bg-hover);
+  color: var(--mz-text-primary);
+}
+
+.mz-global-search-iconbtn:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.mz-global-search-iconbtn svg {
+  display: block;
+}
+
+/* Aa / ab / .* / AB toggle pills — shared by find and replace rows.
+   Styled to match the `.mz-search-toggle` pills inside the in-editor
+   Ctrl+F widget so the two search UIs feel like the same control
+   rendered at different scales. */
+.mz-global-search-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  color: var(--mz-text-secondary);
+  border: 1px solid transparent;
+  border-radius: var(--mz-radius-sm);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  user-select: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.mz-global-search-toggle:hover {
+  background: var(--mz-bg-hover);
+  color: var(--mz-text-primary);
+}
+
+.mz-global-search-toggle-active,
+.mz-global-search-toggle:has(input:checked) {
+  background: var(--mz-accent-subtle);
+  color: var(--mz-accent);
+  border-color: var(--mz-accent);
+}
+
+.mz-global-search-toggle input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  width: 0;
+  height: 0;
+}
+
+.mz-global-search-regex-error {
+  padding: 4px 8px;
+  font-size: var(--mz-font-size-xs);
+  color: var(--mz-error);
+  background: color-mix(in srgb, var(--mz-error) 10%, transparent);
+  border-radius: var(--mz-radius-sm);
+}
+
+/* Ctrl+G goto-line popup. The overlay is a transparent full-screen
+   layer so clicking anywhere OUTSIDE the panel dismisses it
+   (matches the Ctrl+F "click-off-to-close" affordance). The panel
+   itself docks at the top-center of the editor area, visually
+   aligned with where the CM6 find widget would appear. */
+.mz-goto-line-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483646;
+  background: transparent;
+  pointer-events: auto;
+}
+
+.mz-goto-line-panel {
+  position: absolute;
+  top: calc(var(--mz-tab-height, 36px) + 16px);
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 280px;
+  max-width: 420px;
+  padding: 8px;
+  background: var(--mz-bg-secondary);
+  border: 1px solid var(--mz-border);
+  border-radius: var(--mz-radius-md);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  font-family: var(--mz-font-sans);
+  font-size: var(--mz-font-size-sm);
+  color: var(--mz-text-primary);
+}
+
+html[data-theme="light"] .mz-goto-line-panel {
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+}
+
+.mz-goto-line-input {
+  width: 100%;
+  height: 26px;
+  padding: 2px 8px;
+  background: var(--mz-bg-primary);
+  color: var(--mz-text-primary);
+  border: 1px solid var(--mz-border);
+  border-radius: var(--mz-radius-sm);
+  font-family: var(--mz-font-sans);
+  font-size: var(--mz-font-size-sm);
+  outline: none;
+}
+
+.mz-goto-line-input:focus {
+  border-color: var(--mz-accent);
+  box-shadow: 0 0 0 1px var(--mz-accent);
+}
+
+/* Sidebar file-tree reveal flash. Fired when the user picks
+   "Show in sidebar" from a tab's context menu. Paints the row with
+   the accent tint for 1.5s so the eye can latch onto it, then fades
+   back. The class is added/removed by `revealFileInTree` in
+   FileTree.tsx; the CSS keeps the transition smooth. */
+.mz-file-tree-reveal-highlight {
+  background: color-mix(in srgb, var(--mz-accent) 30%, transparent) !important;
+  outline: 1px solid var(--mz-accent);
+  outline-offset: -1px;
+  border-radius: var(--mz-radius-sm);
+  animation: mz-file-tree-reveal-pulse 1.5s ease-out;
+}
+@keyframes mz-file-tree-reveal-pulse {
+  0% {
+    background: color-mix(in srgb, var(--mz-accent) 50%, transparent);
+  }
+  100% {
+    background: color-mix(in srgb, var(--mz-accent) 30%, transparent);
+  }
 }
 
 .cm-editor .mz-lp-inline-code {

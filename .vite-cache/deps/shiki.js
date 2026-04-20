@@ -31,7 +31,7 @@ var bundledLanguagesInfo = [
   {
     "id": "angular-ts",
     "name": "Angular TypeScript",
-    "import": () => import("./angular-ts-QJUMHBFD.js")
+    "import": () => import("./angular-ts-UGIFLM2U.js")
   },
   {
     "id": "apache",
@@ -46,7 +46,7 @@ var bundledLanguagesInfo = [
   {
     "id": "apl",
     "name": "APL",
-    "import": () => import("./apl-JQWPSCYL.js")
+    "import": () => import("./apl-V2AQT6KE.js")
   },
   {
     "id": "applescript",
@@ -74,7 +74,7 @@ var bundledLanguagesInfo = [
   {
     "id": "astro",
     "name": "Astro",
-    "import": () => import("./astro-YQGQSUYE.js")
+    "import": () => import("./astro-WWD65MUT.js")
   },
   {
     "id": "awk",
@@ -120,7 +120,7 @@ var bundledLanguagesInfo = [
   {
     "id": "blade",
     "name": "Blade",
-    "import": () => import("./blade-4RC54KNB.js")
+    "import": () => import("./blade-T4UPPETJ.js")
   },
   {
     "id": "bsl",
@@ -169,7 +169,7 @@ var bundledLanguagesInfo = [
   {
     "id": "cobol",
     "name": "COBOL",
-    "import": () => import("./cobol-R4JPTODZ.js")
+    "import": () => import("./cobol-3OGPHTDU.js")
   },
   {
     "id": "codeowners",
@@ -216,7 +216,7 @@ var bundledLanguagesInfo = [
   {
     "id": "crystal",
     "name": "Crystal",
-    "import": () => import("./crystal-S6SCEP4P.js")
+    "import": () => import("./crystal-NNIJWPAH.js")
   },
   {
     "id": "csharp",
@@ -319,7 +319,7 @@ var bundledLanguagesInfo = [
   {
     "id": "erb",
     "name": "ERB",
-    "import": () => import("./erb-4WQRMG5K.js")
+    "import": () => import("./erb-DSURV5HM.js")
   },
   {
     "id": "erlang",
@@ -381,7 +381,7 @@ var bundledLanguagesInfo = [
   {
     "id": "gdresource",
     "name": "GDResource",
-    "import": () => import("./gdresource-FJSUGNN2.js")
+    "import": () => import("./gdresource-PKJDDKBE.js")
   },
   {
     "id": "gdscript",
@@ -521,7 +521,7 @@ var bundledLanguagesInfo = [
   {
     "id": "http",
     "name": "HTTP",
-    "import": () => import("./http-RHTQUFDD.js")
+    "import": () => import("./http-TMJAJHYD.js")
   },
   {
     "id": "hxml",
@@ -613,7 +613,7 @@ var bundledLanguagesInfo = [
     "aliases": [
       "jl"
     ],
-    "import": () => import("./julia-HJOZ57HL.js")
+    "import": () => import("./julia-TZH5R5YN.js")
   },
   {
     "id": "kotlin",
@@ -694,7 +694,7 @@ var bundledLanguagesInfo = [
   {
     "id": "marko",
     "name": "Marko",
-    "import": () => import("./marko-2BOFRRO6.js")
+    "import": () => import("./marko-KJ6LAJBF.js")
   },
   {
     "id": "matlab",
@@ -761,7 +761,7 @@ var bundledLanguagesInfo = [
   {
     "id": "nim",
     "name": "Nim",
-    "import": () => import("./nim-4GEMOHHV.js")
+    "import": () => import("./nim-CHJHLDAW.js")
   },
   {
     "id": "nix",
@@ -802,12 +802,12 @@ var bundledLanguagesInfo = [
   {
     "id": "perl",
     "name": "Perl",
-    "import": () => import("./perl-2MQMA6XE.js")
+    "import": () => import("./perl-ZVGHKKM2.js")
   },
   {
     "id": "php",
     "name": "PHP",
-    "import": () => import("./php-SGQYKSJP.js")
+    "import": () => import("./php-5KCYLG2U.js")
   },
   {
     "id": "plsql",
@@ -955,7 +955,7 @@ var bundledLanguagesInfo = [
   {
     "id": "rst",
     "name": "reStructuredText",
-    "import": () => import("./rst-NXGKPKUH.js")
+    "import": () => import("./rst-GGQNNE3X.js")
   },
   {
     "id": "ruby",
@@ -963,7 +963,7 @@ var bundledLanguagesInfo = [
     "aliases": [
       "rb"
     ],
-    "import": () => import("./ruby-ENBUIOT7.js")
+    "import": () => import("./ruby-Y7RJDVRY.js")
   },
   {
     "id": "rust",
@@ -1155,7 +1155,7 @@ var bundledLanguagesInfo = [
     "aliases": [
       "lit"
     ],
-    "import": () => import("./ts-tags-YJK33ZG5.js")
+    "import": () => import("./ts-tags-A33ACHDX.js")
   },
   {
     "id": "tsv",
@@ -1175,7 +1175,7 @@ var bundledLanguagesInfo = [
   {
     "id": "twig",
     "name": "Twig",
-    "import": () => import("./twig-PTV7NJBT.js")
+    "import": () => import("./twig-H3UBLSNH.js")
   },
   {
     "id": "typescript",
@@ -1241,12 +1241,12 @@ var bundledLanguagesInfo = [
   {
     "id": "vue",
     "name": "Vue",
-    "import": () => import("./vue-RIZZT24R.js")
+    "import": () => import("./vue-PE5ZSZC6.js")
   },
   {
     "id": "vue-html",
     "name": "Vue HTML",
-    "import": () => import("./vue-html-2UVEMPFM.js")
+    "import": () => import("./vue-html-6ZPKDC6E.js")
   },
   {
     "id": "vyper",

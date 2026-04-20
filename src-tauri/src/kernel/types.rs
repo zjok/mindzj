@@ -213,6 +213,10 @@ pub struct AppSettings {
     pub link_color: Option<String>,
     #[serde(default)]
     pub highlight_color: Option<String>,
+    /// Bold (`**text**`) color. Feeds the `--mz-syntax-bold` CSS
+    /// variable that source, live-preview, and reading modes share.
+    #[serde(default)]
+    pub bold_color: Option<String>,
     #[serde(default)]
     pub css_snippet: Option<String>,
     /// Names of enabled CSS snippet files under `.mindzj/snippets/`.
@@ -281,6 +285,7 @@ impl Default for AppSettings {
             heading_color: None,
             link_color: None,
             highlight_color: None,
+            bold_color: None,
             css_snippet: None,
             enabled_css_snippets: Vec::new(),
             attachment_folder: ".mindzj/images".to_string(),

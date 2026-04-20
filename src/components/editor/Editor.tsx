@@ -34,8 +34,30 @@ import {
     indentUnit,
 } from "@codemirror/language";
 import { tags as t_ } from "@lezer/highlight";
-import { search, searchKeymap } from "@codemirror/search";
+import {
+    search,
+    searchKeymap,
+    searchPanelOpen,
+    getSearchQuery,
+    setSearchQuery,
+    openSearchPanel,
+    SearchQuery,
+} from "@codemirror/search";
 import { createVSCodeSearchPanel } from "./extensions/searchPanel";
+import {
+    findPanelOpen,
+    setFindPanelOpen,
+    findQuery,
+    setFindQuery,
+    findReplaceText,
+    setFindReplaceText,
+    findCaseSensitive,
+    setFindCaseSensitive,
+    findWholeWord,
+    setFindWholeWord,
+    findRegex,
+    setFindRegex,
+} from "../../stores/findState";
 import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
 import { invoke } from "@tauri-apps/api/core";
 import { vaultStore } from "../../stores/vault";
@@ -119,6 +141,14 @@ export const Editor: Component<EditorProps> = (props) => {
     let currentFilePath: string | null = null;
     let currentViewMode: ViewMode | null = null;
     let isProgrammaticUpdate = false;
+    // Guard that prevents our CM6 updateListener from echoing the
+    // same SearchQuery effect back into the shared-state signals we
+    // *just* dispatched. Without it, open-panel + setSearchQuery
+    // from restoreSharedFindState would fire the updateListener,
+    // which would re-write the identical values to the shared
+    // signals, which in a split-pane setup could cascade back to
+    // the OTHER pane's view — a loop in the worst case.
+    let isRestoringSearchState = false;
     // Active search-reveal flash timer. Stored at component scope
     // (not module scope) so each split-pane editor tracks its own
     // flash independently. Re-clicks on any search result cancel
@@ -712,6 +742,27 @@ export const Editor: Component<EditorProps> = (props) => {
         }
 
         if (editorView) {
+            // Snapshot the Ctrl+F panel state into shared signals
+            // before destroying the view. The shared signals persist
+            // across component unmounts, so switching tabs (rebuild
+            // within the same Editor instance) OR view modes (Editor
+            // → ReadingView) will find the query + toggles intact
+            // when the next panel opens.
+            try {
+                const wasOpen = searchPanelOpen(editorView.state);
+                const q = getSearchQuery(editorView.state);
+                if (q) {
+                    setFindPanelOpen(wasOpen);
+                    setFindQuery(q.search ?? "");
+                    setFindCaseSensitive(!!q.caseSensitive);
+                    setFindWholeWord(!!q.wholeWord);
+                    setFindRegex(!!q.regexp);
+                    setFindReplaceText(q.replace ?? "");
+                }
+            } catch {
+                // Non-fatal: if snapshot fails we just lose the
+                // query on this particular transition.
+            }
             editorView.destroy();
             editorView = null;
             syncPluginEditorBindings(null);
@@ -930,6 +981,41 @@ export const Editor: Component<EditorProps> = (props) => {
                         anchor: selection.anchor,
                         head: selection.head,
                     });
+                }
+
+                // Mirror the CM6 search state into the shared find
+                // signals so tab switches / mode switches pick up the
+                // latest query + open-state without depending on the
+                // onCleanup snapshot path. Gated on `isRestoringSearchState`
+                // so we don't echo the effects we just dispatched from
+                // restore back into the same signals. We only write
+                // when values actually differ from the signal — Solid's
+                // fine-grained reactivity already deduplicates equal
+                // values but the comparisons here keep the work off the
+                // hot path.
+                if (!isRestoringSearchState) {
+                    const nextOpen = searchPanelOpen(update.state);
+                    if (nextOpen !== findPanelOpen()) {
+                        setFindPanelOpen(nextOpen);
+                    }
+                    const q = getSearchQuery(update.state);
+                    if (q) {
+                        if ((q.search ?? "") !== findQuery()) {
+                            setFindQuery(q.search ?? "");
+                        }
+                        if ((q.replace ?? "") !== findReplaceText()) {
+                            setFindReplaceText(q.replace ?? "");
+                        }
+                        if (!!q.caseSensitive !== findCaseSensitive()) {
+                            setFindCaseSensitive(!!q.caseSensitive);
+                        }
+                        if (!!q.wholeWord !== findWholeWord()) {
+                            setFindWholeWord(!!q.wholeWord);
+                        }
+                        if (!!q.regexp !== findRegex()) {
+                            setFindRegex(!!q.regexp);
+                        }
+                    }
                 }
             }),
 
@@ -1209,6 +1295,52 @@ export const Editor: Component<EditorProps> = (props) => {
         if (isPaneActive()) {
             editorStore.updateStats(content);
             editorView.focus();
+        }
+
+        // Restore the Ctrl+F panel from shared find state. Runs for
+        // BOTH tab switches (within this Editor) and mode switches
+        // (component just mounted). The shared signals are the source
+        // of truth — CM6's own state was just rebuilt from scratch.
+        // Deferred to a microtask so the view has its initial
+        // viewport measured — `openSearchPanel` dispatches a
+        // transaction that otherwise races with CM6's internal
+        // startup dispatch and occasionally drops the panel mount.
+        const shouldRestoreOpen = findPanelOpen();
+        const restoreSearch = findQuery();
+        const restoreReplace = findReplaceText();
+        const restoreCase = findCaseSensitive();
+        const restoreWord = findWholeWord();
+        const restoreRegex = findRegex();
+        if (shouldRestoreOpen || restoreSearch || restoreReplace) {
+            queueMicrotask(() => {
+                const view = editorView;
+                if (!view) return;
+                try {
+                    isRestoringSearchState = true;
+                    if (restoreSearch || restoreReplace) {
+                        view.dispatch({
+                            effects: setSearchQuery.of(
+                                new SearchQuery({
+                                    search: restoreSearch,
+                                    caseSensitive: restoreCase,
+                                    wholeWord: restoreWord,
+                                    regexp: restoreRegex,
+                                    replace: restoreReplace,
+                                }),
+                            ),
+                        });
+                    }
+                    if (shouldRestoreOpen) {
+                        openSearchPanel(view);
+                    }
+                } catch (err) {
+                    console.warn("[Editor] restore search panel failed:", err);
+                } finally {
+                    queueMicrotask(() => {
+                        isRestoringSearchState = false;
+                    });
+                }
+            });
         }
 
         // Notify plugins that the editor/file changed so toolbars,

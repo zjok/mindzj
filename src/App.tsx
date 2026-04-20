@@ -15,11 +15,16 @@ import {
     loadFolderState,
     saveFolderState,
     setAllFoldersVisibility,
+    revealFileInTree,
     type SortMode,
     type SortOrder,
 } from "./components/sidebar/FileTree";
 import { Outline } from "./components/sidebar/Outline";
-import { SearchPanel } from "./components/sidebar/SearchPanel";
+import {
+    SearchPanel,
+    setQuery as setGlobalSearchQuery,
+    runSearchNow as runGlobalSearchNow,
+} from "./components/sidebar/SearchPanel";
 import { Calendar } from "./components/sidebar/Calendar";
 import { TabBar } from "./components/tabs/TabBar";
 import { Editor } from "./components/editor/Editor";
@@ -29,6 +34,7 @@ import { ConfirmDialog } from "./components/common/ConfirmDialog";
 import { StatusBar } from "./components/common/StatusBar";
 import { WelcomeScreen } from "./components/common/WelcomeScreen";
 import { CommandPalette } from "./components/common/CommandPalette";
+import { GotoLinePanel } from "./components/common/GotoLinePanel";
 import { SettingsModal } from "./components/settings/SettingsModal";
 import { WindowControls } from "./components/common/TitleBar";
 import { ImageViewer } from "./components/common/ImageViewer";
@@ -75,6 +81,18 @@ const App: Component = () => {
     }
 
     const [showCommandPalette, setShowCommandPalette] = createSignal(false);
+    // Ctrl+P opens the palette in "commands" mode (commands only);
+    // Ctrl+O opens it in "files" mode (notes + a synthetic "Create"
+    // entry when the query doesn't match an existing file). See the
+    // keydown branch for `command-palette` / `command-palette-alt`.
+    const [commandPaletteMode, setCommandPaletteMode] = createSignal<
+        "commands" | "files"
+    >("commands");
+    // Ctrl+G goto-line popup. A compact floating widget; on Enter it
+    // dispatches `mindzj:editor-command` with `goto-line`, which
+    // both Editor and ReadingView already handle (scroll + 1s line
+    // flash in the shared `.mz-search-flash` colour).
+    const [showGotoLine, setShowGotoLine] = createSignal(false);
     const [showSettings, setShowSettings] = createSignal(false);
     const [sidebarTab, setSidebarTab] = createSignal<SidebarTab>("files");
     const [sidebarCollapsed, setSidebarCollapsed] = createSignal(false);
@@ -1308,10 +1326,34 @@ const App: Component = () => {
                 ".mz-reading-find-panel",
             );
 
+            // Ctrl+F is no longer a toggle. If the panel is already
+            // open and the user has selected text, REFILL the query
+            // with that selection; otherwise just refocus the input.
+            // Closing is still handled by the × button and Escape.
+            const readingSelection = () => {
+                const sel = window.getSelection?.();
+                if (!sel || sel.rangeCount === 0) return "";
+                // Only accept a selection that lies inside the reading
+                // view — ignore selections in the sidebar or title bar,
+                // and in the find panel itself (otherwise the user's
+                // in-input selection would clobber its own query).
+                const node = sel.anchorNode;
+                if (!node) return "";
+                const el = node.nodeType === Node.ELEMENT_NODE
+                    ? (node as Element)
+                    : node.parentElement;
+                if (!el?.closest(".mz-reading-view")) return "";
+                if (el?.closest(".mz-reading-find-panel")) return "";
+                return sel.toString();
+            };
+
             if (activeMode === "reading") {
                 if (readingPanelOpen) {
+                    const selection = readingSelection();
                     document.dispatchEvent(
-                        new CustomEvent("mindzj:close-reading-find"),
+                        new CustomEvent("mindzj:reading-find-set-query", {
+                            detail: { query: selection },
+                        }),
                     );
                 } else {
                     document.dispatchEvent(
@@ -1329,8 +1371,37 @@ const App: Component = () => {
             if (cmView) {
                 try {
                     if (searchPanelOpen(cmView.state)) {
-                        closeSearchPanel(cmView);
-                        cmView.focus();
+                        // Panel already open: if the editor has a
+                        // non-empty selection, push it into the find
+                        // input and re-run the search. With no
+                        // selection, just refocus the input so the
+                        // next keystroke edits the existing query.
+                        const selectionRange = cmView.state.selection.main;
+                        const selectionText = selectionRange.empty
+                            ? ""
+                            : cmView.state.sliceDoc(
+                                selectionRange.from,
+                                selectionRange.to,
+                            );
+                        const input =
+                            cmView.dom.querySelector<HTMLInputElement>(
+                                ".mz-search-panel .mz-search-input",
+                            );
+                        if (selectionText && input) {
+                            input.value = selectionText;
+                            // Trigger the panel's own `commit()` so
+                            // the CM6 search state picks up the new
+                            // query and the match counter refreshes.
+                            input.dispatchEvent(new Event("input", { bubbles: true }));
+                        }
+                        queueMicrotask(() => {
+                            if (input) {
+                                input.focus();
+                                input.select();
+                            } else {
+                                cmView.focus();
+                            }
+                        });
                     } else {
                         openSearchPanel(cmView);
                         // Give CM6 a tick to mount the panel DOM,
@@ -1532,17 +1603,51 @@ const App: Component = () => {
             return;
         }
 
+        // Ctrl+G → goto-line popup (VS Code parity). Works in all
+        // three view modes: source/live-preview dispatch into the
+        // CM6 `goto-line` editor command, reading mode into the
+        // ReadingView goto-line handler. Both already paint a ~1s
+        // line flash on landing.
         if (
-            matchesHotkey(e, getHotkey("command-palette", "Ctrl+P")) ||
-            // Ctrl+O is an alias — some users instinctively reach for
-            // "Ctrl+O" (the browser/OS "Open file…" shortcut) and we
-            // route that to the command palette's fuzzy file search
-            // since it does the same job better than a native dialog.
-            matchesHotkey(e, getHotkey("command-palette-alt", "Ctrl+O"))
+            isCtrlHeld(e) &&
+            !e.shiftKey &&
+            !e.altKey &&
+            (e.key === "g" || e.key === "G")
         ) {
             e.preventDefault();
             e.stopPropagation();
-            setShowCommandPalette(v => !v);
+            setShowGotoLine(v => !v);
+            return;
+        }
+        // Ctrl+P → commands-only palette ("Select a command…").
+        if (matchesHotkey(e, getHotkey("command-palette", "Ctrl+P"))) {
+            e.preventDefault();
+            e.stopPropagation();
+            // If the palette is already open in the other mode, flip
+            // the mode instead of toggling visibility — matches the
+            // VS Code behaviour where pressing the OTHER shortcut
+            // while the palette is open swaps context without a
+            // close/reopen blink.
+            if (showCommandPalette() && commandPaletteMode() !== "commands") {
+                setCommandPaletteMode("commands");
+            } else {
+                setCommandPaletteMode("commands");
+                setShowCommandPalette(v => !v);
+            }
+            return;
+        }
+        // Ctrl+O → "Find or create note" palette. Same widget, but
+        // restricted to files and augmented with a "Create" entry
+        // for queries that don't match any existing note.
+        if (matchesHotkey(e, getHotkey("command-palette-alt", "Ctrl+O"))) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (showCommandPalette() && commandPaletteMode() !== "files") {
+                setCommandPaletteMode("files");
+            } else {
+                setCommandPaletteMode("files");
+                setShowCommandPalette(v => !v);
+            }
             return;
         }
         // Ctrl+N → create a new markdown note. Uses the existing
@@ -1673,16 +1778,82 @@ const App: Component = () => {
             return;
         }
 
-        // Ctrl+Shift+F: switch to sidebar search panel
+        // Ctrl+Shift+F: switch to sidebar search panel. If the user
+        // has text selected in the active editor (or reading view),
+        // pre-populate the global search with that selection and kick
+        // off a search immediately — the "select text, Ctrl+Shift+F"
+        // flow users expect from VS Code / Obsidian.
         if (isCtrlHeld(e) && e.shiftKey && !e.altKey && e.key === "F") {
             e.preventDefault();
             e.stopPropagation();
+
+            // Pull the current selection. Source / live-preview route
+            // through the exposed CM6 view on `__mindzj_plugin_editor_api`;
+            // reading mode uses the DOM selection scoped to
+            // `.mz-reading-view` (the same gate used by Ctrl+F's
+            // selection grab above).
+            let selectionText = "";
+            try {
+                const api = (window as any).__mindzj_plugin_editor_api;
+                const cmView = api?.cm as EditorView | undefined;
+                if (cmView && !cmView.state.selection.main.empty) {
+                    const sel = cmView.state.selection.main;
+                    selectionText = cmView.state.sliceDoc(sel.from, sel.to);
+                }
+                if (!selectionText) {
+                    const domSel = window.getSelection?.();
+                    if (domSel && domSel.rangeCount > 0) {
+                        const anchor = domSel.anchorNode;
+                        const container = anchor?.nodeType === Node.ELEMENT_NODE
+                            ? (anchor as Element)
+                            : anchor?.parentElement;
+                        // Only accept a DOM selection inside the
+                        // reading view. Selections in the sidebar or
+                        // title bar aren't meaningful search queries.
+                        if (
+                            container?.closest(".mz-reading-view") &&
+                            !container.closest(".mz-reading-find-panel")
+                        ) {
+                            selectionText = domSel.toString();
+                        }
+                    }
+                }
+            } catch (err) {
+                console.warn("[ctrl-shift-f] selection read failed:", err);
+            }
+
+            // Collapse multi-line selections to the first non-empty
+            // line — global search queries are single-line, and
+            // dumping a paragraph into the input is almost never what
+            // the user meant.
+            if (selectionText.includes("\n")) {
+                const firstLine = selectionText
+                    .split("\n")
+                    .map((l) => l.trim())
+                    .find((l) => l.length > 0);
+                selectionText = firstLine ?? "";
+            }
+
             setSidebarTab("search");
             if (sidebarCollapsed()) setSidebarCollapsed(false);
-            // Focus the search input after a short delay for DOM update
+
+            if (selectionText) {
+                setGlobalSearchQuery(selectionText);
+                // Run immediately so the user sees results without a
+                // debounce delay. The panel will focus its input
+                // (onMount or when SearchPanel re-mounts) and select
+                // the text so "just type" replaces the selection.
+                runGlobalSearchNow();
+            }
+
             setTimeout(() => {
-                const searchInput = document.querySelector('.mz-sidebar-search-input') as HTMLInputElement;
-                if (searchInput) searchInput.focus();
+                const searchInput = document.querySelector(
+                    ".mz-sidebar-search-input",
+                ) as HTMLInputElement | null;
+                if (searchInput) {
+                    searchInput.focus();
+                    searchInput.select();
+                }
             }, 100);
             return;
         }
@@ -2075,6 +2246,16 @@ const App: Component = () => {
                                     onSetViewMode={(path, mode) => editorStore.setViewMode(mode, path)}
                                     onOpenSplit={handleOpenSplitInPane}
                                     onReorder={(from: number, to: number) => vaultStore.reorderOpenFiles(from, to)}
+                                    onRevealInTree={(path: string) => {
+                                        // Ensure the Files panel is showing and the
+                                        // sidebar is expanded before revealFileInTree
+                                        // scrolls — the tree DOM only exists when
+                                        // `sidebarTab === "files"` and the sidebar
+                                        // isn't collapsed.
+                                        setSidebarTab("files");
+                                        if (sidebarCollapsed()) setSidebarCollapsed(false);
+                                        revealFileInTree(path);
+                                    }}
                                 />
                             </div>
 
@@ -2148,7 +2329,13 @@ const App: Component = () => {
             <StatusBar />
             </Show>
             <Show when={showCommandPalette()}>
-                <CommandPalette onClose={() => setShowCommandPalette(false)} />
+                <CommandPalette
+                    mode={commandPaletteMode()}
+                    onClose={() => setShowCommandPalette(false)}
+                />
+            </Show>
+            <Show when={showGotoLine()}>
+                <GotoLinePanel onClose={() => setShowGotoLine(false)} />
             </Show>
             <Show when={showSettings()}>
                 <SettingsModal onClose={() => setShowSettings(false)} />

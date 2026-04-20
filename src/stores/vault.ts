@@ -167,6 +167,20 @@ function createVaultStore() {
         prev.map((f) => (f.path === result.path ? result : f))
       );
 
+      // Notify listeners (global search panel, etc.) that a file
+      // was just persisted. The Rust backend has already re-indexed
+      // this path in `on_file_changed`, so a follow-up `search_vault`
+      // call will return fresh results.
+      try {
+        document.dispatchEvent(
+          new CustomEvent("mindzj:vault-file-saved", {
+            detail: { path: result.path },
+          }),
+        );
+      } catch {
+        // Non-fatal: save itself succeeded; the event is just a hint.
+      }
+
       return result;
     } catch (e: any) {
       setError(e.message || "Failed to save file");
