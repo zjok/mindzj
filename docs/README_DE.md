@@ -1,6 +1,6 @@
 <h1 align="center">
   <img src="Logo.png" alt="MindZJ logo" width="64" height="64" /><br>
-  MindZJ — KI-native, CLI-first, quelloffene Offline-Notiz­anwendung
+  MindZJ — Eine quelloffene Offline-Notiz-App mit nativer KI und CLI.
 </h1>
 
 <p align="center">

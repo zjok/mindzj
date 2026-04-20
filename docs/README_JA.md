@@ -1,6 +1,6 @@
 <h1 align="center">
   <img src="Logo.png" alt="MindZJ logo" width="64" height="64" /><br>
-  MindZJ — AI ネイティブ・CLI ファーストなオープンソースのオフラインノートシステム
+  MindZJ — AI と CLI をネイティブ搭載した、オープンソースのオフラインノートアプリ
 </h1>
 
 <p align="center">

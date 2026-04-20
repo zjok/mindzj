@@ -1,6 +1,6 @@
 <h1 align="center">
   <img src="Logo.png" alt="MindZJ logo" width="64" height="64" /><br>
-  MindZJ — Sistema de notas offline open-source, nativo para IA y orientado al CLI
+  MindZJ — Una aplicación de notas offline y open-source, con IA y CLI nativos.
 </h1>
 
 <p align="center">

@@ -1,6 +1,6 @@
 <h1 align="center">
   <img src="Logo.png" alt="MindZJ logo" width="64" height="64" /><br>
-  MindZJ —— AI 原生、CLI 优先的开源离线笔记系统
+  MindZJ：一款原生支持 AI 与 CLI 完全开源且免费的离线笔记软件
 </h1>
 
 <p align="center">

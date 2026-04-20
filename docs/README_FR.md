@@ -1,6 +1,6 @@
 <h1 align="center">
   <img src="Logo.png" alt="MindZJ logo" width="64" height="64" /><br>
-  MindZJ — Système de notes hors-ligne open-source, natif IA et pensé pour le CLI
+  MindZJ — Une application de prise de notes hors-ligne et open-source, avec IA et CLI natifs.
 </h1>
 
 <p align="center">
