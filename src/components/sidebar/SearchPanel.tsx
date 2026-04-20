@@ -4,6 +4,7 @@ import { t } from "../../i18n";
 import { displayName } from "../../utils/displayName";
 import { openFileRouted } from "../../utils/openFileRouted";
 import { vaultStore, type VaultEntry } from "../../stores/vault";
+import { editorStore } from "../../stores/editor";
 import { confirmDialog } from "../common/ConfirmDialog";
 
 interface SearchResult {
@@ -431,14 +432,21 @@ export const SearchPanel: Component = () => {
           const fc = await invoke<{ content: string }>("read_file", {
             relativePath: result.path,
           });
+          const before = fc.content ?? "";
           const { next, replaced } = replaceFirstInContent(
-            fc.content ?? "",
+            before,
             regex,
             r,
             preserve,
           );
           if (!replaced) continue;
-          await vaultStore.saveFile(result.path, next);
+          editorStore.recordExternalEdit(result.path, before, next);
+          try {
+            await vaultStore.saveFile(result.path, next);
+          } catch (err) {
+            editorStore.discardExternalEdit(result.path, before, next);
+            throw err;
+          }
           // Re-run the search AFTER the replace lands so counts + the
           // result list reflect the new state of the vault.
           await runSearch(query());
@@ -468,26 +476,32 @@ export const SearchPanel: Component = () => {
     setIsReplacing(true);
     try {
       let totalHits = 0;
-      const affected: { path: string; content: string; count: number }[] = [];
+      const affected: {
+        path: string;
+        before: string;
+        content: string;
+        count: number;
+      }[] = [];
       for (const result of results()) {
         try {
           const fc = await invoke<{ content: string }>("read_file", {
             relativePath: result.path,
           });
+          const before = fc.content ?? "";
           // Rebuild a fresh regex per file: `g` flag RegExps carry
           // `lastIndex` state, and reusing the same instance across
           // files would stall on whatever position it was at after
           // the previous file's `replace()` call.
           const perFileRegex = new RegExp(regex.source, regex.flags);
           const { next, count } = replaceAllInContent(
-            fc.content ?? "",
+            before,
             perFileRegex,
             r,
             preserve,
           );
           if (count > 0) {
             totalHits += count;
-            affected.push({ path: result.path, content: next, count });
+            affected.push({ path: result.path, before, content: next, count });
           }
         } catch (err) {
           console.warn("[search] read_file failed during replace:", result.path, err);
@@ -527,9 +541,15 @@ export const SearchPanel: Component = () => {
       // an instant refresh of the visible tab AND Ctrl+Z / Ctrl+Shift+Z
       // undo of the replace within that file's editor history.
       for (const entry of affected) {
+        editorStore.recordExternalEdit(entry.path, entry.before, entry.content);
         try {
           await vaultStore.saveFile(entry.path, entry.content);
         } catch (err) {
+          editorStore.discardExternalEdit(
+            entry.path,
+            entry.before,
+            entry.content,
+          );
           console.warn("[search] write_file failed during replace:", entry.path, err);
         }
       }

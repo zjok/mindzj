@@ -300,10 +300,12 @@ function cancelRename() {
 
 export type SortMode = "custom" | "name" | "created" | "modified";
 export type SortOrder = "asc" | "desc";
+type FileTreeSplitDirection = "left" | "right";
 
 interface FileTreeProps {
     entries: VaultEntry[];
     onFileClick: (path: string) => void;
+    onOpenSplit?: (path: string, direction: FileTreeSplitDirection) => void | Promise<void>;
     activePath: string | null;
     depth?: number;
     sortMode?: SortMode;
@@ -970,6 +972,19 @@ export const FileTree: Component<FileTreeProps> = (props) => {
         const items: MenuItem[] = [];
         if (!isDir) {
             items.push({ label: t("context.open"), icon: "\uD83D\uDCC4", action: () => { void openFileRouted(path); } });
+            if (props.onOpenSplit) {
+                items.push({
+                    label: t("context.splitRight"),
+                    icon: ">",
+                    separator: true,
+                    action: () => { void props.onOpenSplit?.(path, "right"); },
+                });
+                items.push({
+                    label: t("context.splitLeft"),
+                    icon: "<",
+                    action: () => { void props.onOpenSplit?.(path, "left"); },
+                });
+            }
         }
         items.push({
             label: t("context.newNote"), icon: "\u270F\uFE0F",
@@ -1069,6 +1084,7 @@ export const FileTree: Component<FileTreeProps> = (props) => {
                         <FolderItem
                             entry={entry}
                             onFileClick={props.onFileClick}
+                            onOpenSplit={props.onOpenSplit}
                             onContextMenu={(e) => showContextForFile(e, entry.relative_path, true)}
                             activePath={props.activePath}
                             depth={props.depth ?? 0}
@@ -1095,6 +1111,7 @@ export const FileTree: Component<FileTreeProps> = (props) => {
 const FolderItem: Component<{
     entry: VaultEntry;
     onFileClick: (p: string) => void;
+    onOpenSplit?: (path: string, direction: FileTreeSplitDirection) => void | Promise<void>;
     onContextMenu: (e: MouseEvent) => void;
     activePath: string | null;
     depth: number;
@@ -1176,6 +1193,7 @@ const FolderItem: Component<{
                 <FileTree
                     entries={props.entry.children!}
                     onFileClick={props.onFileClick}
+                    onOpenSplit={props.onOpenSplit}
                     activePath={props.activePath}
                     depth={props.depth + 1}
                     sortMode={props.sortMode}

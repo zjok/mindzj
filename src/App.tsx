@@ -441,7 +441,7 @@ const App: Component = () => {
         }
     }
 
-    function handleOpenSplitInPane(path: string, direction: SplitDirection) {
+    async function handleOpenSplitInPane(path: string, direction: SplitDirection) {
         // Plugin-backed files (`.mindzj` etc.) now work in same-window
         // panes too: `mountPluginView` generates a unique mount handle
         // per call, so the same file path can be mounted in the
@@ -450,8 +450,34 @@ const App: Component = () => {
         // a safety check that silently bailed out for plugin views and
         // either did nothing or opened a whole new Tauri window — now
         // we take the same fast path as .md files.
+        const previousActivePath = activePanePath() ?? vaultStore.activeFile()?.path ?? null;
+
+        if (!findOpenFile(path)) {
+            await openFileRouted(path);
+            if (!findOpenFile(path)) return;
+        }
+
+        if (
+            previousActivePath &&
+            previousActivePath !== path &&
+            getPanePath(activePaneSlot()) === path
+        ) {
+            setPanePath(activePaneSlot(), previousActivePath);
+            const previousFile = findOpenFile(previousActivePath);
+            if (previousFile) {
+                vaultStore.setActiveFile(previousFile);
+            }
+        }
+
+        if (!previousActivePath) {
+            setPrimaryPanePath(path);
+            setSecondaryPanePath(null);
+            activatePane("primary");
+            return;
+        }
+
         setSplitDirection(direction);
-        const currentActivePath = activePanePath() ?? vaultStore.activeFile()?.path ?? path;
+        const currentActivePath = previousActivePath;
 
         if (direction === "left" || direction === "up") {
             if (!splitPaneActive()) {
@@ -2125,6 +2151,7 @@ const App: Component = () => {
                                     <FileTree
                                         entries={vaultStore.fileTree()}
                                         onFileClick={(p: string) => { void openFileRouted(p); }}
+                                        onOpenSplit={handleOpenSplitInPane}
                                         activePath={vaultStore.activeFile()?.path ?? null}
                                         sortMode={sortMode()}
                                         sortOrder={sortOrder()}

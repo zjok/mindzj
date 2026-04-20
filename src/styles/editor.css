@@ -216,6 +216,14 @@
   vertical-align: baseline !important;
 }
 
+.cm-editor .cm-line.mz-list-wrap-line:has(.cm-searchMatch) .mz-lp-list-content,
+.cm-editor .cm-line.mz-list-wrap-line:has(.cm-searchMatch-selected) .mz-lp-list-content {
+  display: inline !important;
+  width: auto !important;
+  min-width: 0 !important;
+  vertical-align: baseline !important;
+}
+
 .cm-editor .cm-searchMatch-selected {
   background: rgba(255, 170, 0, 0.55);
   outline: 1.5px solid rgba(255, 140, 0, 0.95);

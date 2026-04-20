@@ -15,6 +15,7 @@ type FileTopLineMap = Record<string, number>;
 type FileViewModeMap = Record<string, ViewMode>;
 type FileEditableViewModeMap = Record<string, EditableViewMode>;
 type FileCursorSelectionMap = Record<string, { anchor: number; head: number }>;
+type PendingExternalEdit = { before: string; after: string };
 
 export interface EditorWorkspaceState {
   file_scroll_positions?: FileScrollPositionMap;
@@ -138,6 +139,7 @@ function createEditorStore() {
   // to prevent stale snapshots from being re-applied to a state that
   // already owns the current history.
   const _fileHistoryStates = new Map<string, any>();
+  const _pendingExternalEdits = new Map<string, PendingExternalEdit[]>();
 
   function setFileHistoryState(path: string, state: any): void {
     if (!path || state == null) return;
@@ -152,6 +154,58 @@ function createEditorStore() {
   function clearFileHistoryState(path: string | null | undefined): void {
     if (!path) return;
     _fileHistoryStates.delete(path);
+  }
+
+  function recordExternalEdit(path: string, before: string, after: string): void {
+    if (!path || before === after) return;
+    const current = _pendingExternalEdits.get(path) ?? [];
+    const last = current[current.length - 1];
+    if (last && last.after !== before) {
+      _pendingExternalEdits.set(path, [{ before, after }]);
+      return;
+    }
+    _pendingExternalEdits.set(path, [...current, { before, after }]);
+  }
+
+  function discardExternalEdit(path: string, before: string, after: string): void {
+    const current = _pendingExternalEdits.get(path);
+    if (!current) return;
+    const idx = current.findIndex(
+      (edit) => edit.before === before && edit.after === after,
+    );
+    if (idx < 0) return;
+    const next = current.slice(0, idx).concat(current.slice(idx + 1));
+    if (next.length === 0) {
+      _pendingExternalEdits.delete(path);
+    } else {
+      _pendingExternalEdits.set(path, next);
+    }
+  }
+
+  function takePendingExternalEdits(
+    path: string | null | undefined,
+    currentContent: string,
+  ): PendingExternalEdit[] {
+    if (!path) return [];
+    const edits = _pendingExternalEdits.get(path);
+    if (!edits || edits.length === 0) return [];
+
+    let expected = edits[0].before;
+    for (const edit of edits) {
+      if (edit.before !== expected) {
+        _pendingExternalEdits.delete(path);
+        return [];
+      }
+      expected = edit.after;
+    }
+
+    if (expected !== currentContent) {
+      _pendingExternalEdits.delete(path);
+      return [];
+    }
+
+    _pendingExternalEdits.delete(path);
+    return edits;
   }
 
   /** Snapshot headings + content of a file (call when opening a view). */
@@ -451,6 +505,7 @@ function createEditorStore() {
     setFallbackViewMode("live-preview");
     setFallbackLastNonReadingViewMode("live-preview");
     _fileHistoryStates.clear();
+    _pendingExternalEdits.clear();
   }
 
   function renameFileState(oldPath: string, newPath: string) {
@@ -502,6 +557,10 @@ function createEditorStore() {
       _fileHistoryStates.set(newPath, _fileHistoryStates.get(oldPath));
       _fileHistoryStates.delete(oldPath);
     }
+    if (_pendingExternalEdits.has(oldPath)) {
+      _pendingExternalEdits.set(newPath, _pendingExternalEdits.get(oldPath)!);
+      _pendingExternalEdits.delete(oldPath);
+    }
   }
 
   function removeFileState(path: string, recursive = false) {
@@ -542,6 +601,9 @@ function createEditorStore() {
     });
     for (const key of Array.from(_fileHistoryStates.keys())) {
       if (matches(key)) _fileHistoryStates.delete(key);
+    }
+    for (const key of Array.from(_pendingExternalEdits.keys())) {
+      if (matches(key)) _pendingExternalEdits.delete(key);
     }
   }
 
@@ -601,6 +663,9 @@ function createEditorStore() {
     setFileHistoryState,
     getFileHistoryState,
     clearFileHistoryState,
+    recordExternalEdit,
+    discardExternalEdit,
+    takePendingExternalEdits,
     scheduleAutoSave,
     cancelAutoSave,
     storeHeadings,

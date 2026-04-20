@@ -20,6 +20,7 @@ import {
     history,
     historyField,
     historyKeymap,
+    isolateHistory,
     undo,
     redo,
 } from "@codemirror/commands";
@@ -604,6 +605,7 @@ export const Editor: Component<EditorProps> = (props) => {
                     editorView &&
                     activeFile.content !== editorView.state.doc.toString()
                 ) {
+                    const beforeContent = editorView.state.doc.toString();
                     isProgrammaticUpdate = true;
                     try {
                         editorView.dispatch({
@@ -612,10 +614,16 @@ export const Editor: Component<EditorProps> = (props) => {
                                 to: editorView.state.doc.length,
                                 insert: activeFile.content,
                             },
+                            annotations: isolateHistory.of("full"),
                         });
                     } finally {
                         isProgrammaticUpdate = false;
                     }
+                    editorStore.discardExternalEdit(
+                        activeFile.path,
+                        beforeContent,
+                        activeFile.content,
+                    );
                 }
             },
         ),
@@ -767,6 +775,12 @@ export const Editor: Component<EditorProps> = (props) => {
         if (currentFilePath) {
             editorStore.storeHeadings(currentFilePath, content);
         }
+        const pendingExternalEdits = currentFilePath
+            ? editorStore.takePendingExternalEdits(currentFilePath, content)
+            : [];
+        const contentForState = pendingExternalEdits.length > 0
+            ? pendingExternalEdits[0].before
+            : content;
 
         if (editorView) {
             // Snapshot the Ctrl+F panel state into shared signals
@@ -1291,7 +1305,7 @@ export const Editor: Component<EditorProps> = (props) => {
         const canRestoreHistory =
             historyJson != null &&
             typeof historyJson.doc === "string" &&
-            historyJson.doc === content &&
+            historyJson.doc === contentForState &&
             historyJson.history != null;
         let state: EditorState;
         if (canRestoreHistory) {
@@ -1308,16 +1322,34 @@ export const Editor: Component<EditorProps> = (props) => {
                     err,
                 );
                 editorStore.clearFileHistoryState(currentFilePath!);
-                state = EditorState.create({ doc: content, extensions });
+                state = EditorState.create({ doc: contentForState, extensions });
             }
         } else {
             if (historyJson && currentFilePath) {
                 editorStore.clearFileHistoryState(currentFilePath);
             }
-            state = EditorState.create({ doc: content, extensions });
+            state = EditorState.create({ doc: contentForState, extensions });
         }
 
         editorView = new EditorView({ state, parent: containerRef });
+        if (pendingExternalEdits.length > 0) {
+            isProgrammaticUpdate = true;
+            try {
+                for (const edit of pendingExternalEdits) {
+                    if (editorView.state.doc.toString() !== edit.before) break;
+                    editorView.dispatch({
+                        changes: {
+                            from: 0,
+                            to: editorView.state.doc.length,
+                            insert: edit.after,
+                        },
+                        annotations: isolateHistory.of("full"),
+                    });
+                }
+            } finally {
+                isProgrammaticUpdate = false;
+            }
+        }
         syncPluginEditorBindings(editorView);
         if (isPaneActive()) {
             editorStore.updateStats(content);
