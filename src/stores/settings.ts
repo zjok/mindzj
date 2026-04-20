@@ -77,6 +77,12 @@ export interface AppSettings {
    *  bold styling rules. `null` = theme default (red in dark,
    *  darker red in light). */
   bold_color: string | null;
+  /** When true (default), bare URLs like `github.com/zjok/mindzj`
+   *  and `https://example.com` are rendered as clickable links in
+   *  reading + live-preview mode, and click dispatches to the user's
+   *  default browser via the shell-plugin. When false, the same
+   *  text renders as plain unstyled text and clicks are inert. */
+  auto_link_urls: boolean;
   /** Text selection background color. Applied to both CM6
    *  `.cm-selectionBackground` and the generic `::selection`
    *  pseudo-element via the `--mz-bg-selection` CSS variable.
@@ -144,6 +150,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   link_color: null,
   highlight_color: null,
   bold_color: null,
+  auto_link_urls: true,
   selection_color: null,
   drag_indicator_color: null,
   css_snippet: null,

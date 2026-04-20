@@ -108,12 +108,19 @@ export function resetFolderVisibilityState() {
 
 /**
  * Reveal a file in the tree: expand all ancestor folders, scroll the
- * file node into view, and apply a short-lived highlight class so the
- * eye can latch onto it. Used by the "Show in sidebar" tab action.
+ * file node into view (only if it isn't already visible), and apply a
+ * short-lived highlight class so the eye can latch onto it. Used by
+ * the "Show in sidebar" tab action.
  *
  * Expansion uses `setFolderOpen` for each prefix path so the persisted
- * folder-state respects the reveal. Scroll/highlight runs on the next
- * animation frame to let Solid flush the folder-open updates first.
+ * folder-state respects the reveal. The scroll + highlight step polls
+ * for the target's DOM element — necessary because the caller may have
+ * just switched the sidebar FROM "outline" (or another tab) TO "files"
+ * in the same tick, meaning the FileTree DOM isn't yet mounted when
+ * this function runs. A fixed pair of rAFs isn't enough; Solid's
+ * reactive render can take several frames to fully settle on slower
+ * machines. Polling up to ~400ms gives the tree a chance to mount
+ * before we measure its scroll state.
  */
 export function revealFileInTree(path: string) {
     if (!path) return;
@@ -124,48 +131,74 @@ export function revealFileInTree(path: string) {
         setFolderOpen(currentPath, i, true);
     }
 
-    // Two rAFs: first lets Solid mount the newly-expanded folder
-    // children, second lets the browser lay them out so
-    // `scrollIntoView` measures the final node position.
-    requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-            const selector = `[data-entry-path="${(window.CSS?.escape ?? ((v: string) => v))(path)}"]`;
-            const target = document.querySelector(selector) as HTMLElement | null;
-            if (!target) return;
+    const selector = `[data-entry-path="${(window.CSS?.escape ?? ((v: string) => v))(path)}"]`;
+    const maxAttempts = 25; // ~400ms at 16ms/frame
+    let attempt = 0;
 
-            // Only scroll when the file row isn't already visible in
-            // its nearest scrollable ancestor. A small safety margin
-            // (8px on each side) keeps rows that are right against
-            // the top/bottom edge from being judged visible-but-
-            // clipped. If the row is fully visible we skip the scroll
-            // entirely so the user's current scroll position is
-            // preserved — only the highlight runs.
-            const scrollAncestor = findScrollableAncestor(target);
-            let needsScroll = true;
-            if (scrollAncestor) {
-                const ancestorRect = scrollAncestor.getBoundingClientRect();
-                const targetRect = target.getBoundingClientRect();
-                const margin = 8;
-                const fullyVisible =
-                    targetRect.top >= ancestorRect.top + margin &&
-                    targetRect.bottom <= ancestorRect.bottom - margin;
-                if (fullyVisible) needsScroll = false;
+    const tryReveal = () => {
+        const target = document.querySelector(selector) as HTMLElement | null;
+        if (!target) {
+            attempt += 1;
+            if (attempt < maxAttempts) {
+                window.setTimeout(tryReveal, 16);
             }
+            return;
+        }
 
-            if (needsScroll) {
-                try {
-                    target.scrollIntoView({ behavior: "smooth", block: "center" });
-                } catch {
-                    target.scrollIntoView();
-                }
+        // Wait for the ancestor to report a non-zero scroll height
+        // too — when the tree has only JUST mounted, its scrollable
+        // ancestor still has scrollHeight === clientHeight === 0 and
+        // any visibility math computed now would be wrong. Retry
+        // once per frame until layout settles.
+        const scrollAncestor = findScrollableAncestor(target);
+        if (
+            scrollAncestor &&
+            scrollAncestor.clientHeight === 0 &&
+            attempt < maxAttempts
+        ) {
+            attempt += 1;
+            window.setTimeout(tryReveal, 16);
+            return;
+        }
+
+        // Only scroll when the file row isn't already visible in its
+        // nearest scrollable ancestor. A small safety margin (8px on
+        // each side) keeps rows that are right against the top /
+        // bottom edge from being judged visible-but-clipped. If the
+        // row is fully visible we skip the scroll entirely so the
+        // user's current scroll position is preserved — only the
+        // highlight runs.
+        let needsScroll = true;
+        if (scrollAncestor) {
+            const ancestorRect = scrollAncestor.getBoundingClientRect();
+            const targetRect = target.getBoundingClientRect();
+            const margin = 8;
+            const fullyVisible =
+                targetRect.top >= ancestorRect.top + margin &&
+                targetRect.bottom <= ancestorRect.bottom - margin;
+            if (fullyVisible) needsScroll = false;
+        }
+
+        if (needsScroll) {
+            try {
+                target.scrollIntoView({ behavior: "smooth", block: "center" });
+            } catch {
+                target.scrollIntoView();
             }
+        }
+        target.classList.remove("mz-file-tree-reveal-highlight");
+        void target.offsetWidth;
+        target.classList.add("mz-file-tree-reveal-highlight");
+        window.setTimeout(() => {
             target.classList.remove("mz-file-tree-reveal-highlight");
-            void target.offsetWidth;
-            target.classList.add("mz-file-tree-reveal-highlight");
-            window.setTimeout(() => {
-                target.classList.remove("mz-file-tree-reveal-highlight");
-            }, 1500);
-        });
+        }, 1500);
+    };
+
+    // Kick off on the next frame so Solid has committed any pending
+    // sidebar-tab swap (Outline → Files) before we start looking for
+    // the tree DOM.
+    requestAnimationFrame(() => {
+        requestAnimationFrame(tryReveal);
     });
 }
 

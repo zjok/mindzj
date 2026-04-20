@@ -28,6 +28,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { resolveImageAssetUrl } from "../../../utils/vaultPaths";
 import { attachWheelZoom, attachCtrlClick, getResizePresets, applyResizePreset } from "../../../utils/imageInteraction";
 import { parseImageSize, formatImageAlt } from "../../../utils/imageSize";
+import { URL_REGEX, trimTrailingPunct } from "../../../utils/autoLink";
+import { settingsStore } from "../../../stores/settings";
 import {
     getContinuationInfo,
     LIST_INDENT_EXTRA_PX,
@@ -1014,6 +1016,46 @@ function buildDecorationsImpl(
                     decorations.push(hideMarker.range(fullEnd - 2, fullEnd)); // ]]
                 }
                 decorations.push(linkDeco.range(displayStart, displayEnd));
+            }
+
+            // Auto-linked bare URLs (github.com/foo, https://…). Gated
+            // on the `auto_link_urls` setting so users can opt out
+            // and get unstyled plain text. We skip matches that fall
+            // inside one of the already-decorated `[text](url)` or
+            // `[[wiki]]` link spans — those are handled above and
+            // double-decorating them visually clashes with the
+            // existing link styling.
+            if (settingsStore.settings().auto_link_urls) {
+                const occupied: { from: number; to: number }[] = [];
+                let lm: RegExpExecArray | null;
+                const mdLinkRe = /(?<!!)\[([^\]]+)\]\(([^)]+)\)/g;
+                while ((lm = mdLinkRe.exec(text)) !== null) {
+                    occupied.push({
+                        from: line.from + lm.index,
+                        to: line.from + lm.index + lm[0].length,
+                    });
+                }
+                const wikiRe2 = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g;
+                while ((lm = wikiRe2.exec(text)) !== null) {
+                    occupied.push({
+                        from: line.from + lm.index,
+                        to: line.from + lm.index + lm[0].length,
+                    });
+                }
+
+                URL_REGEX.lastIndex = 0;
+                let urlMatch: RegExpExecArray | null;
+                while ((urlMatch = URL_REGEX.exec(text)) !== null) {
+                    const trimmed = trimTrailingPunct(urlMatch[0]);
+                    if (!trimmed) continue;
+                    const start = line.from + urlMatch.index;
+                    const end = start + trimmed.length;
+                    const overlapsLink = occupied.some(
+                        (r) => start < r.to && end > r.from,
+                    );
+                    if (overlapsLink) continue;
+                    decorations.push(linkDeco.range(start, end));
+                }
             }
 
             // Inline math: $...$ (not $$)

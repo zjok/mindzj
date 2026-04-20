@@ -185,61 +185,40 @@
 
 /* Search match highlighting.
 
-   CM6 wraps every match in `<span class="cm-searchMatch">` and the
-   currently-focused match in `<span class="cm-searchMatch
-   cm-searchMatch-selected">`. Kept deliberately inline and style-
-   only (background + border-radius) — no `display`, no `outline`,
-   no padding/margin — so the highlight wraps exactly the matched
-   characters and never influences text layout. Same visual
-   language as reading mode's `.mz-reading-find-match[-current]` so
-   Ctrl+F feels identical across source / live-preview / reading.
+   Intentionally minimal and modeled after reading mode's
+   `.mz-reading-find-match` — background + color + padding +
+   border-radius, and NOTHING else. Any extra property (display,
+   width, white-space, box-shadow…) risks knocking a `<span>` out of
+   inline flow and wrapping trailing text onto its own line. CM6
+   already wraps each match in a plain <span>, so letting the span
+   pick up its defaults (display: inline, width: auto, baseline
+   alignment) gives text-layout parity with reading mode. */
+.cm-editor .cm-searchMatch {
+  background: var(--mz-syntax-highlight-bg);
+  color: inherit;
+  padding: 0;
+  border-radius: 2px;
+}
 
-   The selector list covers three overlap shapes that CM6 can emit
-   when our own list-content decoration spans the same characters
-   as a match:
-     - a plain  `<span class="cm-searchMatch">`
-     - a span nested inside `.mz-lp-list-content`
-     - a single span carrying BOTH classes (CM6's merge path)
-   All three need the same reset, so we enumerate them explicitly
-   instead of relying on ambient cascade to pick the right rule. */
-.cm-editor .cm-searchMatch,
-.cm-editor .cm-searchMatch.mz-lp-list-content,
-.cm-editor .mz-lp-list-content .cm-searchMatch,
-.cm-editor .cm-line .cm-searchMatch {
-  background: var(--mz-syntax-highlight-bg) !important;
-  color: inherit !important;
-  border-radius: 2px !important;
-  /* Force search highlights back to plain inline flow so they never
-     inherit the list-content inline-block width box (which would
-     otherwise push trailing text onto the next visual line — the
-     `search b in abcabcabc wraps the c` bug). */
+/* Live-preview list-content merge case. CM6 can materialise the
+   overlap between our `.mz-lp-list-content` decoration and a search
+   match as a single <span> carrying both classes. The list-content
+   rule up-file is `display: inline-block` with a `width` calc, so
+   the combined span would push trailing characters onto the next
+   visual line. Only this specific overlap needs the !important
+   reset — the normal `.cm-searchMatch` case above uses plain span
+   defaults. */
+.cm-editor .cm-searchMatch.mz-lp-list-content {
   display: inline !important;
   width: auto !important;
   min-width: 0 !important;
-  max-width: none !important;
-  height: auto !important;
-  margin: 0 !important;
   padding: 0 !important;
-  border: 0 !important;
-  outline: none !important;
   vertical-align: baseline !important;
-  white-space: inherit !important;
-  float: none !important;
-  position: static !important;
 }
 
-.cm-editor .cm-searchMatch-selected,
-.cm-editor .cm-searchMatch.cm-searchMatch-selected,
-.cm-editor .mz-lp-list-content .cm-searchMatch-selected {
-  background: rgba(255, 170, 0, 0.55) !important;
-  /* Use `box-shadow` for the ring instead of `outline`: outline sits
-     OUTSIDE the element's box and doesn't count toward layout, but
-     some browsers still allocate paint room for it that, combined
-     with line-breaking of inline elements across visual rows, can
-     look like the match is pushing neighbouring glyphs. box-shadow
-     is purely a paint effect and is layout-neutral. */
-  box-shadow: 0 0 0 1.5px rgba(255, 140, 0, 0.95) !important;
-  outline: none !important;
+.cm-editor .cm-searchMatch-selected {
+  background: rgba(255, 170, 0, 0.55);
+  outline: 1.5px solid rgba(255, 140, 0, 0.95);
 }
 
 /* Tooltip styling */
@@ -376,11 +355,20 @@ html[data-theme="light"] .cm-editor .cm-panel.mz-search-panel {
   transform: rotate(0deg);
 }
 
-/* Empty spacer on the replace row that reserves the same width as
-   the chevron on the find row so the inputs line up vertically. */
+/* Empty spacer on the replace row that reserves the same box as
+   the chevron on the find row so the Replace input's left edge sits
+   under the Find input's left edge. The chevron is a
+   `.mz-search-iconbtn` (22×22 with 1px transparent border), so the
+   spacer mirrors the same box model — an identical border-box keeps
+   the following flex item (the input) at exactly the same `left`
+   offset on both rows. */
 .cm-editor .cm-panel.mz-search-panel .mz-search-chevron-spacer {
+  display: inline-flex;
   width: 22px;
   height: 22px;
+  padding: 0;
+  border: 1px solid transparent;
+  box-sizing: border-box;
   flex-shrink: 0;
 }
 

@@ -589,6 +589,33 @@ export const Editor: Component<EditorProps> = (props) => {
                         restoreEditorSelection(editorView, activeFile.path);
                         restoreEditorViewport(editorView, activeFile.path, currentViewMode!, true);
                     }
+                    return;
+                }
+
+                // Same path, but the signal emitted — check if CONTENT
+                // changed externally (e.g. Replace All in SearchPanel
+                // wrote this file, or a plugin updated it). If so,
+                // apply the change as a CM6 transaction so (a) the
+                // editor visually updates in place, and (b) the change
+                // lands in the undo history — Ctrl+Z reverts it.
+                // Guarded so auto-save echoes (which call
+                // `setActiveFile` with identical content) are no-ops.
+                if (
+                    editorView &&
+                    activeFile.content !== editorView.state.doc.toString()
+                ) {
+                    isProgrammaticUpdate = true;
+                    try {
+                        editorView.dispatch({
+                            changes: {
+                                from: 0,
+                                to: editorView.state.doc.length,
+                                insert: activeFile.content,
+                            },
+                        });
+                    } finally {
+                        isProgrammaticUpdate = false;
+                    }
                 }
             },
         ),

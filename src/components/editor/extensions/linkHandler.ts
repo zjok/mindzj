@@ -26,6 +26,8 @@ import {
 import { t } from "../../../i18n";
 import { vaultStore, type VaultEntry } from "../../../stores/vault";
 import { openFileRouted } from "../../../utils/openFileRouted";
+import { settingsStore } from "../../../stores/settings";
+import { URL_REGEX, trimTrailingPunct, ensureScheme } from "../../../utils/autoLink";
 
 // ---------------------------------------------------------------------------
 // Helper: get the current EditorView from the global plugin API
@@ -79,6 +81,31 @@ function handleLinkClick(view: EditorView, pos: number, _event: MouseEvent): boo
             // Jump to footnote definition
             jumpToFootnote(view, fnId);
             return true;
+        }
+    }
+
+    // Bare URL fallback (auto-linked via URL_REGEX). Only active when
+    // the `auto_link_urls` setting is on — off means the same text
+    // renders plain and is non-interactive end-to-end. Hands the URL
+    // to the OS shell so it opens in the user's default browser,
+    // same as explicit markdown external links.
+    if (settingsStore.settings().auto_link_urls) {
+        URL_REGEX.lastIndex = 0;
+        let urlMatch: RegExpExecArray | null;
+        while ((urlMatch = URL_REGEX.exec(text)) !== null) {
+            const trimmed = trimTrailingPunct(urlMatch[0]);
+            if (!trimmed) continue;
+            const start = urlMatch.index;
+            const end = start + trimmed.length;
+            if (col >= start && col <= end) {
+                const href = ensureScheme(trimmed);
+                void import("@tauri-apps/plugin-shell")
+                    .then(({ open }) => open(href))
+                    .catch((err) =>
+                        console.warn("[linkHandler] failed to open external URL:", err),
+                    );
+                return true;
+            }
         }
     }
 

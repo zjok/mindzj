@@ -495,18 +495,37 @@ export const SearchPanel: Component = () => {
       }
 
       if (totalHits === 0 || affected.length === 0) {
-        await confirmDialog(t("search.replaceNone"));
+        await confirmDialog(t("search.replaceNone"), {
+          confirmLabel: t("common.confirm"),
+          cancelLabel: t("common.cancel"),
+          variant: "primary",
+        });
         return;
       }
 
+      // Single confirmation; custom button labels per user request
+      // ("取消" / "确认替换") and primary/accent colour since Replace
+      // All isn't a destructive-delete operation — just a bulk edit.
       const confirmed = await confirmDialog(
         t("search.replaceAllConfirm", {
           count: totalHits,
           files: affected.length,
         }),
+        {
+          confirmLabel: t("search.replaceAllConfirmButton"),
+          cancelLabel: t("common.cancel"),
+          variant: "primary",
+        },
       );
       if (!confirmed) return;
 
+      // Apply every replacement without any further prompts. Saving
+      // through `vaultStore.saveFile` updates the vault's in-memory
+      // FileContent, which fires `resolvedFile` in every open Editor;
+      // that in turn dispatches a CM6 changes transaction on the view
+      // if the replaced file is currently open, giving the user both
+      // an instant refresh of the visible tab AND Ctrl+Z / Ctrl+Shift+Z
+      // undo of the replace within that file's editor history.
       for (const entry of affected) {
         try {
           await vaultStore.saveFile(entry.path, entry.content);
@@ -515,13 +534,9 @@ export const SearchPanel: Component = () => {
         }
       }
 
-      await confirmDialog(
-        t("search.replaceAllDone", {
-          count: totalHits,
-          files: affected.length,
-        }),
-      );
-
+      // Re-run the search to reflect the post-replace state. No "done"
+      // dialog — the search result list emptying out is its own
+      // feedback, and a second modal on every Replace All was noisy.
       await runSearch(query());
     } finally {
       setIsReplacing(false);

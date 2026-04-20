@@ -471,6 +471,12 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
                 value={s().show_markdown_toolbar}
                 onChange={(v) => set("show_markdown_toolbar", v)}
               />
+              <SettingToggle
+                label={t("settings.autoLinkUrls")}
+                description={t("settings.autoLinkUrlsDescription")}
+                value={s().auto_link_urls}
+                onChange={(v) => set("auto_link_urls", v)}
+              />
             </SettingSection>
 
             {/* CSS Snippets — Obsidian-style user stylesheet manager */}

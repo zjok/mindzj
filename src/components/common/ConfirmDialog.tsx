@@ -34,28 +34,69 @@ const btnBase = {
   "font-family": "var(--mz-font-sans)",
 } as const;
 
+/**
+ * Options for customising the confirm dialog.
+ *
+ *   - `confirmLabel` / `cancelLabel` — override the default button
+ *     text. If omitted, the dialog falls back to the delete-flavoured
+ *     labels historically used by most call sites (cancel +
+ *     red-styled delete) for back-compat.
+ *   - `variant` — `"danger"` (red confirm, the default) vs
+ *     `"primary"` (accent-coloured confirm). Used for non-destructive
+ *     flows like Replace-All where the red delete styling is too
+ *     alarming.
+ */
+export interface ConfirmDialogOptions {
+  confirmLabel?: string;
+  cancelLabel?: string;
+  variant?: "danger" | "primary";
+}
+
 interface ConfirmState {
   show: boolean;
   message: string;
+  confirmLabel: string | null;
+  cancelLabel: string | null;
+  variant: "danger" | "primary";
   resolve: ((yes: boolean) => void) | null;
 }
 
 const [confirmState, setConfirmState] = createSignal<ConfirmState>({
   show: false,
   message: "",
+  confirmLabel: null,
+  cancelLabel: null,
+  variant: "danger",
   resolve: null,
 });
 
-export function confirmDialog(message: string): Promise<boolean> {
+export function confirmDialog(
+  message: string,
+  options?: ConfirmDialogOptions,
+): Promise<boolean> {
   return new Promise((resolve) => {
-    setConfirmState({ show: true, message, resolve });
+    setConfirmState({
+      show: true,
+      message,
+      confirmLabel: options?.confirmLabel ?? null,
+      cancelLabel: options?.cancelLabel ?? null,
+      variant: options?.variant ?? "danger",
+      resolve,
+    });
   });
 }
 
 function closeConfirm(result: boolean) {
   const state = confirmState();
   state.resolve?.(result);
-  setConfirmState({ show: false, message: "", resolve: null });
+  setConfirmState({
+    show: false,
+    message: "",
+    confirmLabel: null,
+    cancelLabel: null,
+    variant: "danger",
+    resolve: null,
+  });
 }
 
 interface PromptState {
@@ -179,15 +220,15 @@ export const ConfirmDialog: Component = () => {
                   event.currentTarget.style.background = "var(--mz-bg-tertiary)";
                 }}
               >
-                {t("common.cancel")}
+                {confirmState().cancelLabel ?? t("common.cancel")}
               </button>
               <button
                 ref={(element) => setTimeout(() => element.focus(), 0)}
                 onClick={() => closeConfirm(true)}
                 style={{
                   ...btnBase,
-                  border: "1px solid var(--mz-error)",
-                  background: "var(--mz-error)",
+                  border: `1px solid ${confirmState().variant === "primary" ? "var(--mz-accent)" : "var(--mz-error)"}`,
+                  background: confirmState().variant === "primary" ? "var(--mz-accent)" : "var(--mz-error)",
                   color: "#fff",
                 }}
                 onMouseEnter={(event) => {
@@ -197,7 +238,7 @@ export const ConfirmDialog: Component = () => {
                   event.currentTarget.style.opacity = "1";
                 }}
               >
-                {t("common.delete")}
+                {confirmState().confirmLabel ?? t("common.delete")}
               </button>
             </div>
           </div>

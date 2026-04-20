@@ -217,6 +217,11 @@ pub struct AppSettings {
     /// variable that source, live-preview, and reading modes share.
     #[serde(default)]
     pub bold_color: Option<String>,
+    /// Render bare URLs (e.g. `github.com/zjok/mindzj`) as clickable
+    /// links in reading + live-preview mode. Defaults to true; when
+    /// false the same text renders unstyled and non-interactive.
+    #[serde(default = "default_true")]
+    pub auto_link_urls: bool,
     #[serde(default)]
     pub css_snippet: Option<String>,
     /// Names of enabled CSS snippet files under `.mindzj/snippets/`.
@@ -286,6 +291,7 @@ impl Default for AppSettings {
             link_color: None,
             highlight_color: None,
             bold_color: None,
+            auto_link_urls: true,
             css_snippet: None,
             enabled_css_snippets: Vec::new(),
             attachment_folder: ".mindzj/images".to_string(),

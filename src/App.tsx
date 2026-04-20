@@ -48,9 +48,18 @@ import {
     openSearchPanel,
     closeSearchPanel,
     searchPanelOpen,
+    setSearchQuery,
+    SearchQuery,
 } from "@codemirror/search";
 import type { EditorView } from "@codemirror/view";
 import { t } from "./i18n";
+import {
+    setFindQuery,
+    findCaseSensitive,
+    findWholeWord,
+    findRegex,
+    findReplaceText,
+} from "./stores/findState";
 
 type SidebarTab = "files" | "outline" | "search" | "calendar";
 type SplitDirection = "left" | "right" | "up" | "down";
@@ -1349,6 +1358,11 @@ const App: Component = () => {
 
             if (activeMode === "reading") {
                 if (readingPanelOpen) {
+                    // Panel already open: only refill the query if
+                    // the user has something selected. With no
+                    // selection we just refocus — don't clobber the
+                    // existing query, since the user might be
+                    // re-running the same search after scrolling.
                     const selection = readingSelection();
                     document.dispatchEvent(
                         new CustomEvent("mindzj:reading-find-set-query", {
@@ -1356,6 +1370,13 @@ const App: Component = () => {
                         }),
                     );
                 } else {
+                    // Fresh-open: when there's NO selection, start
+                    // from an empty query (user requirement — they
+                    // don't want the previous query pre-filled).
+                    // With a selection, seed the query with it so
+                    // the very first keystroke searches.
+                    const selection = readingSelection();
+                    setFindQuery(selection ?? "");
                     document.dispatchEvent(
                         new CustomEvent("mindzj:open-reading-find"),
                     );
@@ -1403,16 +1424,39 @@ const App: Component = () => {
                             }
                         });
                     } else {
+                        // Fresh-open. Determine initial query from
+                        // the editor selection; fall back to an
+                        // EMPTY query when nothing is selected (user
+                        // requirement — Ctrl+F no longer restores
+                        // the previous query on reopen).
+                        const sel = cmView.state.selection.main;
+                        let initialQuery = "";
+                        if (!sel.empty) {
+                            const text = cmView.state.sliceDoc(sel.from, sel.to);
+                            if (!text.includes("\n")) {
+                                initialQuery = text;
+                            }
+                        }
+                        // Push into both the shared find store and
+                        // CM6's own SearchQuery so the panel's
+                        // `mount()` rehydrates from a consistent
+                        // state. Replace value is also cleared
+                        // alongside the query so a stale replace
+                        // string doesn't ride along into the fresh
+                        // session.
+                        setFindQuery(initialQuery);
+                        cmView.dispatch({
+                            effects: setSearchQuery.of(
+                                new SearchQuery({
+                                    search: initialQuery,
+                                    caseSensitive: findCaseSensitive(),
+                                    wholeWord: findWholeWord(),
+                                    regexp: findRegex(),
+                                    replace: findReplaceText(),
+                                }),
+                            ),
+                        });
                         openSearchPanel(cmView);
-                        // Give CM6 a tick to mount the panel DOM,
-                        // then move focus into the find input so the
-                        // user can start typing immediately. The
-                        // custom panel's `mount()` already does this
-                        // on first open; calling it here covers the
-                        // case where the panel is reopened after a
-                        // close from a different code path (e.g. the
-                        // user closed it via × and then hit Ctrl+F
-                        // again).
                         queueMicrotask(() => {
                             const input =
                                 cmView.dom.querySelector<HTMLInputElement>(
@@ -2106,6 +2150,14 @@ const App: Component = () => {
                         }}>
                             <button
                                 onClick={() => setShowVaultMenu(v => !v)}
+                                // Hovering the vault name reveals the
+                                // full filesystem path via the native
+                                // browser tooltip. Native `title` is
+                                // used over a custom hover widget so
+                                // the tooltip doesn't interfere with
+                                // the vault-switcher popup that opens
+                                // on click.
+                                title={vaultStore.vaultInfo()?.path ?? ""}
                                 style={{
                                     border: "none", background: "transparent",
                                     color: "var(--mz-text-primary)",

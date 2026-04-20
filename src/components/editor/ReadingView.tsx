@@ -40,6 +40,7 @@ import { showImageContextMenu } from "./extensions/livePreview";
 import { LIST_INDENT_EXTRA_PX, LIST_RENDER_TAB_SIZE } from "./extensions/listUtils";
 import { attachWheelZoom, attachCtrlClick } from "../../utils/imageInteraction";
 import { parseImageSize, formatImageAlt } from "../../utils/imageSize";
+import { linkifyHtmlText, ensureScheme } from "../../utils/autoLink";
 import { invoke } from "@tauri-apps/api/core";
 import { t } from "../../i18n";
 
@@ -521,6 +522,17 @@ function renderInline(text: string, ctx: RenderContext): string {
         const isExternal = url.startsWith("http://") || url.startsWith("https://");
         return `<a href="${escapeAttr(url)}" class="mz-rv-link"${isExternal ? ' target="_blank" rel="noopener"' : ""}>${text}</a>`;
     });
+
+    // Auto-link bare URLs (github.com/foo, https://example.com, …).
+    // Gated by the `auto_link_urls` setting; when off, URLs render as
+    // plain text. Skips URLs already inside an <a> tag so the
+    // markdown-link replace above isn't clobbered.
+    if (settingsStore.settings().auto_link_urls) {
+        result = linkifyHtmlText(result, (url) => {
+            const href = ensureScheme(url);
+            return `<a href="${escapeAttr(href)}" class="mz-rv-link mz-rv-autolink" target="_blank" rel="noopener">${url}</a>`;
+        });
+    }
 
     // Bold: **text** or __text__
     result = result.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
@@ -1420,6 +1432,31 @@ export const ReadingView: Component<ReadingViewProps> = (props) => {
                                 } catch {
                                     console.warn(t("reading.couldNotOpen", { path }));
                                 }
+                            }
+                        });
+                    });
+
+                // External link click handling. The rendered markdown
+                // gives every external link (`[text](http…)` and our
+                // auto-linked bare URLs) `class="mz-rv-link"` with an
+                // `href`. Tauri's webview doesn't honour
+                // `target="_blank"` on anchor elements — they either
+                // no-op or try to navigate the current view — so we
+                // hijack the click and dispatch to the shell plugin,
+                // which hands the URL to the user's default browser.
+                containerRef
+                    .querySelectorAll<HTMLAnchorElement>("a.mz-rv-link")
+                    .forEach((el) => {
+                        const href = el.getAttribute("href") ?? "";
+                        if (!/^https?:\/\//i.test(href)) return;
+                        el.addEventListener("click", async (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            try {
+                                const shell = await import("@tauri-apps/plugin-shell");
+                                await shell.open(href);
+                            } catch (err) {
+                                console.warn("[reading] failed to open external URL:", err);
                             }
                         });
                     });
