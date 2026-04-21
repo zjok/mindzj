@@ -1303,6 +1303,21 @@ export const ReadingView: Component<ReadingViewProps> = (props) => {
             // it ever got reparented by a future theme that moved
             // reading content into a portal, say).
             clearReadingFlash();
+            // Same fix for the outline-jump flash: `_outlineFlashEl` /
+            // `_outlineFlashTimer` live at module scope so a re-click
+            // before the 1s timeout can retarget them, but if the
+            // ReadingView unmounts mid-flash those module globals
+            // outlive the container — pinning a dead DOM element
+            // across tab switches and adding up across rapid search-
+            // result clicks.
+            if (_outlineFlashTimer != null) {
+                clearTimeout(_outlineFlashTimer);
+                _outlineFlashTimer = null;
+            }
+            if (_outlineFlashEl) {
+                _outlineFlashEl.classList.remove("mz-outline-flash");
+                _outlineFlashEl = null;
+            }
         });
 
         // Continuously track the top-visible line as the user scrolls so

@@ -141,9 +141,29 @@ function createEditorStore() {
   const _fileHistoryStates = new Map<string, any>();
   const _pendingExternalEdits = new Map<string, PendingExternalEdit[]>();
 
+  // Bound on the history-state cache so long sessions that open many
+  // unique files (e.g. clicking through hundreds of global-search
+  // results) don't accumulate multi-megabyte serialized CM6 history
+  // snapshots until the WebView2 tab OOMs. Map iteration order is
+  // insertion order in JS, and `setFileHistoryState` re-inserts by
+  // delete+set for any path already tracked, so trimming the OLDEST
+  // entry when we're over budget gives us effectively LRU-by-write
+  // semantics without an extra data structure.
+  const MAX_HISTORY_ENTRIES = 50;
+
   function setFileHistoryState(path: string, state: any): void {
     if (!path || state == null) return;
+    // Re-insert so this path becomes the "newest" in iteration order —
+    // keeps the most recently persisted file from being trimmed next.
+    if (_fileHistoryStates.has(path)) {
+      _fileHistoryStates.delete(path);
+    }
     _fileHistoryStates.set(path, state);
+    while (_fileHistoryStates.size > MAX_HISTORY_ENTRIES) {
+      const oldest = _fileHistoryStates.keys().next().value;
+      if (oldest === undefined) break;
+      _fileHistoryStates.delete(oldest);
+    }
   }
 
   function getFileHistoryState(path: string | null | undefined): any | null {

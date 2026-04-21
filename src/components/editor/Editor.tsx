@@ -689,25 +689,47 @@ export const Editor: Component<EditorProps> = (props) => {
     // Also continuously track the top-visible line as the user scrolls,
     // so even if they switch modes without making a transaction first,
     // the stashed line is up-to-date.
-    const scrollTrackTimers = new WeakMap<EditorView, number>();
+    //
+    // Previously this registered a per-view `onCleanup`; each call to
+    // `installScrollTracker` accumulated another cleanup entry on the
+    // component's owner, each holding a reference to its (destroyed)
+    // EditorView + handler closure. In a long-lived Editor component
+    // with many tab switches inside a split pane, the accumulation
+    // added up to megabytes of retained dead views and contributed to
+    // the OOM the user saw. We now track the ONE current scroll
+    // handler at component scope and tear it down before installing
+    // the next, plus a final teardown in onCleanup for when the whole
+    // Editor unmounts.
+    let activeScrollHandler: (() => void) | null = null;
+    let activeScrollDom: HTMLElement | null = null;
+    let activeScrollTimer: number | null = null;
+    function detachScrollTracker() {
+        if (activeScrollHandler && activeScrollDom) {
+            activeScrollDom.removeEventListener("scroll", activeScrollHandler);
+        }
+        activeScrollHandler = null;
+        activeScrollDom = null;
+        if (activeScrollTimer != null) {
+            clearTimeout(activeScrollTimer);
+            activeScrollTimer = null;
+        }
+    }
     function installScrollTracker(view: EditorView) {
-        let timer: number | null = null;
+        detachScrollTracker();
         const handler = () => {
-            if (timer != null) return;
-            timer = window.setTimeout(() => {
-                timer = null;
+            if (activeScrollTimer != null) return;
+            activeScrollTimer = window.setTimeout(() => {
+                activeScrollTimer = null;
                 if (editorView === view) {
                     rememberEditorViewport(view);
                 }
             }, 80);
         };
         view.scrollDOM.addEventListener("scroll", handler, { passive: true });
-        scrollTrackTimers.set(view, 1);
-        onCleanup(() => {
-            view.scrollDOM.removeEventListener("scroll", handler);
-            if (timer != null) clearTimeout(timer);
-        });
+        activeScrollHandler = handler;
+        activeScrollDom = view.scrollDOM;
     }
+    onCleanup(detachScrollTracker);
 
     // Apply editor text zoom.
     //
@@ -1877,6 +1899,18 @@ export const Editor: Component<EditorProps> = (props) => {
             // reading mode, so the createEffect-based persist sites
             // above don't cover it.
             persistCurrentHistory();
+            // Cancel any pending search-reveal / outline-jump flash
+            // timer so its closure stops holding a reference to a
+            // destroyed EditorView. Without this, rapidly clicking
+            // through search results across different file types in
+            // split mode stacks up 1–1.5s pending timers, each
+            // retaining the old view + its handler closure, and the
+            // retained memory compounds toward the WebView2 OOM
+            // crash the user reported.
+            if (searchFlashTimer) {
+                clearTimeout(searchFlashTimer);
+                searchFlashTimer = null;
+            }
             if (editorView) {
                 editorView.destroy();
                 editorView = null;
