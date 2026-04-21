@@ -477,33 +477,63 @@ const App: Component = () => {
     }
 
     async function handleOpenSplitInPane(path: string, direction: SplitDirection) {
-        // Plugin-backed files (`.mindzj` etc.) now work in same-window
-        // panes too: `mountPluginView` generates a unique mount handle
-        // per call, so the same file path can be mounted in the
-        // primary AND the secondary pane concurrently without either
-        // clobbering the other's DOM. Previously this branch contained
-        // a safety check that silently bailed out for plugin views and
-        // either did nothing or opened a whole new Tauri window — now
-        // we take the same fast path as .md files.
-        const previousActivePath = activePanePath() ?? vaultStore.activeFile()?.path ?? null;
+        // ═══════════════════════════════════════════════════════════
+        //  Unified Split-into-pane routine
+        // ═══════════════════════════════════════════════════════════
+        //
+        // Deterministic end-state placement — the old implementation
+        // dispatched state in several phases and then tried to "un-do"
+        // the side effects that `openFileRouted` triggered through the
+        // `activeFile → active pane path` createEffect. That race
+        // re-entered the pane signals rapidly and, when applied to an
+        // already-split layout, caused the CM6 editor in one of the
+        // panes to destroy/recreate multiple times in the same
+        // microtask batch — which looked like a hard freeze on screens
+        // the user had already split once.
+        //
+        // The rewrite computes the FINAL (primary, secondary, slot,
+        // direction) tuple up front and then does a single deterministic
+        // write of each signal. The behaviour matches the rules the
+        // user spelled out:
+        //
+        //   1. No existing split → open a fresh split per `direction`.
+        //   2. Already split on the SAME axis as `direction` → just
+        //      replace the slot the direction points at with `path`,
+        //      without touching the other pane or flipping the layout.
+        //   3. Already split on the OPPOSITE axis → rebuild the split
+        //      in the new direction, keeping the focused pane's file
+        //      on one side and `path` on the other.
+        //
+        // Plugin-backed files (`.mindzj` etc.) also take this path:
+        // `mountPluginView` generates a unique mount handle per call,
+        // so the same file can sit in primary and secondary at once.
+
+        // Snapshot EVERYTHING we need BEFORE any await so the values
+        // can't be mutated out from under us by the active-file
+        // createEffect while openFileRouted yields.
+        //
+        // `previousPrimary` / `previousSecondary` are what each pane
+        // was showing BEFORE `openFileRouted(path)` ran — we need them
+        // because that call does `setActiveFile(path)`, which the
+        // `on(vaultStore.activeFile, …)` effect below will react to
+        // by writing the new path into whichever slot is currently
+        // active. Without these snapshots Case 2's "just replace one
+        // pane" would accidentally restore the active pane from the
+        // CLOBBERED value, and the other pane would flicker.
+        const previousActivePath =
+            activePanePath() ?? vaultStore.activeFile()?.path ?? null;
+        const previousPrimary = primaryPanePath();
+        const previousSecondary = secondaryPanePath();
+        const wasSplit = splitPaneActive();
+        const currentDirection = splitDirection();
 
         if (!findOpenFile(path)) {
             await openFileRouted(path);
             if (!findOpenFile(path)) return;
         }
 
-        if (
-            previousActivePath &&
-            previousActivePath !== path &&
-            getPanePath(activePaneSlot()) === path
-        ) {
-            setPanePath(activePaneSlot(), previousActivePath);
-            const previousFile = findOpenFile(previousActivePath);
-            if (previousFile) {
-                vaultStore.setActiveFile(previousFile);
-            }
-        }
-
+        // With no previous active path this is the very first tab the
+        // user is opening — just drop it into primary, no split.
         if (!previousActivePath) {
             setPrimaryPanePath(path);
             setSecondaryPanePath(null);
@@ -511,23 +541,66 @@ const App: Component = () => {
             return;
         }
 
-        setSplitDirection(direction);
-        const currentActivePath = previousActivePath;
+        const isHorizontal = (d: SplitDirection) =>
+            d === "left" || d === "right";
+        const newAxisHorizontal = isHorizontal(direction);
+        const oldAxisHorizontal = isHorizontal(currentDirection);
 
-        if (direction === "left" || direction === "up") {
-            if (!splitPaneActive()) {
-                setSecondaryPanePath(currentActivePath);
+        // ── Case 1: no existing split yet ────────────────────────────
+        if (!wasSplit) {
+            setSplitDirection(direction);
+            if (direction === "left" || direction === "up") {
+                // `path` becomes the primary (left/top); previously
+                // active file slides into the secondary slot.
+                setSecondaryPanePath(previousActivePath);
+                setPrimaryPanePath(path);
+                activatePane("primary");
+            } else {
+                // right/down: `path` becomes secondary.
+                setPrimaryPanePath(previousActivePath);
+                setSecondaryPanePath(path);
+                activatePane("secondary");
             }
-            setPrimaryPanePath(path);
-            activatePane("primary");
             return;
         }
 
-        if (!primaryPanePath()) {
-            setPrimaryPanePath(currentActivePath);
+        // ── Case 2: already split on the same axis ───────────────────
+        // User just wants to REPLACE one of the two visible panes.
+        // "right" / "down" → secondary; "left" / "up" → primary.
+        // Direction itself stays unchanged (we keep the current axis).
+        //
+        // We explicitly write BOTH pane paths (even the one we don't
+        // mean to change) so the earlier `activeFile` createEffect's
+        // clobber of the active slot gets undone.
+        if (newAxisHorizontal === oldAxisHorizontal) {
+            if (direction === "right" || direction === "down") {
+                setPrimaryPanePath(previousPrimary);
+                setSecondaryPanePath(path);
+                activatePane("secondary");
+            } else {
+                setSecondaryPanePath(previousSecondary);
+                setPrimaryPanePath(path);
+                activatePane("primary");
+            }
+            return;
         }
-        setSecondaryPanePath(path);
-        activatePane("secondary");
+
+        // ── Case 3: already split on the OPPOSITE axis ───────────────
+        // Rebuild the split in the new direction. The focused pane's
+        // file stays, the OTHER pane's file is dropped from the layout
+        // (still open in the tab strip, just no longer assigned to a
+        // pane). The new file (`path`) takes the slot dictated by
+        // `direction`.
+        setSplitDirection(direction);
+        if (direction === "left" || direction === "up") {
+            setPrimaryPanePath(path);
+            setSecondaryPanePath(previousActivePath);
+            activatePane("primary");
+        } else {
+            setPrimaryPanePath(previousActivePath);
+            setSecondaryPanePath(path);
+            activatePane("secondary");
+        }
     }
 
     createEffect(
