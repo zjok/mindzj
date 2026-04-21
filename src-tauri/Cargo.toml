@@ -1,6 +1,6 @@
 [package]
 name = "mindzj"
-version = "0.1.2"
+version = "0.1.3"
 description = "AI-native, CLI-first, open-source local note-taking system"
 authors = ["SuperJohn"] 
 license = "AGPL-3.0-or-later"
