@@ -328,6 +328,16 @@ impl Default for NewNoteLocation {
 pub struct WorkspaceState {
     pub open_files: Vec<String>,
     pub active_file: Option<String>,
+    #[serde(default)]
+    pub primary_pane_path: Option<String>,
+    #[serde(default)]
+    pub secondary_pane_path: Option<String>,
+    #[serde(default)]
+    pub active_pane_slot: Option<String>,
+    #[serde(default)]
+    pub split_direction: Option<String>,
+    #[serde(default)]
+    pub split_ratio: Option<f64>,
     pub sidebar_tab: String,
     pub sidebar_collapsed: bool,
     pub sidebar_width: u32,
@@ -359,6 +369,11 @@ impl Default for WorkspaceState {
         Self {
             open_files: Vec::new(),
             active_file: None,
+            primary_pane_path: None,
+            secondary_pane_path: None,
+            active_pane_slot: Some("primary".to_string()),
+            split_direction: Some("right".to_string()),
+            split_ratio: Some(0.5),
             sidebar_tab: "files".to_string(),
             sidebar_collapsed: false,
             sidebar_width: 260,

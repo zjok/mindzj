@@ -4,10 +4,17 @@ import type { ViewMode } from "./editor";
 
 type FileScrollPositionMap = Record<string, Partial<Record<ViewMode, number>>>;
 type EditableViewMode = Exclude<ViewMode, "reading">;
+type PaneSlot = "primary" | "secondary";
+type SplitDirection = "left" | "right" | "up" | "down";
 
 export interface WorkspaceState {
   open_files: string[];
   active_file: string | null;
+  primary_pane_path?: string | null;
+  secondary_pane_path?: string | null;
+  active_pane_slot?: PaneSlot;
+  split_direction?: SplitDirection;
+  split_ratio?: number;
   sidebar_tab: string;
   sidebar_collapsed: boolean;
   sidebar_width: number;
@@ -27,6 +34,11 @@ export interface WorkspaceState {
 const DEFAULT_WORKSPACE: WorkspaceState = {
   open_files: [],
   active_file: null,
+  primary_pane_path: null,
+  secondary_pane_path: null,
+  active_pane_slot: "primary",
+  split_direction: "right",
+  split_ratio: 0.5,
   sidebar_tab: "files",
   sidebar_collapsed: false,
   sidebar_width: 260,

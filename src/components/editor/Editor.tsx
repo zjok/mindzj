@@ -1790,7 +1790,15 @@ export const Editor: Component<EditorProps> = (props) => {
             event.preventDefault();
             const content = editorView.state.doc.toString();
             try {
-                await editorStore.forceSave(currentFilePath, content);
+                const savedContent = resolvedFile()?.content ?? "";
+                if (
+                    editorStore.isDirtyPath(currentFilePath) ||
+                    content !== savedContent
+                ) {
+                    await editorStore.forceSave(currentFilePath, content, {
+                        suppressSavedEvent: true,
+                    });
+                }
                 editorStore.toggleReadingMode(currentFilePath);
             } catch (error) {
                 console.error("Toggle view mode save failed:", error);

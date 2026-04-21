@@ -286,7 +286,11 @@ function createEditorStore() {
   }
 
   // Force immediate save
-  async function forceSave(relativePath: string, content: string) {
+  async function forceSave(
+    relativePath: string,
+    content: string,
+    options?: { suppressSavedEvent?: boolean },
+  ) {
     const existing = saveTimers.get(relativePath);
     if (existing) {
       clearTimeout(existing);
@@ -294,7 +298,9 @@ function createEditorStore() {
     }
     pendingSaveContent.delete(relativePath);
     try {
-      await vaultStore.saveFile(relativePath, content);
+      await vaultStore.saveFile(relativePath, content, {
+        suppressSavedEvent: options?.suppressSavedEvent,
+      });
       clearDirty(relativePath);
     } catch (e) {
       console.error("Force save failed:", e);

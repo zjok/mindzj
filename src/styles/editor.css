@@ -28,7 +28,7 @@
 .mz-reading-view .mz-rv-table td,
 .mz-reading-view .mz-rv-table th,
 .mz-reading-view .mz-rv-code pre {
-  cursor: text;
+    cursor: text;
 }
 
 /* Markdown heading styling — inline span rules.
@@ -44,143 +44,143 @@
 .cm-editor .cm-content .cm-header-4,
 .cm-editor .cm-content .cm-header-5,
 .cm-editor .cm-content .cm-header-6 {
-  font-weight: 700;
-  color: var(--mz-syntax-heading);
-  text-decoration: none;
-  border-bottom: none;
+    font-weight: 700;
+    color: var(--mz-syntax-heading);
+    text-decoration: none;
+    border-bottom: none;
 }
 
 /* Source-mode heading LINE styling. The font-size is applied to the
    .cm-line wrapper so the whole line has a uniform height and
    CodeMirror's height map matches the visible layout. */
 .cm-editor .cm-line.mz-src-h1 {
-  font-size: 1.8em;
-  font-weight: 700;
-  color: var(--mz-syntax-heading);
-  line-height: 1.3;
+    font-size: 1.8em;
+    font-weight: 700;
+    color: var(--mz-syntax-heading);
+    line-height: 1.3;
 }
 
 .cm-editor .cm-line.mz-src-h2 {
-  font-size: 1.5em;
-  font-weight: 600;
-  color: var(--mz-syntax-heading);
-  line-height: 1.3;
+    font-size: 1.5em;
+    font-weight: 600;
+    color: var(--mz-syntax-heading);
+    line-height: 1.3;
 }
 
 .cm-editor .cm-line.mz-src-h3 {
-  font-size: 1.25em;
-  font-weight: 600;
-  color: var(--mz-syntax-heading);
-  line-height: 1.4;
+    font-size: 1.25em;
+    font-weight: 600;
+    color: var(--mz-syntax-heading);
+    line-height: 1.4;
 }
 
 .cm-editor .cm-line.mz-src-h4,
 .cm-editor .cm-line.mz-src-h5,
 .cm-editor .cm-line.mz-src-h6 {
-  font-size: 1.1em;
-  font-weight: 600;
-  color: var(--mz-syntax-heading);
+    font-size: 1.1em;
+    font-weight: 600;
+    color: var(--mz-syntax-heading);
 }
 
 /* Bold / italic / strikethrough */
 .cm-editor .cm-content .cm-strong {
-  font-weight: 700;
-  color: var(--mz-syntax-bold);
+    font-weight: 700;
+    color: var(--mz-syntax-bold);
 }
 
 .cm-editor .cm-content .cm-emphasis {
-  font-style: italic;
-  color: var(--mz-syntax-italic);
+    font-style: italic;
+    color: var(--mz-syntax-italic);
 }
 
 .cm-editor .cm-content .cm-strikethrough {
-  text-decoration: line-through;
-  color: var(--mz-syntax-strikethrough);
+    text-decoration: line-through;
+    color: var(--mz-syntax-strikethrough);
 }
 
 /* Inline code */
 .cm-editor .cm-content .cm-monospace {
-  font-family: var(--mz-font-mono);
-  font-size: 0.9em;
-  background: var(--mz-syntax-code-bg);
-  padding: 1px 4px;
-  border-radius: 3px;
+    font-family: var(--mz-font-mono);
+    font-size: 0.9em;
+    background: var(--mz-syntax-code-bg);
+    padding: 1px 4px;
+    border-radius: 3px;
 }
 
 /* Code blocks */
 .cm-editor .cm-content .cm-codeBlock {
-  font-family: var(--mz-font-mono);
-  font-size: 0.88em;
-  line-height: 1.7 !important;
+    font-family: var(--mz-font-mono);
+    font-size: 0.88em;
+    line-height: 1.7 !important;
 }
 
 /* Consistent line height for all editor lines */
 .cm-editor .cm-line {
-  line-height: 1.7;
-  padding: 0 2px 0 0;
+    line-height: 1.7;
+    padding: 0 2px 0 0;
 }
 
 .cm-editor .cm-line.mz-list-wrap-line {
-  min-width: 0;
+    min-width: 0;
 }
 
 .cm-editor .cm-line.mz-list-wrap-line .mz-lp-list-content {
-  --_wrap: calc(
-    var(--mz-list-wrap-tabs, 0) * var(--mz-list-indent-step, 40px)
-    + var(--mz-list-wrap-marker, 0) * 1ch
-  );
-  display: inline-block;
-  vertical-align: top;
-  width: calc(100% - var(--_wrap));
-  min-width: 0;
-  white-space: break-spaces;
-  overflow-wrap: anywhere;
-  word-break: break-word;
+    --_wrap: calc(
+        var(--mz-list-wrap-tabs, 0) * var(--mz-list-indent-step, 40px) +
+            var(--mz-list-wrap-marker, 0) * 1ch
+    );
+    display: inline-block;
+    vertical-align: top;
+    width: calc(100% - var(--_wrap));
+    min-width: 0;
+    white-space: break-spaces;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 /* Links */
 .cm-editor .cm-content .cm-link {
-  color: var(--mz-syntax-link);
-  text-decoration: none;
+    color: var(--mz-syntax-link);
+    text-decoration: none;
 }
 
 .cm-editor .cm-content .cm-link:hover {
-  text-decoration: underline;
+    text-decoration: underline;
 }
 
 .cm-editor .cm-content .cm-url {
-  color: var(--mz-syntax-link);
-  opacity: 0.7;
+    color: var(--mz-syntax-link);
+    opacity: 0.7;
 }
 
 /* Task lists — CodeMirror's built-in class for task markers in source mode */
 .cm-editor .cm-content .cm-task-marker {
-  color: var(--mz-accent);
-  font-weight: 700;
+    color: var(--mz-accent);
+    font-weight: 700;
 }
 
 /* Blockquote */
 .cm-editor .cm-content .cm-quote {
-  color: var(--mz-text-secondary);
-  border-left: 3px solid var(--mz-border-strong);
-  padding-left: 12px;
+    color: var(--mz-text-secondary);
+    border-left: 3px solid var(--mz-border-strong);
+    padding-left: 12px;
 }
 
 /* Embedded images — constraints via class so plugins can override with inline style */
 .cm-editor .cm-content .mz-embed-image {
-  max-width: 100%;
-  max-height: 400px;
+    max-width: 100%;
+    max-height: 400px;
 }
 /* When pixel-perfect-image (or any plugin) sets inline width, remove constraints */
 .cm-editor .cm-content img[data-ppi-wheel-inline-width] {
-  max-width: none !important;
-  max-height: none !important;
+    max-width: none !important;
+    max-height: none !important;
 }
 
 /* Horizontal rule */
 .cm-editor .cm-content .cm-hr {
-  border-top: 1px solid var(--mz-border);
-  margin: 16px 0;
+    border-top: 1px solid var(--mz-border);
+    margin: 16px 0;
 }
 
 /* Search match highlighting.
@@ -194,10 +194,10 @@
    pick up its defaults (display: inline, width: auto, baseline
    alignment) gives text-layout parity with reading mode. */
 .cm-editor .cm-searchMatch {
-  background: var(--mz-syntax-highlight-bg);
-  color: inherit;
-  padding: 0;
-  border-radius: 2px;
+    background: var(--mz-syntax-highlight-bg);
+    color: inherit;
+    padding: 0;
+    border-radius: 2px;
 }
 
 /* Live-preview list-content merge case. CM6 can materialise the
@@ -209,41 +209,43 @@
    reset — the normal `.cm-searchMatch` case above uses plain span
    defaults. */
 .cm-editor .cm-searchMatch.mz-lp-list-content {
-  display: inline !important;
-  width: auto !important;
-  min-width: 0 !important;
-  padding: 0 !important;
-  vertical-align: baseline !important;
+    display: inline !important;
+    width: auto !important;
+    min-width: 0 !important;
+    padding: 0 !important;
+    vertical-align: baseline !important;
 }
 
 .cm-editor .cm-line.mz-list-wrap-line:has(.cm-searchMatch) .mz-lp-list-content,
-.cm-editor .cm-line.mz-list-wrap-line:has(.cm-searchMatch-selected) .mz-lp-list-content {
-  display: inline !important;
-  width: auto !important;
-  min-width: 0 !important;
-  vertical-align: baseline !important;
+.cm-editor
+    .cm-line.mz-list-wrap-line:has(.cm-searchMatch-selected)
+    .mz-lp-list-content {
+    display: inline !important;
+    width: auto !important;
+    min-width: 0 !important;
+    vertical-align: baseline !important;
 }
 
 .cm-editor .cm-searchMatch-selected {
-  background: rgba(255, 170, 0, 0.55);
-  outline: 1.5px solid rgba(255, 140, 0, 0.95);
+    background: rgba(255, 170, 0, 0.55);
+    outline: 1.5px solid rgba(255, 140, 0, 0.95);
 }
 
 /* Tooltip styling */
 .cm-editor .cm-tooltip {
-  background: var(--mz-bg-secondary);
-  border: 1px solid var(--mz-border);
-  border-radius: var(--mz-radius-md);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    background: var(--mz-bg-secondary);
+    border: 1px solid var(--mz-border);
+    border-radius: var(--mz-radius-md);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 .cm-editor .cm-tooltip-autocomplete ul li {
-  padding: 4px 8px;
-  font-size: var(--mz-font-size-sm);
+    padding: 4px 8px;
+    font-size: var(--mz-font-size-sm);
 }
 
 .cm-editor .cm-tooltip-autocomplete ul li[aria-selected] {
-  background: var(--mz-bg-hover);
+    background: var(--mz-bg-hover);
 }
 
 /* ===================================================================
@@ -274,38 +276,60 @@
    =================================================================== */
 
 .cm-editor {
-  position: relative;
+    position: relative;
 }
 
 .cm-editor .cm-panels.cm-panels-top {
-  position: absolute;
-  top: 8px;
-  right: 16px;
-  left: auto;
-  width: auto;
-  max-width: calc(100% - 24px);
-  background: transparent;
-  border: none;
-  z-index: 20;
-  padding: 0;
-  pointer-events: none;
+    position: absolute;
+    top: 8px;
+    right: 16px;
+    left: auto;
+    width: auto;
+    max-width: calc(100% - 24px);
+    background: transparent;
+    border: none;
+    z-index: 20;
+    padding: 0;
+    pointer-events: none;
 }
 
 .cm-editor .cm-panels.cm-panels-top > .cm-panel {
-  pointer-events: auto;
+    pointer-events: auto;
 }
 
 .cm-editor .cm-panels-bottom {
-  background: var(--mz-bg-secondary);
-  border-top: 1px solid var(--mz-border);
+    background: var(--mz-bg-secondary);
+    border-top: 1px solid var(--mz-border);
+}
+
+.mz-split-pane .cm-scroller::-webkit-scrollbar,
+.mz-split-pane .mz-reading-scroll-container::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.mz-split-pane .cm-scroller::-webkit-scrollbar-track,
+.mz-split-pane .mz-reading-scroll-container::-webkit-scrollbar-track {
+    background: var(--mz-scrollbar-track);
+}
+
+.mz-split-pane .cm-scroller::-webkit-scrollbar-thumb,
+.mz-split-pane .mz-reading-scroll-container::-webkit-scrollbar-thumb {
+    background: var(--mz-scrollbar-thumb);
+    border-radius: 4px;
+}
+
+.mz-split-pane .cm-scroller::-webkit-scrollbar-thumb:hover,
+.mz-split-pane .mz-reading-scroll-container::-webkit-scrollbar-thumb:hover {
+    background: var(--mz-border-strong);
 }
 
 html[data-theme="dark"] .cm-editor .cm-panels-bottom {
-  border-top: 1px solid #474747;
+    border-top: 1px solid #474747;
 }
 
 html[data-theme="light"] .cm-editor .cm-panels-bottom {
-  border-top: 1px solid #ddd;
+    border-top: 1px solid #ddd;
 }
 
 /* Container — min-width keeps the two rows wide enough that the
@@ -313,54 +337,54 @@ html[data-theme="light"] .cm-editor .cm-panels-bottom {
    on the find row, while max-width prevents the widget from
    stretching past a sensible width on very wide editors. */
 .cm-editor .cm-panel.mz-search-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 5px 6px;
-  min-width: 420px;
-  max-width: 520px;
-  background: var(--mz-bg-secondary);
-  border: 1px solid var(--mz-border);
-  border-radius: var(--mz-radius-md);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
-  font-family: var(--mz-font-sans);
-  font-size: var(--mz-font-size-sm);
-  color: var(--mz-text-primary);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 5px 6px;
+    min-width: 420px;
+    max-width: 520px;
+    background: var(--mz-bg-secondary);
+    border: 1px solid var(--mz-border);
+    border-radius: var(--mz-radius-md);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+    font-family: var(--mz-font-sans);
+    font-size: var(--mz-font-size-sm);
+    color: var(--mz-text-primary);
 }
 
 html[data-theme="light"] .cm-editor .cm-panel.mz-search-panel {
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
 }
 
 /* Single horizontal row (find OR replace). */
 .cm-editor .cm-panel.mz-search-panel .mz-search-row {
-  display: flex;
-  flex-wrap: nowrap;
-  align-items: center;
-  gap: 3px;
-  min-height: 26px;
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 3px;
+    min-height: 26px;
 }
 
 /* Replace row is hidden by default; the `-expanded` modifier on the
    panel root reveals it when the chevron is toggled. */
 .cm-editor .cm-panel.mz-search-panel .mz-search-replace-row {
-  display: none;
+    display: none;
 }
 
 .cm-editor .cm-panel.mz-search-panel-expanded .mz-search-replace-row {
-  display: flex;
+    display: flex;
 }
 
 /* Chevron on the far left of the find row. Rotates 90° when the
    replace row is open so the icon points down → right, same idiom
    VS Code uses. */
 .cm-editor .cm-panel.mz-search-panel .mz-search-chevron {
-  transform: rotate(-90deg);
-  transition: transform 120ms ease;
+    transform: rotate(-90deg);
+    transition: transform 120ms ease;
 }
 
 .cm-editor .cm-panel.mz-search-panel-expanded .mz-search-chevron {
-  transform: rotate(0deg);
+    transform: rotate(0deg);
 }
 
 /* Empty spacer on the replace row that reserves the same box as
@@ -371,140 +395,140 @@ html[data-theme="light"] .cm-editor .cm-panel.mz-search-panel {
    the following flex item (the input) at exactly the same `left`
    offset on both rows. */
 .cm-editor .cm-panel.mz-search-panel .mz-search-chevron-spacer {
-  display: inline-flex;
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  border: 1px solid transparent;
-  box-sizing: border-box;
-  flex-shrink: 0;
+    display: inline-flex;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: 1px solid transparent;
+    box-sizing: border-box;
+    flex-shrink: 0;
 }
 
 /* Query / replace input. Tight padding, inherits panel's typography,
    resolves color via the shared theme tokens. */
 .cm-editor .cm-panel.mz-search-panel .mz-search-input {
-  flex: 1;
-  min-width: 0;
-  height: 24px;
-  padding: 2px 8px;
-  background: var(--mz-bg-primary);
-  color: var(--mz-text-primary);
-  border: 1px solid var(--mz-border);
-  border-radius: var(--mz-radius-sm);
-  font-family: var(--mz-font-sans);
-  font-size: var(--mz-font-size-sm);
-  outline: none;
+    flex: 1;
+    min-width: 0;
+    height: 24px;
+    padding: 2px 8px;
+    background: var(--mz-bg-primary);
+    color: var(--mz-text-primary);
+    border: 1px solid var(--mz-border);
+    border-radius: var(--mz-radius-sm);
+    font-family: var(--mz-font-sans);
+    font-size: var(--mz-font-size-sm);
+    outline: none;
 }
 
 .cm-editor .cm-panel.mz-search-panel .mz-search-input:focus {
-  border-color: var(--mz-accent);
-  box-shadow: 0 0 0 1px var(--mz-accent);
+    border-color: var(--mz-accent);
+    box-shadow: 0 0 0 1px var(--mz-accent);
 }
 
 .cm-editor .cm-panel.mz-search-panel .mz-search-input::placeholder {
-  color: var(--mz-text-muted);
-  opacity: 0.8;
+    color: var(--mz-text-muted);
+    opacity: 0.8;
 }
 
 /* Toggle pills (Aa / ab / .* / AB). The underlying input[type=checkbox]
    is kept in the DOM (accessibility) but visually swapped for a square
    icon button. `:has(input:checked)` paints the active state. */
 .cm-editor .cm-panel.mz-search-panel .mz-search-toggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  margin: 0;
-  background: transparent;
-  color: var(--mz-text-secondary);
-  border: 1px solid transparent;
-  border-radius: var(--mz-radius-sm);
-  cursor: pointer;
-  font-family: var(--mz-font-sans);
-  font-size: 11px;
-  font-weight: 600;
-  user-select: none;
-  white-space: nowrap;
-  flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    margin: 0;
+    background: transparent;
+    color: var(--mz-text-secondary);
+    border: 1px solid transparent;
+    border-radius: var(--mz-radius-sm);
+    cursor: pointer;
+    font-family: var(--mz-font-sans);
+    font-size: 11px;
+    font-weight: 600;
+    user-select: none;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .cm-editor .cm-panel.mz-search-panel .mz-search-toggle:hover {
-  background: var(--mz-bg-hover);
-  color: var(--mz-text-primary);
+    background: var(--mz-bg-hover);
+    color: var(--mz-text-primary);
 }
 
 .cm-editor .cm-panel.mz-search-panel .mz-search-toggle:has(input:checked) {
-  background: var(--mz-accent-subtle);
-  color: var(--mz-accent);
-  border-color: var(--mz-accent);
+    background: var(--mz-accent-subtle);
+    color: var(--mz-accent);
+    border-color: var(--mz-accent);
 }
 
 .cm-editor .cm-panel.mz-search-panel .mz-search-toggle input[type="checkbox"] {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
-  width: 0;
-  height: 0;
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+    width: 0;
+    height: 0;
 }
 
 /* Icon buttons — chevron, up/down arrows, find-in-selection, close,
    replace, replace-all. SVG fills `currentColor` so hover state
    inherits from the button's text color. */
 .cm-editor .cm-panel.mz-search-panel .mz-search-iconbtn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  background: transparent;
-  color: var(--mz-text-secondary);
-  border: 1px solid transparent;
-  border-radius: var(--mz-radius-sm);
-  cursor: pointer;
-  line-height: 1;
-  flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    background: transparent;
+    color: var(--mz-text-secondary);
+    border: 1px solid transparent;
+    border-radius: var(--mz-radius-sm);
+    cursor: pointer;
+    line-height: 1;
+    flex-shrink: 0;
 }
 
 .cm-editor .cm-panel.mz-search-panel .mz-search-iconbtn:hover {
-  background: var(--mz-bg-hover);
-  color: var(--mz-text-primary);
+    background: var(--mz-bg-hover);
+    color: var(--mz-text-primary);
 }
 
 .cm-editor .cm-panel.mz-search-panel .mz-search-iconbtn:active {
-  background: var(--mz-bg-active);
+    background: var(--mz-bg-active);
 }
 
 .cm-editor .cm-panel.mz-search-panel .mz-search-iconbtn svg {
-  display: block;
+    display: block;
 }
 
 /* Match counter ("3 of 10" / "No results"). */
 .cm-editor .cm-panel.mz-search-panel .mz-search-count {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 64px;
-  max-width: 90px;
-  padding: 0 6px;
-  color: var(--mz-text-muted);
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 64px;
+    max-width: 90px;
+    padding: 0 6px;
+    color: var(--mz-text-muted);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* Fold gutter */
 .cm-editor .cm-foldGutter span {
-  color: var(--mz-text-muted);
-  cursor: pointer;
+    color: var(--mz-text-muted);
+    cursor: pointer;
 }
 
 .cm-editor .cm-foldGutter span:hover {
-  color: var(--mz-text-primary);
+    color: var(--mz-text-primary);
 }
 
 /* ===================================================================
@@ -524,10 +548,23 @@ html[data-theme="light"] .cm-editor .cm-panel.mz-search-panel {
    mapping accurate even after the user has scrolled far into the doc. */
 
 /* Inline formatting */
-.cm-editor .mz-lp-bold { font-weight: 700; color: var(--mz-syntax-bold); }
-.cm-editor .mz-lp-italic { font-style: italic; color: var(--mz-syntax-italic); }
-.cm-editor .mz-lp-strikethrough { text-decoration: line-through; color: var(--mz-syntax-strikethrough); }
-.cm-editor .mz-lp-highlight { background: var(--mz-syntax-highlight-bg); border-radius: 2px; padding: 1px 2px; }
+.cm-editor .mz-lp-bold {
+    font-weight: 700;
+    color: var(--mz-syntax-bold);
+}
+.cm-editor .mz-lp-italic {
+    font-style: italic;
+    color: var(--mz-syntax-italic);
+}
+.cm-editor .mz-lp-strikethrough {
+    text-decoration: line-through;
+    color: var(--mz-syntax-strikethrough);
+}
+.cm-editor .mz-lp-highlight {
+    background: var(--mz-syntax-highlight-bg);
+    border-radius: 2px;
+    padding: 1px 2px;
+}
 
 /* Search-result flash highlight — applied when the user clicks a
    hit in the global search panel. The decoration lives on the
@@ -562,22 +599,22 @@ html[data-theme="light"] .cm-editor .cm-panel.mz-search-panel {
 .cm-editor .mz-search-flash,
 .mz-reading-view .mz-search-flash,
 .mz-reading-view mark.mz-search-flash {
-  background: rgba(98, 255, 66, 0.235);
-  color: inherit;
-  outline: 1.5px solid rgba(0, 255, 76, 0.75);
-  border-radius: 3px;
-  padding: 0 1px;
-  animation: mz-search-flash-pulse 0.3s ease-out;
+    background: rgba(98, 255, 66, 0.235);
+    color: inherit;
+    outline: 1.5px solid rgba(0, 255, 76, 0.75);
+    border-radius: 3px;
+    padding: 0 1px;
+    animation: mz-search-flash-pulse 0.3s ease-out;
 }
 @keyframes mz-search-flash-pulse {
-  0% {
-    background: rgba(255, 170, 0, 0.368);
-    outline-color: rgba(255, 140, 0, 1);
-  }
-  100% {
-    background: rgba(255, 211, 66, 0.215);
-    outline-color: rgba(255, 170, 0, 0.75);
-  }
+    0% {
+        background: rgba(255, 170, 0, 0.368);
+        outline-color: rgba(255, 140, 0, 1);
+    }
+    100% {
+        background: rgba(255, 211, 66, 0.215);
+        outline-color: rgba(255, 170, 0, 0.75);
+    }
 }
 
 /* Outline-click heading flash. Painted for ~1s (timer managed in
@@ -594,7 +631,11 @@ html[data-theme="light"] .cm-editor .cm-panel.mz-search-panel {
    hidden behind the active-line hover background. */
 .cm-editor .mz-outline-flash,
 .mz-reading-view .mz-outline-flash {
-  background: color-mix(in srgb, var(--mz-accent) 20%, transparent) !important;
+    background: color-mix(
+        in srgb,
+        var(--mz-accent) 20%,
+        transparent
+    ) !important;
 }
 
 /* Global-search sidebar panel layout. Mirrors the in-editor
@@ -604,11 +645,11 @@ html[data-theme="light"] .cm-editor .cm-panel.mz-search-panel {
    widgets deliberately share visual language so users coming from
    Ctrl+F recognise the global panel immediately. */
 .mz-global-search-row {
-  display: flex;
-  flex-wrap: nowrap;
-  align-items: center;
-  gap: 3px;
-  min-height: 26px;
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 3px;
+    min-height: 26px;
 }
 
 /* Sidebar text input shared by search + replace. The original
@@ -616,85 +657,85 @@ html[data-theme="light"] .cm-editor .cm-panel.mz-search-panel {
    those into a class lets the replace input inherit the exact same
    look without duplicating the declarations in TSX. */
 .mz-sidebar-search-input {
-  width: 100%;
-  padding: 6px 10px;
-  border: 1px solid var(--mz-border);
-  background: var(--mz-bg-primary);
-  color: var(--mz-text-primary);
-  font-size: var(--mz-font-size-sm);
-  border-radius: var(--mz-radius-md);
-  outline: none;
-  font-family: var(--mz-font-sans);
+    width: 100%;
+    padding: 6px 10px;
+    border: 1px solid var(--mz-border);
+    background: var(--mz-bg-primary);
+    color: var(--mz-text-primary);
+    font-size: var(--mz-font-size-sm);
+    border-radius: var(--mz-radius-md);
+    outline: none;
+    font-family: var(--mz-font-sans);
 }
 
 .mz-sidebar-search-input:focus {
-  border-color: var(--mz-accent);
+    border-color: var(--mz-accent);
 }
 
 .mz-global-search-input {
-  flex: 1;
-  min-width: 0;
+    flex: 1;
+    min-width: 0;
 }
 
 .mz-global-search-chevron {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  background: transparent;
-  color: var(--mz-text-secondary);
-  border: 1px solid transparent;
-  border-radius: var(--mz-radius-sm);
-  cursor: pointer;
-  flex-shrink: 0;
-  transform: rotate(-90deg);
-  transition: transform 120ms ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    background: transparent;
+    color: var(--mz-text-secondary);
+    border: 1px solid transparent;
+    border-radius: var(--mz-radius-sm);
+    cursor: pointer;
+    flex-shrink: 0;
+    transform: rotate(-90deg);
+    transition: transform 120ms ease;
 }
 
 .mz-global-search-chevron:hover {
-  background: var(--mz-bg-hover);
-  color: var(--mz-text-primary);
+    background: var(--mz-bg-hover);
+    color: var(--mz-text-primary);
 }
 
 .mz-global-search-chevron-expanded {
-  transform: rotate(0deg);
+    transform: rotate(0deg);
 }
 
 .mz-global-search-chevron-spacer {
-  width: 22px;
-  height: 22px;
-  flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
 }
 
 .mz-global-search-iconbtn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  background: transparent;
-  color: var(--mz-text-secondary);
-  border: 1px solid transparent;
-  border-radius: var(--mz-radius-sm);
-  cursor: pointer;
-  flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    background: transparent;
+    color: var(--mz-text-secondary);
+    border: 1px solid transparent;
+    border-radius: var(--mz-radius-sm);
+    cursor: pointer;
+    flex-shrink: 0;
 }
 
 .mz-global-search-iconbtn:hover {
-  background: var(--mz-bg-hover);
-  color: var(--mz-text-primary);
+    background: var(--mz-bg-hover);
+    color: var(--mz-text-primary);
 }
 
 .mz-global-search-iconbtn:disabled {
-  cursor: not-allowed;
-  opacity: 0.45;
+    cursor: not-allowed;
+    opacity: 0.45;
 }
 
 .mz-global-search-iconbtn svg {
-  display: block;
+    display: block;
 }
 
 /* Aa / ab / .* / AB toggle pills — shared by find and replace rows.
@@ -702,51 +743,51 @@ html[data-theme="light"] .cm-editor .cm-panel.mz-search-panel {
    Ctrl+F widget so the two search UIs feel like the same control
    rendered at different scales. */
 .mz-global-search-toggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  margin: 0;
-  background: transparent;
-  color: var(--mz-text-secondary);
-  border: 1px solid transparent;
-  border-radius: var(--mz-radius-sm);
-  cursor: pointer;
-  font-size: 11px;
-  font-weight: 600;
-  user-select: none;
-  white-space: nowrap;
-  flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    margin: 0;
+    background: transparent;
+    color: var(--mz-text-secondary);
+    border: 1px solid transparent;
+    border-radius: var(--mz-radius-sm);
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 600;
+    user-select: none;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .mz-global-search-toggle:hover {
-  background: var(--mz-bg-hover);
-  color: var(--mz-text-primary);
+    background: var(--mz-bg-hover);
+    color: var(--mz-text-primary);
 }
 
 .mz-global-search-toggle-active,
 .mz-global-search-toggle:has(input:checked) {
-  background: var(--mz-accent-subtle);
-  color: var(--mz-accent);
-  border-color: var(--mz-accent);
+    background: var(--mz-accent-subtle);
+    color: var(--mz-accent);
+    border-color: var(--mz-accent);
 }
 
 .mz-global-search-toggle input[type="checkbox"] {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
-  width: 0;
-  height: 0;
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+    width: 0;
+    height: 0;
 }
 
 .mz-global-search-regex-error {
-  padding: 4px 8px;
-  font-size: var(--mz-font-size-xs);
-  color: var(--mz-error);
-  background: color-mix(in srgb, var(--mz-error) 10%, transparent);
-  border-radius: var(--mz-radius-sm);
+    padding: 4px 8px;
+    font-size: var(--mz-font-size-xs);
+    color: var(--mz-error);
+    background: color-mix(in srgb, var(--mz-error) 10%, transparent);
+    border-radius: var(--mz-radius-sm);
 }
 
 /* Ctrl+G goto-line popup. The overlay is a transparent full-screen
@@ -755,50 +796,50 @@ html[data-theme="light"] .cm-editor .cm-panel.mz-search-panel {
    itself docks at the top-center of the editor area, visually
    aligned with where the CM6 find widget would appear. */
 .mz-goto-line-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 2147483646;
-  background: transparent;
-  pointer-events: auto;
+    position: fixed;
+    inset: 0;
+    z-index: 2147483646;
+    background: transparent;
+    pointer-events: auto;
 }
 
 .mz-goto-line-panel {
-  position: absolute;
-  top: calc(var(--mz-tab-height, 36px) + 16px);
-  left: 50%;
-  transform: translateX(-50%);
-  min-width: 280px;
-  max-width: 420px;
-  padding: 8px;
-  background: var(--mz-bg-secondary);
-  border: 1px solid var(--mz-border);
-  border-radius: var(--mz-radius-md);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
-  font-family: var(--mz-font-sans);
-  font-size: var(--mz-font-size-sm);
-  color: var(--mz-text-primary);
+    position: absolute;
+    top: calc(var(--mz-tab-height, 36px) + 16px);
+    left: 50%;
+    transform: translateX(-50%);
+    min-width: 280px;
+    max-width: 420px;
+    padding: 8px;
+    background: var(--mz-bg-secondary);
+    border: 1px solid var(--mz-border);
+    border-radius: var(--mz-radius-md);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+    font-family: var(--mz-font-sans);
+    font-size: var(--mz-font-size-sm);
+    color: var(--mz-text-primary);
 }
 
 html[data-theme="light"] .mz-goto-line-panel {
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
 }
 
 .mz-goto-line-input {
-  width: 100%;
-  height: 26px;
-  padding: 2px 8px;
-  background: var(--mz-bg-primary);
-  color: var(--mz-text-primary);
-  border: 1px solid var(--mz-border);
-  border-radius: var(--mz-radius-sm);
-  font-family: var(--mz-font-sans);
-  font-size: var(--mz-font-size-sm);
-  outline: none;
+    width: 100%;
+    height: 26px;
+    padding: 2px 8px;
+    background: var(--mz-bg-primary);
+    color: var(--mz-text-primary);
+    border: 1px solid var(--mz-border);
+    border-radius: var(--mz-radius-sm);
+    font-family: var(--mz-font-sans);
+    font-size: var(--mz-font-size-sm);
+    outline: none;
 }
 
 .mz-goto-line-input:focus {
-  border-color: var(--mz-accent);
-  box-shadow: 0 0 0 1px var(--mz-accent);
+    border-color: var(--mz-accent);
+    box-shadow: 0 0 0 1px var(--mz-accent);
 }
 
 /* Sidebar file-tree reveal flash. Fired when the user picks
@@ -807,27 +848,31 @@ html[data-theme="light"] .mz-goto-line-panel {
    back. The class is added/removed by `revealFileInTree` in
    FileTree.tsx; the CSS keeps the transition smooth. */
 .mz-file-tree-reveal-highlight {
-  background: color-mix(in srgb, var(--mz-accent) 30%, transparent) !important;
-  outline: 1px solid var(--mz-accent);
-  outline-offset: -1px;
-  border-radius: var(--mz-radius-sm);
-  animation: mz-file-tree-reveal-pulse 1.5s ease-out;
+    background: color-mix(
+        in srgb,
+        var(--mz-accent) 30%,
+        transparent
+    ) !important;
+    outline: 1px solid var(--mz-accent);
+    outline-offset: -1px;
+    border-radius: var(--mz-radius-sm);
+    animation: mz-file-tree-reveal-pulse 1.5s ease-out;
 }
 @keyframes mz-file-tree-reveal-pulse {
-  0% {
-    background: color-mix(in srgb, var(--mz-accent) 50%, transparent);
-  }
-  100% {
-    background: color-mix(in srgb, var(--mz-accent) 30%, transparent);
-  }
+    0% {
+        background: color-mix(in srgb, var(--mz-accent) 50%, transparent);
+    }
+    100% {
+        background: color-mix(in srgb, var(--mz-accent) 30%, transparent);
+    }
 }
 
 .cm-editor .mz-lp-inline-code {
-  font-family: var(--mz-font-mono);
-  font-size: 0.9em;
-  background: var(--mz-syntax-code-bg);
-  border-radius: 3px;
-  padding: 1px 5px;
+    font-family: var(--mz-font-mono);
+    font-size: 0.9em;
+    background: var(--mz-syntax-code-bg);
+    border-radius: 3px;
+    padding: 1px 5px;
 }
 
 /* Links — wiki links [[page]] and markdown links [text](url).
@@ -844,17 +889,19 @@ html[data-theme="light"] .mz-goto-line-panel {
    thickening or re-drawing it on hover looks like a jitter
    artifact rather than interactive feedback. */
 .cm-editor .mz-lp-link {
-  color: var(--mz-syntax-link);
-  text-decoration: underline;
-  text-decoration-color: var(--mz-syntax-link);
-  text-underline-offset: 2px;
-  cursor: pointer;
-  border-radius: 2px;
-  transition: background-color 120ms ease, opacity 120ms ease;
+    color: var(--mz-syntax-link);
+    text-decoration: underline;
+    text-decoration-color: var(--mz-syntax-link);
+    text-underline-offset: 2px;
+    cursor: pointer;
+    border-radius: 2px;
+    transition:
+        background-color 120ms ease,
+        opacity 120ms ease;
 }
 .cm-editor .mz-lp-link:hover {
-  background-color: var(--mz-accent-subtle);
-  opacity: 0.85;
+    background-color: var(--mz-accent-subtle);
+    opacity: 0.85;
 }
 
 /* Blockquote and horizontal rule line styles live in livePreview.ts's
@@ -862,22 +909,22 @@ html[data-theme="light"] .mz-goto-line-panel {
 
 /* Tags */
 .cm-editor .mz-lp-tag {
-  color: var(--mz-accent);
-  background: var(--mz-accent-subtle);
-  border-radius: 3px;
-  padding: 1px 4px;
-  font-size: 0.9em;
+    color: var(--mz-accent);
+    background: var(--mz-accent-subtle);
+    border-radius: 3px;
+    padding: 1px 4px;
+    font-size: 0.9em;
 }
 
 /* Task list `[x]` / `[ ]` markers — keep them visible in dark mode.
    Before this rule the brackets fell through to the comment color which
    was almost invisible against the dark background. */
 .cm-editor .mz-lp-task-marker {
-  color: var(--mz-accent);
-  font-weight: 700;
-  background: var(--mz-accent-subtle);
-  border-radius: 3px;
-  padding: 0 2px;
+    color: var(--mz-accent);
+    font-weight: 700;
+    background: var(--mz-accent-subtle);
+    border-radius: 3px;
+    padding: 0 2px;
 }
 
 /* `](url)` tail of a markdown link shown on the cursor line. The default
@@ -885,78 +932,78 @@ html[data-theme="light"] .mz-goto-line-panel {
    so we give it a dedicated legible tone. Matches the dim url styling
    from Obsidian but with enough contrast to read anchors like `](#foo)`. */
 .cm-editor .mz-lp-link-url-tail {
-  color: var(--mz-syntax-link);
-  opacity: 0.85;
+    color: var(--mz-syntax-link);
+    opacity: 0.85;
 }
 
 /* Footnote */
 .cm-editor .mz-lp-footnote {
-  color: var(--mz-accent);
-  font-size: 0.85em;
-  vertical-align: super;
+    color: var(--mz-accent);
+    font-size: 0.85em;
+    vertical-align: super;
 }
 
 /* Tables rendered as widgets in live preview */
 .mz-lp-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 8px 0;
-  font-size: 0.95em;
+    width: 100%;
+    border-collapse: collapse;
+    margin: 8px 0;
+    font-size: 0.95em;
 }
 .mz-lp-table th,
 .mz-lp-table td {
-  border: 1px solid var(--mz-border);
-  padding: 10px 12px;
-  text-align: left;
-  line-height: 1.9;
+    border: 1px solid var(--mz-border);
+    padding: 10px 12px;
+    text-align: left;
+    line-height: 1.9;
 }
 .mz-lp-table th {
-  background: var(--mz-bg-tertiary);
-  font-weight: 600;
+    background: var(--mz-bg-tertiary);
+    font-weight: 600;
 }
 .mz-lp-table tr:hover td {
-  background: var(--mz-bg-hover);
+    background: var(--mz-bg-hover);
 }
 
 /* ── List layout constants ──
    Keep the rendered tab width and guide spacing aligned with the
    shared list keyboard/rendering logic. */
 .cm-editor .cm-content {
-  tab-size: 40px;
-  -moz-tab-size: 40px;
-  --mz-list-indent-step: 40px;
-  --mz-list-guide-offset: 20px;
+    tab-size: 40px;
+    -moz-tab-size: 40px;
+    --mz-list-indent-step: 40px;
+    --mz-list-guide-offset: 20px;
 }
 
 /* ── Nested list guide lines ──
    Draw one guide through the center of each list marker cell and clip
    the repeating background to the current nesting depth. */
 .cm-editor .cm-content .cm-line.mz-lp-list-guides {
-  background-image:
-    repeating-linear-gradient(
-      to right,
-      var(--mz-border) 0,
-      var(--mz-border) 1px,
-      transparent 1px,
-      transparent var(--mz-list-indent-step)
-  );
-  background-repeat: no-repeat;
-  background-position: 0.5ch 0;
-  background-size: calc(var(--mz-list-level, 0) * var(--mz-list-indent-step)) 100%;
+    background-image: repeating-linear-gradient(
+        to right,
+        var(--mz-border) 0,
+        var(--mz-border) 1px,
+        transparent 1px,
+        transparent var(--mz-list-indent-step)
+    );
+    background-repeat: no-repeat;
+    background-position: 0.5ch 0;
+    background-size: calc(var(--mz-list-level, 0) * var(--mz-list-indent-step))
+        100%;
 }
 
 /* Checkbox widget */
 .mz-lp-checkbox {
-  cursor: pointer;
-  margin-right: 6px;
-  transform: scale(1.1);
-  vertical-align: middle;
-  accent-color: var(--mz-accent);
+    cursor: pointer;
+    margin-right: 6px;
+    transform: scale(1.1);
+    vertical-align: middle;
+    accent-color: var(--mz-accent);
 }
 
 /* Inline math */
 .mz-lp-inline-math {
-  font-size: 0.95em;
+    font-size: 0.95em;
 }
 
 /* ===================================================================
@@ -964,51 +1011,94 @@ html[data-theme="light"] .mz-goto-line-panel {
    =================================================================== */
 
 .mz-reading-view {
-  --mz-reading-list-indent-step: 36px;
-  --mz-reading-list-guide-offset: 18px;
-  word-wrap: break-word;
-  overflow-wrap: break-word;
-  /* Explicitly allow text selection + copy — some ancestors (e.g. the
+    --mz-reading-list-indent-step: 36px;
+    --mz-reading-list-guide-offset: 18px;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    /* Explicitly allow text selection + copy — some ancestors (e.g. the
      tab bar's `-webkit-app-region: drag` spacer) flip `user-select` off
      and that can cascade. */
-  user-select: text;
-  -webkit-user-select: text;
-  cursor: text;
+    user-select: text;
+    -webkit-user-select: text;
+    cursor: text;
 }
 
 /* Headings */
-.mz-reading-view h1.mz-rv-h1 { font-size: 1.8em; font-weight: 700; color: var(--mz-syntax-heading); margin: 24px 0 12px; line-height: 1.3; }
-.mz-reading-view h2.mz-rv-h2 { font-size: 1.5em; font-weight: 600; color: var(--mz-syntax-heading); margin: 20px 0 10px; line-height: 1.3; padding-bottom: 4px; }
-.mz-reading-view h3.mz-rv-h3 { font-size: 1.25em; font-weight: 600; color: var(--mz-syntax-heading); margin: 16px 0 8px; line-height: 1.4; }
-.mz-reading-view h4 { font-size: 1.1em; font-weight: 600; color: var(--mz-syntax-heading); margin: 12px 0 6px; }
-.mz-reading-view h5 { font-size: 1.05em; font-weight: 600; color: var(--mz-syntax-heading); margin: 10px 0 5px; }
-.mz-reading-view h6 { font-size: 1em; font-weight: 600; color: var(--mz-syntax-heading); margin: 8px 0 4px; }
+.mz-reading-view h1.mz-rv-h1 {
+    font-size: 1.8em;
+    font-weight: 700;
+    color: var(--mz-syntax-heading);
+    margin: 24px 0 12px;
+    line-height: 1.3;
+}
+.mz-reading-view h2.mz-rv-h2 {
+    font-size: 1.5em;
+    font-weight: 600;
+    color: var(--mz-syntax-heading);
+    margin: 20px 0 10px;
+    line-height: 1.3;
+    padding-bottom: 4px;
+}
+.mz-reading-view h3.mz-rv-h3 {
+    font-size: 1.25em;
+    font-weight: 600;
+    color: var(--mz-syntax-heading);
+    margin: 16px 0 8px;
+    line-height: 1.4;
+}
+.mz-reading-view h4 {
+    font-size: 1.1em;
+    font-weight: 600;
+    color: var(--mz-syntax-heading);
+    margin: 12px 0 6px;
+}
+.mz-reading-view h5 {
+    font-size: 1.05em;
+    font-weight: 600;
+    color: var(--mz-syntax-heading);
+    margin: 10px 0 5px;
+}
+.mz-reading-view h6 {
+    font-size: 1em;
+    font-weight: 600;
+    color: var(--mz-syntax-heading);
+    margin: 8px 0 4px;
+}
 
 /* Paragraphs */
 .mz-reading-view p {
-  margin: 8px 0;
-  line-height: 1.7;
+    margin: 8px 0;
+    line-height: 1.7;
 }
 
 /* Bold / italic */
-.mz-reading-view strong { font-weight: 700; color: var(--mz-syntax-bold); }
-.mz-reading-view em { font-style: italic; color: var(--mz-syntax-italic); }
-.mz-reading-view del { text-decoration: line-through; color: var(--mz-syntax-strikethrough); }
+.mz-reading-view strong {
+    font-weight: 700;
+    color: var(--mz-syntax-bold);
+}
+.mz-reading-view em {
+    font-style: italic;
+    color: var(--mz-syntax-italic);
+}
+.mz-reading-view del {
+    text-decoration: line-through;
+    color: var(--mz-syntax-strikethrough);
+}
 
 /* Highlight */
 .mz-reading-view .mz-rv-highlight {
-  background: var(--mz-syntax-highlight-bg);
-  border-radius: 2px;
-  padding: 1px 3px;
+    background: var(--mz-syntax-highlight-bg);
+    border-radius: 2px;
+    padding: 1px 3px;
 }
 
 /* Inline code */
 .mz-reading-view .mz-rv-inline-code {
-  font-family: var(--mz-font-mono);
-  font-size: 0.9em;
-  background: var(--mz-syntax-code-bg);
-  border-radius: 3px;
-  padding: 1px 5px;
+    font-family: var(--mz-font-mono);
+    font-size: 0.9em;
+    background: var(--mz-syntax-code-bg);
+    border-radius: 3px;
+    padding: 1px 5px;
 }
 
 /* Links — wiki links [[page]] and markdown links [text](url).
@@ -1025,80 +1115,82 @@ html[data-theme="light"] .mz-goto-line-panel {
    feedback. */
 .mz-reading-view .mz-rv-link,
 .mz-reading-view .mz-rv-wikilink {
-  color: var(--mz-syntax-link);
-  text-decoration: underline;
-  text-decoration-color: var(--mz-syntax-link);
-  text-underline-offset: 2px;
-  cursor: pointer;
-  border-radius: 2px;
-  transition: background-color 120ms ease, opacity 120ms ease;
+    color: var(--mz-syntax-link);
+    text-decoration: underline;
+    text-decoration-color: var(--mz-syntax-link);
+    text-underline-offset: 2px;
+    cursor: pointer;
+    border-radius: 2px;
+    transition:
+        background-color 120ms ease,
+        opacity 120ms ease;
 }
 
 .mz-reading-view .mz-rv-link:hover,
 .mz-reading-view .mz-rv-wikilink:hover {
-  background-color: var(--mz-accent-subtle);
-  opacity: 0.85;
+    background-color: var(--mz-accent-subtle);
+    opacity: 0.85;
 }
 
 /* Images */
 .mz-reading-view .mz-rv-image {
-  max-width: 100%;
-  max-height: 500px;
-  border-radius: 6px;
-  display: block;
-  margin: 8px 0;
+    max-width: 100%;
+    max-height: 500px;
+    border-radius: 6px;
+    display: block;
+    margin: 8px 0;
 }
 /* When pixel-perfect-image sets inline width in reading view */
 .mz-reading-view img[data-ppi-wheel-inline-width] {
-  max-width: none !important;
-  max-height: none !important;
+    max-width: none !important;
+    max-height: none !important;
 }
 
 /* Blockquote */
 .mz-reading-view blockquote.mz-rv-blockquote {
-  border-left: 3px solid var(--mz-border-strong);
-  padding: 4px 12px;
-  margin: 8px 0;
-  color: var(--mz-text-secondary);
-  font-style: italic;
-  background: var(--mz-bg-tertiary);
-  border-radius: 0 4px 4px 0;
+    border-left: 3px solid var(--mz-border-strong);
+    padding: 4px 12px;
+    margin: 8px 0;
+    color: var(--mz-text-secondary);
+    font-style: italic;
+    background: var(--mz-bg-tertiary);
+    border-radius: 0 4px 4px 0;
 }
 
 /* Horizontal rule */
 .mz-reading-view hr.mz-rv-hr {
-  border: none;
-  border-top: 1px solid var(--mz-border);
-  margin: 20px 0;
+    border: none;
+    border-top: 1px solid var(--mz-border);
+    margin: 20px 0;
 }
 
 /* Lists — wrapped text aligns with the first character of list content.
    Use padding-left on li + negative text-indent on the bullet via
    list-style-position: outside for proper hanging indent. */
 .mz-reading-view .mz-rv-list {
-  margin: 6px 0;
-  padding-left: var(--mz-reading-list-indent-step);
-  list-style-position: outside;
-  line-height: 1.7;
+    margin: 6px 0;
+    padding-left: var(--mz-reading-list-indent-step);
+    list-style-position: outside;
+    line-height: 1.7;
 }
 
 .mz-reading-view .mz-rv-list > li {
-  margin: 4px 0;
-  line-height: 1.7;
-  padding-left: 4px;
-  font-weight: 400;
+    margin: 4px 0;
+    line-height: 1.7;
+    padding-left: 4px;
+    font-weight: 400;
 }
 
 /* Ordered list number markers are muted in reading mode */
 .mz-reading-view .mz-rv-list-ol li::marker {
-  color: var(--mz-text-muted);
-  font-weight: 400;
+    color: var(--mz-text-muted);
+    font-weight: 400;
 }
 
 .mz-reading-view li > .mz-rv-list {
-  margin-top: 6px;
-  margin-bottom: 6px;
-  position: relative;
+    margin-top: 6px;
+    margin-bottom: 6px;
+    position: relative;
 }
 
 /* Vertical guide line for nested lists. The nested <ul>/<ol> sits
@@ -1108,273 +1200,273 @@ html[data-theme="light"] .mz-goto-line-panel {
    li). To line the guide up directly under the parent's marker we
    offset the line `-1ch` from the nested list's own origin. */
 .mz-reading-view li > .mz-rv-list::before {
-  content: "";
-  position: absolute;
-  left: -2ch;
-  top: 0;
-  bottom: 0;
-  width: 1px;
-  background: var(--mz-border);
-  pointer-events: none;
+    content: "";
+    position: absolute;
+    left: -2ch;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: var(--mz-border);
+    pointer-events: none;
 }
 
 .mz-reading-view .mz-rv-list-ul:not(.mz-rv-task-list) {
-  list-style: none;
+    list-style: none;
 }
 
 /* Match ordered-list layout: text keeps the shared li padding, while the
    custom bullet sits in the marker gutter to the left of the text. */
 .mz-reading-view .mz-rv-list-ul:not(.mz-rv-task-list) > li {
-  position: relative;
-  padding-left: 4px;
+    position: relative;
+    padding-left: 4px;
 }
 
 .mz-reading-view .mz-rv-list-ul:not(.mz-rv-task-list) > li::before {
-  content: "";
-  position: absolute;
-  left: -1em;
-  top: 0.86em;
-  width: 0.3em;
-  height: 0.3em;
-  border-radius: 999px;
-  background: var(--mz-text-muted);
-  transform: translateY(-50%);
-  pointer-events: none;
+    content: "";
+    position: absolute;
+    left: -1em;
+    top: 0.86em;
+    width: 0.3em;
+    height: 0.3em;
+    border-radius: 999px;
+    background: var(--mz-text-muted);
+    transform: translateY(-50%);
+    pointer-events: none;
 }
 
 .mz-reading-view .mz-rv-empty-list-slot {
-  display: inline-block;
-  width: 0;
-  min-height: 1.7em;
-  vertical-align: top;
-  pointer-events: none;
+    display: inline-block;
+    width: 0;
+    min-height: 1.7em;
+    vertical-align: top;
+    pointer-events: none;
 }
 
 /* Task lists */
 .mz-reading-view .mz-rv-task-list {
-  list-style: none;
-  padding-left: 0;
+    list-style: none;
+    padding-left: 0;
 }
 
 .mz-reading-view li > .mz-rv-task-list {
-  padding-left: var(--mz-reading-list-indent-step);
+    padding-left: var(--mz-reading-list-indent-step);
 }
 
 .mz-reading-view .mz-rv-task-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 2px 0;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 2px 0;
 }
 
 .mz-reading-view .mz-rv-task-item > span {
-  flex: 1;
-  min-width: 0;
+    flex: 1;
+    min-width: 0;
 }
 
 .mz-reading-view .mz-rv-task-item-content {
-  flex: 1;
-  min-width: 0;
+    flex: 1;
+    min-width: 0;
 }
 
 .mz-reading-view .mz-rv-task-item-content > span {
-  display: block;
+    display: block;
 }
 
 .mz-reading-view .mz-rv-task-item input[type="checkbox"] {
-  margin-top: 4px;
-  accent-color: var(--mz-accent);
-  transform: scale(1.1);
+    margin-top: 4px;
+    accent-color: var(--mz-accent);
+    transform: scale(1.1);
 }
 
 .mz-reading-view .mz-rv-task-item.checked span {
-  text-decoration: line-through;
-  color: var(--mz-text-muted);
+    text-decoration: line-through;
+    color: var(--mz-text-muted);
 }
 
 /* Tables */
 .mz-reading-view .mz-rv-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 12px 0;
-  font-size: 0.95em;
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 0.95em;
 }
 
 .mz-reading-view .mz-rv-table th,
 .mz-reading-view .mz-rv-table td {
-  border: 1px solid var(--mz-border);
-  padding: 10px 12px;
-  line-height: 1.7;
+    border: 1px solid var(--mz-border);
+    padding: 10px 12px;
+    line-height: 1.7;
 }
 
 .mz-reading-view .mz-rv-table th {
-  background: var(--mz-bg-tertiary);
-  font-weight: 600;
+    background: var(--mz-bg-tertiary);
+    font-weight: 600;
 }
 
 .mz-reading-view .mz-rv-table tr:hover td {
-  background: var(--mz-bg-hover);
+    background: var(--mz-bg-hover);
 }
 
 /* Code blocks */
 .mz-reading-view .mz-rv-code {
-  position: relative;
-  background: var(--mz-bg-tertiary);
-  border-radius: 6px;
-  margin: 10px 0;
-  overflow: hidden;
-  border: 1px solid var(--mz-border);
-  font-family: var(--mz-font-mono);
+    position: relative;
+    background: var(--mz-bg-tertiary);
+    border-radius: 6px;
+    margin: 10px 0;
+    overflow: hidden;
+    border: 1px solid var(--mz-border);
+    font-family: var(--mz-font-mono);
 }
 
 .mz-reading-view .mz-rv-code pre {
-  margin: 0;
-  padding: 12px 16px;
-  overflow-x: auto;
-  font-size: 0.88em;
-  line-height: 1.7;
+    margin: 0;
+    padding: 12px 16px;
+    overflow-x: auto;
+    font-size: 0.88em;
+    line-height: 1.7;
 }
 
 .mz-reading-view .mz-rv-code code {
-  font-family: var(--mz-font-mono);
+    font-family: var(--mz-font-mono);
 }
 
 .mz-reading-view .mz-rv-code-lang {
-  position: absolute;
-  top: 4px;
-  right: 56px;
-  font-size: 10px;
-  color: var(--mz-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  padding: 2px 6px;
-  border-radius: 3px;
-  background: var(--mz-bg-hover);
-  font-family: var(--mz-font-sans);
+    position: absolute;
+    top: 4px;
+    right: 56px;
+    font-size: 10px;
+    color: var(--mz-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    background: var(--mz-bg-hover);
+    font-family: var(--mz-font-sans);
 }
 
 .mz-reading-view .mz-rv-code-copy {
-  position: absolute;
-  top: 4px;
-  right: 4px;
-  font-size: 11px;
-  color: var(--mz-text-muted);
-  background: var(--mz-bg-hover);
-  border: 1px solid var(--mz-border);
-  border-radius: 3px;
-  padding: 2px 8px;
-  cursor: pointer;
-  font-family: var(--mz-font-sans);
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    font-size: 11px;
+    color: var(--mz-text-muted);
+    background: var(--mz-bg-hover);
+    border: 1px solid var(--mz-border);
+    border-radius: 3px;
+    padding: 2px 8px;
+    cursor: pointer;
+    font-family: var(--mz-font-sans);
 }
 
 .mz-reading-view .mz-rv-code-copy:hover {
-  color: var(--mz-text-primary);
-  background: var(--mz-bg-active);
+    color: var(--mz-text-primary);
+    background: var(--mz-bg-active);
 }
 
 /* Math blocks */
 .mz-reading-view .mz-rv-math-block {
-  padding: 16px;
-  margin: 10px 0;
-  text-align: center;
-  overflow-x: auto;
+    padding: 16px;
+    margin: 10px 0;
+    text-align: center;
+    overflow-x: auto;
 }
 
 /* Mermaid */
 .mz-reading-view .mz-rv-mermaid {
-  margin: 10px 0;
-  padding: 16px;
-  background: var(--mz-bg-tertiary);
-  border-radius: 6px;
-  border: 1px solid var(--mz-border);
-  overflow: auto;
-  text-align: center;
+    margin: 10px 0;
+    padding: 16px;
+    background: var(--mz-bg-tertiary);
+    border-radius: 6px;
+    border: 1px solid var(--mz-border);
+    overflow: auto;
+    text-align: center;
 }
 
 .mz-reading-view .mz-rv-mermaid svg {
-  max-width: 100%;
+    max-width: 100%;
 }
 
 /* Callouts */
 .mz-reading-view .mz-rv-callout {
-  border-left: 4px solid var(--mz-callout-note);
-  background: var(--mz-bg-tertiary);
-  border-radius: 0 6px 6px 0;
-  margin: 10px 0;
-  overflow: hidden;
+    border-left: 4px solid var(--mz-callout-note);
+    background: var(--mz-bg-tertiary);
+    border-radius: 0 6px 6px 0;
+    margin: 10px 0;
+    overflow: hidden;
 }
 
 .mz-reading-view .mz-rv-callout-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  font-weight: 600;
-  font-size: 0.95em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    font-weight: 600;
+    font-size: 0.95em;
 }
 
 .mz-reading-view .mz-rv-callout-icon {
-  font-size: 1.1em;
-  flex-shrink: 0;
+    font-size: 1.1em;
+    flex-shrink: 0;
 }
 
 .mz-reading-view .mz-rv-callout-title {
-  flex: 1;
+    flex: 1;
 }
 
 .mz-reading-view .mz-rv-callout-body {
-  padding: 0 12px 10px 12px;
-  font-size: 0.92em;
-  color: var(--mz-text-secondary);
-  line-height: 1.6;
+    padding: 0 12px 10px 12px;
+    font-size: 0.92em;
+    color: var(--mz-text-secondary);
+    line-height: 1.6;
 }
 
 /* Tags */
 .mz-reading-view .mz-rv-tag {
-  color: var(--mz-accent);
-  background: var(--mz-accent-subtle);
-  border-radius: 3px;
-  padding: 1px 4px;
-  font-size: 0.9em;
-  cursor: pointer;
+    color: var(--mz-accent);
+    background: var(--mz-accent-subtle);
+    border-radius: 3px;
+    padding: 1px 4px;
+    font-size: 0.9em;
+    cursor: pointer;
 }
 
 /* Footnotes */
 .mz-reading-view .mz-rv-footnote-ref a {
-  color: var(--mz-accent);
-  text-decoration: none;
-  font-size: 0.85em;
+    color: var(--mz-accent);
+    text-decoration: none;
+    font-size: 0.85em;
 }
 
 .mz-reading-view .mz-rv-footnote-ref a:hover {
-  text-decoration: underline;
+    text-decoration: underline;
 }
 
 .mz-reading-view .mz-rv-footnotes {
-  font-size: 0.9em;
-  color: var(--mz-text-secondary);
+    font-size: 0.9em;
+    color: var(--mz-text-secondary);
 }
 
 .mz-reading-view .mz-rv-footnote-def {
-  margin: 4px 0;
-  padding-left: 16px;
+    margin: 4px 0;
+    padding-left: 16px;
 }
 
 .mz-reading-view .mz-rv-footnote-def sup {
-  color: var(--mz-accent);
-  font-weight: 600;
-  margin-right: 4px;
+    color: var(--mz-accent);
+    font-weight: 600;
+    margin-right: 4px;
 }
 
 /* Error styling */
 .mz-reading-view .mz-rv-error {
-  color: var(--mz-error);
+    color: var(--mz-error);
 }
 
 /* KaTeX display wrapper in reading view */
 .mz-reading-view .katex-display {
-  margin: 0;
-  overflow-x: auto;
+    margin: 0;
+    overflow-x: auto;
 }
 
 /* ===================================================================
@@ -1385,122 +1477,122 @@ html[data-theme="light"] .mz-goto-line-panel {
    =================================================================== */
 
 .mz-reading-find-panel {
-  position: absolute;
-  top: 8px;
-  right: 16px;
-  z-index: 20;
-  display: flex;
-  flex-wrap: nowrap;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 6px;
-  background: var(--mz-bg-secondary);
-  border: 1px solid var(--mz-border);
-  border-radius: var(--mz-radius-md);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
-  min-height: 32px;
-  font-family: var(--mz-font-sans);
-  font-size: var(--mz-font-size-sm);
+    position: absolute;
+    top: 8px;
+    right: 16px;
+    z-index: 20;
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 6px;
+    background: var(--mz-bg-secondary);
+    border: 1px solid var(--mz-border);
+    border-radius: var(--mz-radius-md);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+    min-height: 32px;
+    font-family: var(--mz-font-sans);
+    font-size: var(--mz-font-size-sm);
 }
 
 .mz-reading-find-input {
-  flex: 1;
-  min-width: 180px;
-  max-width: 240px;
-  height: 24px;
-  padding: 2px 8px;
-  background: var(--mz-bg-primary);
-  color: var(--mz-text-primary);
-  border: 1px solid var(--mz-border);
-  border-radius: var(--mz-radius-sm);
-  font-family: var(--mz-font-sans);
-  font-size: var(--mz-font-size-sm);
-  outline: none;
+    flex: 1;
+    min-width: 180px;
+    max-width: 240px;
+    height: 24px;
+    padding: 2px 8px;
+    background: var(--mz-bg-primary);
+    color: var(--mz-text-primary);
+    border: 1px solid var(--mz-border);
+    border-radius: var(--mz-radius-sm);
+    font-family: var(--mz-font-sans);
+    font-size: var(--mz-font-size-sm);
+    outline: none;
 }
 
 .mz-reading-find-input:focus {
-  border-color: var(--mz-accent);
-  box-shadow: 0 0 0 1px var(--mz-accent);
+    border-color: var(--mz-accent);
+    box-shadow: 0 0 0 1px var(--mz-accent);
 }
 
 .mz-reading-find-toggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  margin: 0;
-  background: transparent;
-  color: var(--mz-text-secondary);
-  border: 1px solid transparent;
-  border-radius: var(--mz-radius-sm);
-  cursor: pointer;
-  font-family: var(--mz-font-sans);
-  font-size: 11px;
-  font-weight: 600;
-  user-select: none;
-  white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    margin: 0;
+    background: transparent;
+    color: var(--mz-text-secondary);
+    border: 1px solid transparent;
+    border-radius: var(--mz-radius-sm);
+    cursor: pointer;
+    font-family: var(--mz-font-sans);
+    font-size: 11px;
+    font-weight: 600;
+    user-select: none;
+    white-space: nowrap;
 }
 
 .mz-reading-find-toggle input[type="checkbox"] {
-  /* Keep the checkbox accessible in the DOM for form-submit /
+    /* Keep the checkbox accessible in the DOM for form-submit /
      screen-reader purposes but visually replaced by the surrounding
      label (which styles itself as the toggle button). */
-  position: absolute;
-  opacity: 0;
-  width: 0;
-  height: 0;
-  pointer-events: none;
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+    pointer-events: none;
 }
 
 .mz-reading-find-toggle:hover {
-  background: var(--mz-bg-hover);
+    background: var(--mz-bg-hover);
 }
 
 .mz-reading-find-toggle.mz-reading-find-toggle-active {
-  background: var(--mz-accent-subtle);
-  color: var(--mz-accent);
-  border-color: var(--mz-accent);
+    background: var(--mz-accent-subtle);
+    color: var(--mz-accent);
+    border-color: var(--mz-accent);
 }
 
 .mz-reading-find-count {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 64px;
-  padding: 0 6px;
-  color: var(--mz-text-muted);
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 64px;
+    padding: 0 6px;
+    color: var(--mz-text-muted);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
 }
 
 .mz-reading-find-count-error {
-  color: var(--mz-error);
-  font-weight: 700;
+    color: var(--mz-error);
+    font-weight: 700;
 }
 
 .mz-reading-find-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  background: transparent;
-  color: var(--mz-text-secondary);
-  border: 1px solid transparent;
-  border-radius: var(--mz-radius-sm);
-  cursor: pointer;
-  font-family: var(--mz-font-sans);
-  font-size: 14px;
-  line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    background: transparent;
+    color: var(--mz-text-secondary);
+    border: 1px solid transparent;
+    border-radius: var(--mz-radius-sm);
+    cursor: pointer;
+    font-family: var(--mz-font-sans);
+    font-size: 14px;
+    line-height: 1;
 }
 
 .mz-reading-find-btn:hover {
-  background: var(--mz-bg-hover);
-  color: var(--mz-text-primary);
+    background: var(--mz-bg-hover);
+    color: var(--mz-text-primary);
 }
 
 /* Highlight for matches found by ReadingFindPanel. `<mark>` defaults
@@ -1509,13 +1601,13 @@ html[data-theme="light"] .mz-goto-line-panel {
    stays consistent between modes. The `-current` variant is the one
    the user is navigating through — brighter so the eye tracks it. */
 .mz-reading-view .mz-reading-find-match {
-  background: var(--mz-syntax-highlight-bg);
-  color: inherit;
-  padding: 0;
-  border-radius: 2px;
+    background: var(--mz-syntax-highlight-bg);
+    color: inherit;
+    padding: 0;
+    border-radius: 2px;
 }
 
 .mz-reading-view .mz-reading-find-match-current {
-  background: rgba(255, 170, 0, 0.55);
-  outline: 1.5px solid rgba(255, 140, 0, 0.95);
+    background: rgba(255, 170, 0, 0.55);
+    outline: 1.5px solid rgba(255, 140, 0, 0.95);
 }

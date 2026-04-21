@@ -148,7 +148,8 @@ function createVaultStore() {
   // that was saved (the "auto-save steals focus" bug).
   async function saveFile(
     relativePath: string,
-    content: string
+    content: string,
+    options?: { suppressSavedEvent?: boolean },
   ): Promise<FileContent> {
     try {
       const raw = await invoke<FileContent>("write_file", {
@@ -171,14 +172,16 @@ function createVaultStore() {
       // was just persisted. The Rust backend has already re-indexed
       // this path in `on_file_changed`, so a follow-up `search_vault`
       // call will return fresh results.
-      try {
-        document.dispatchEvent(
-          new CustomEvent("mindzj:vault-file-saved", {
-            detail: { path: result.path },
-          }),
-        );
-      } catch {
-        // Non-fatal: save itself succeeded; the event is just a hint.
+      if (!options?.suppressSavedEvent) {
+        try {
+          document.dispatchEvent(
+            new CustomEvent("mindzj:vault-file-saved", {
+              detail: { path: result.path },
+            }),
+          );
+        } catch {
+          // Non-fatal: save itself succeeded; the event is just a hint.
+        }
       }
 
       return result;

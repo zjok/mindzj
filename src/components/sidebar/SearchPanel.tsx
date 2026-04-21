@@ -48,6 +48,7 @@ const [preserveCase, setPreserveCase] = createSignal(false);
 const [regexError, setRegexError] = createSignal<string | null>(null);
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+let searchRunId = 0;
 
 /** Exposed setter so App.tsx's Ctrl+Shift+F handler can pre-populate
  *  the query with whatever the user had selected in the editor. */
@@ -179,18 +180,23 @@ function scanFileContent(
  */
 async function runSearch(value: string, markSearching = true): Promise<void> {
   if (!value.trim()) {
+    searchRunId += 1;
     setResults([]);
     setRegexError(null);
+    setIsSearching(false);
     return;
   }
   const regex = buildRegex();
   if (!regex) {
+    searchRunId += 1;
     // Invalid regex (error already set in buildRegex); keep prior
     // results so the user can keep editing the pattern without the
     // list flickering to empty on every keystroke.
+    setIsSearching(false);
     return;
   }
 
+  const runId = ++searchRunId;
   if (markSearching) setIsSearching(true);
   try {
     const paths = collectSearchableFiles(vaultStore.fileTree());
@@ -220,12 +226,16 @@ async function runSearch(value: string, markSearching = true): Promise<void> {
       if (b.score !== a.score) return b.score - a.score;
       return a.path.localeCompare(b.path);
     });
-    setResults(out);
+    if (runId === searchRunId) {
+      setResults(out);
+    }
   } catch (error) {
     console.error("Search failed:", error);
-    setResults([]);
+    if (runId === searchRunId) {
+      setResults([]);
+    }
   } finally {
-    if (markSearching) setIsSearching(false);
+    if (markSearching && runId === searchRunId) setIsSearching(false);
   }
 }
 
@@ -253,6 +263,7 @@ if (typeof document !== "undefined") {
     // replaceAll caller runs a single authoritative search when the
     // loop is done.
     if (isReplacing()) return;
+    if (isSearching()) return;
     const q = query();
     if (!q.trim()) return;
     // Don't flip the spinner on — the refresh is background work

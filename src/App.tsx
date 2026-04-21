@@ -113,6 +113,7 @@ const App: Component = () => {
     const [secondaryPanePath, setSecondaryPanePath] = createSignal<string | null>(null);
     const [activePaneSlot, setActivePaneSlot] = createSignal<PaneSlot>("primary");
     const [splitDirection, setSplitDirection] = createSignal<SplitDirection>("right");
+    const [splitRatio, setSplitRatio] = createSignal(0.5);
     const startupParams = new URLSearchParams(window.location.search);
     const startupVaultPath = startupParams.get("vault_path");
     const startupVaultName = startupParams.get("vault_name");
@@ -146,6 +147,7 @@ const App: Component = () => {
         }
     })();
     const [isBootstrapping, setIsBootstrapping] = createSignal(hasRestorableVault);
+    let workspaceRestoreInProgress = false;
 
     // Recently-closed tab history (LIFO stack of vault-relative
     // file paths). Used by Ctrl+T to "reopen the last closed tab",
@@ -259,6 +261,11 @@ const App: Component = () => {
         return {
             open_files: vaultStore.openFiles().map((file) => file.path),
             active_file: vaultStore.activeFile()?.path ?? null,
+            primary_pane_path: primaryPanePath(),
+            secondary_pane_path: secondaryPanePath(),
+            active_pane_slot: activePaneSlot(),
+            split_direction: splitDirection(),
+            split_ratio: splitRatio(),
             sidebar_tab: sidebarTab(),
             sidebar_collapsed: sidebarCollapsed(),
             sidebar_width: sidebarWidth(),
@@ -281,6 +288,20 @@ const App: Component = () => {
             return;
         }
         setSecondaryPanePath(path);
+    }
+
+    function isSplitDirection(value: unknown): value is SplitDirection {
+        return value === "left" || value === "right" || value === "up" || value === "down";
+    }
+
+    function isPaneSlot(value: unknown): value is PaneSlot {
+        return value === "primary" || value === "secondary";
+    }
+
+    function normalizeSplitRatio(value: unknown): number {
+        return typeof value === "number" && Number.isFinite(value)
+            ? Math.max(0.2, Math.min(0.8, value))
+            : 0.5;
     }
 
     function findOpenFile(path: string | null | undefined): FileContent | null {
@@ -316,6 +337,20 @@ const App: Component = () => {
         document.dispatchEvent(new CustomEvent("mindzj:remember-active-viewport"));
         setPanePath(activePaneSlot(), path);
         vaultStore.switchToFile(path);
+    }
+
+    async function handleSidebarFileClick(path: string) {
+        document.dispatchEvent(new CustomEvent("mindzj:remember-active-viewport"));
+        const targetSlot = activePaneSlot();
+        await openFileRouted(path);
+        const file = findOpenFile(path);
+        if (!file) return;
+        setPanePath(targetSlot, path);
+        setActivePaneSlot(targetSlot);
+        vaultStore.setActiveFile(file);
+        if (!primaryPanePath()) {
+            setPrimaryPanePath(path);
+        }
     }
 
     function switchOpenTab(direction: "prev" | "next"): boolean {
@@ -1014,6 +1049,7 @@ const App: Component = () => {
         resetFolderVisibilityState();
         editorStore.resetWorkspaceState();
         if (info) {
+            workspaceRestoreInProgress = true;
             const loadedSettings = await settingsStore.loadSettings();
             // If the user picked a language on the welcome screen before
             // this vault existed, apply it now so the new vault's
@@ -1067,8 +1103,37 @@ const App: Component = () => {
                 for (const filePath of filesToOpen) {
                     try { await openFileRouted(filePath); } catch { /* skip missing files */ }
                 }
-                if (ws.active_file) {
-                    try { vaultStore.switchToFile(ws.active_file); } catch { /* skip */ }
+                const openPaths = new Set(vaultStore.openFiles().map((file) => file.path));
+                const restoredPrimary =
+                    ws.primary_pane_path && openPaths.has(ws.primary_pane_path)
+                        ? ws.primary_pane_path
+                        : ws.active_file && openPaths.has(ws.active_file)
+                            ? ws.active_file
+                            : vaultStore.openFiles()[0]?.path ?? null;
+                const restoredSecondary =
+                    ws.secondary_pane_path && openPaths.has(ws.secondary_pane_path)
+                        ? ws.secondary_pane_path
+                        : null;
+
+                setPrimaryPanePath(restoredPrimary);
+                setSecondaryPanePath(restoredSecondary);
+                if (isSplitDirection(ws.split_direction)) {
+                    setSplitDirection(ws.split_direction);
+                }
+                setSplitRatio(normalizeSplitRatio(ws.split_ratio));
+
+                const restoredActiveSlot =
+                    isPaneSlot(ws.active_pane_slot) &&
+                    (ws.active_pane_slot !== "secondary" || restoredSecondary)
+                        ? ws.active_pane_slot
+                        : "primary";
+                setActivePaneSlot(restoredActiveSlot);
+
+                const activePath = restoredActiveSlot === "secondary"
+                    ? restoredSecondary
+                    : restoredPrimary;
+                if (activePath) {
+                    try { vaultStore.switchToFile(activePath); } catch { /* skip */ }
                 }
             }
             // Load persisted folder expand/collapse state BEFORE the
@@ -1116,10 +1181,12 @@ const App: Component = () => {
             // imperceptible to the user.
             requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
+                    workspaceRestoreInProgress = false;
                     setIsBootstrapping(false);
                 });
             });
         } else {
+            workspaceRestoreInProgress = false;
             // Vault closed — unload all plugins. With defer: true on
             // the on() above, this branch only ever runs when the
             // user actively closes a vault (truthy → null transition),
@@ -1135,7 +1202,7 @@ const App: Component = () => {
     // Save workspace on changes (debounced)
     createEffect(() => {
         const info = vaultStore.vaultInfo();
-        if (!info || isTransientWindow()) return;
+        if (!info || isTransientWindow() || workspaceRestoreInProgress) return;
         workspaceStore.scheduleSave(buildWorkspaceSnapshot());
     });
 
@@ -2150,7 +2217,7 @@ const App: Component = () => {
                                 <div style={{ flex: "1", "min-height": "0", overflow: "auto" }}>
                                     <FileTree
                                         entries={vaultStore.fileTree()}
-                                        onFileClick={(p: string) => { void openFileRouted(p); }}
+                                        onFileClick={(p: string) => { void handleSidebarFileClick(p); }}
                                         onOpenSplit={handleOpenSplitInPane}
                                         activePath={vaultStore.activeFile()?.path ?? null}
                                         sortMode={sortMode()}
@@ -2397,8 +2464,10 @@ const App: Component = () => {
                                 secondaryPath={secondaryPanePath()}
                                 activeSlot={activePaneSlot()}
                                 direction={splitDirection()}
+                                splitRatio={splitRatio()}
                                 onActivatePane={activatePane}
                                 onClosePane={closeSplitPane}
+                                onSplitRatioChange={setSplitRatio}
                             />
                         </Show>
                     </Show>
@@ -2479,11 +2548,12 @@ const SplitWorkspaceView: Component<{
     secondaryPath: string | null;
     activeSlot: PaneSlot;
     direction: SplitDirection;
+    splitRatio: number;
     onActivatePane: (slot: PaneSlot) => void;
     onClosePane: (slot: PaneSlot) => void;
+    onSplitRatioChange: (ratio: number) => void;
 }> = (props) => {
     let containerRef: HTMLDivElement | undefined;
-    const [splitRatio, setSplitRatio] = createSignal(0.5);
     const isSplit = createMemo(() => !!props.secondaryPath);
     const flexDirection = createMemo(() =>
         props.direction === "up" || props.direction === "down" ? "column" : "row",
@@ -2496,7 +2566,7 @@ const SplitWorkspaceView: Component<{
             : { width: "100%", height: `${dividerThickness}px`, cursor: "row-resize" },
     );
     const paneStyle = (slot: PaneSlot) => ({
-        flex: `${slot === "primary" ? splitRatio() : 1 - splitRatio()} 1 0`,
+        flex: `${slot === "primary" ? props.splitRatio : 1 - props.splitRatio} 1 0`,
         "min-width": "0",
         "min-height": "0",
         display: "flex",
@@ -2514,7 +2584,7 @@ const SplitWorkspaceView: Component<{
                 ? clientX - rect.left
                 : clientY - rect.top;
             const nextRatio = Math.max(0.2, Math.min(0.8, offset / size));
-            setSplitRatio(nextRatio);
+            props.onSplitRatioChange(nextRatio);
         };
 
         updateRatio(event.clientX, event.clientY);
@@ -2633,6 +2703,7 @@ const PaneFileView: Component<{
 
     return (
         <div
+            class="mz-split-pane"
             onMouseDown={() => props.onActivate()}
             onFocusIn={() => props.onActivate()}
             style={{

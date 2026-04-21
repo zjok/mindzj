@@ -1667,6 +1667,7 @@ export const ReadingView: Component<ReadingViewProps> = (props) => {
             >
                 <div
                     ref={scrollContainerRef}
+                    class="mz-reading-scroll-container"
                     // Ctrl+wheel text zoom — mirrors the Editor component's
                     // behaviour so the user can zoom rendered markdown the same
                     // way they zoom source/live-preview. Deltas are small (±2%)

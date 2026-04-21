@@ -972,19 +972,6 @@ export const FileTree: Component<FileTreeProps> = (props) => {
         const items: MenuItem[] = [];
         if (!isDir) {
             items.push({ label: t("context.open"), icon: "\uD83D\uDCC4", action: () => { void openFileRouted(path); } });
-            if (props.onOpenSplit) {
-                items.push({
-                    label: t("context.splitRight"),
-                    icon: ">",
-                    separator: true,
-                    action: () => { void props.onOpenSplit?.(path, "right"); },
-                });
-                items.push({
-                    label: t("context.splitLeft"),
-                    icon: "<",
-                    action: () => { void props.onOpenSplit?.(path, "left"); },
-                });
-            }
         }
         items.push({
             label: t("context.newNote"), icon: "\u270F\uFE0F",
@@ -1017,6 +1004,19 @@ export const FileTree: Component<FileTreeProps> = (props) => {
             action: () => renameEntry(path, isDir),
         });
         items.push({ label: t("context.showInExplorer"), icon: "\uD83D\uDCC2", action: () => showInExplorer(path) });
+        if (!isDir && props.onOpenSplit) {
+            items.push({
+                label: t("context.splitRight"),
+                icon: ">",
+                separator: true,
+                action: () => { void props.onOpenSplit?.(path, "right"); },
+            });
+            items.push({
+                label: t("context.splitLeft"),
+                icon: "<",
+                action: () => { void props.onOpenSplit?.(path, "left"); },
+            });
+        }
         items.push({
             label: t("context.delete"), icon: "\uD83D\uDDD1", danger: true, separator: true,
             action: async () => {
