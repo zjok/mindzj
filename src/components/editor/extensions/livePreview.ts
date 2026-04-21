@@ -1669,9 +1669,9 @@ const lineDecorationField = StateField.define<DecorationSet>({
     },
     update(deco, tr: Transaction) {
         // Only rebuild when the document actually changed — line
-        // classification doesn't depend on selection/scroll, so we can
-        // skip rebuilds on cursor movement.
-        if (tr.docChanged || tr.selection) {
+        // classification doesn't depend on selection/scroll, so panel
+        // toggles and cursor movement must not rescan every line.
+        if (tr.docChanged) {
             return buildLineDecorations(tr.state);
         }
         return deco.map(tr.changes);
@@ -1688,6 +1688,13 @@ const lineDecorationField = StateField.define<DecorationSet>({
 // ---------------------------------------------------------------------------
 
 function createLivePreviewPlugin(vaultRoot: string, currentFilePath: string) {
+    function cursorLineChanged(update: ViewUpdate): boolean {
+        if (!update.selectionSet) return false;
+        const before = update.startState.doc.lineAt(update.startState.selection.main.head).number;
+        const after = update.state.doc.lineAt(update.state.selection.main.head).number;
+        return before !== after;
+    }
+
     return ViewPlugin.fromClass(
         class {
             decorations: DecorationSet;
@@ -1706,14 +1713,15 @@ function createLivePreviewPlugin(vaultRoot: string, currentFilePath: string) {
             }
 
             update(update: ViewUpdate) {
-                if (update.geometryChanged || update.viewportChanged) {
+                if (update.geometryChanged) {
                     syncListGuideMetrics(update.view);
                 }
-                if (
-                    update.docChanged ||
-                    update.selectionSet ||
-                    update.viewportChanged
-                ) {
+                // Rebuild inline decorations only when the document
+                // changes or the cursor head crosses into another line.
+                // Ctrl+F can trigger viewport/focus updates while opening
+                // its panel; those must not rescan every line in large
+                // split panes.
+                if (update.docChanged || cursorLineChanged(update)) {
                     this.decorations = buildDecorations(
                         update.view,
                         vaultRoot,

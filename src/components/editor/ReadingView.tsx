@@ -32,7 +32,7 @@ import { editorStore } from "../../stores/editor";
 import { settingsStore } from "../../stores/settings";
 import { ContextMenu, type MenuItem } from "../common/ContextMenu";
 import { ReadingFindPanel } from "./ReadingFindPanel";
-import { findPanelOpen, setFindPanelOpen } from "../../stores/findState";
+import { findPanelOpen, setFindPanelOpen, setFindQuery } from "../../stores/findState";
 import katex from "katex";
 import { resolveImageAssetUrl } from "../../utils/vaultPaths";
 import { openFileRouted } from "../../utils/openFileRouted";
@@ -1279,6 +1279,7 @@ export const ReadingView: Component<ReadingViewProps> = (props) => {
         // panels close — split reading panes will each close their
         // own panel, which is fine (they're both unused at that point).
         const handleCloseFind = () => {
+            setFindQuery("");
             setFindPanelOpen(false);
         };
         document.addEventListener("mindzj:close-reading-find", handleCloseFind);
@@ -1727,7 +1728,10 @@ export const ReadingView: Component<ReadingViewProps> = (props) => {
                     <ReadingFindPanel
                         container={containerRef ?? null}
                         scrollContainer={scrollContainerRef ?? null}
-                        onClose={() => setFindPanelOpen(false)}
+                        onClose={() => {
+                            setFindQuery("");
+                            setFindPanelOpen(false);
+                        }}
                     />
                 </Show>
             </div>

@@ -47,6 +47,7 @@ import { openFileRouted } from "./utils/openFileRouted";
 import {
     openSearchPanel,
     closeSearchPanel,
+    getSearchQuery,
     searchPanelOpen,
     setSearchQuery,
     SearchQuery,
@@ -55,10 +56,6 @@ import { EditorView } from "@codemirror/view";
 import { t } from "./i18n";
 import {
     setFindQuery,
-    findCaseSensitive,
-    findWholeWord,
-    findRegex,
-    findReplaceText,
 } from "./stores/findState";
 
 type SidebarTab = "files" | "outline" | "search" | "calendar";
@@ -1499,6 +1496,21 @@ const App: Component = () => {
         return (api?.cm as EditorView | undefined) ?? undefined;
     }
 
+    function clearEditorSearchQuery(view: EditorView) {
+        const current = getSearchQuery(view.state);
+        view.dispatch({
+            effects: setSearchQuery.of(
+                new SearchQuery({
+                    search: "",
+                    caseSensitive: current.caseSensitive,
+                    wholeWord: current.wholeWord,
+                    regexp: current.regexp,
+                    replace: "",
+                }),
+            ),
+        });
+    }
+
     function handleGlobalKeydown(e: KeyboardEvent) {
         if (handleTabSwitchKeydown(e)) return;
 
@@ -1684,51 +1696,11 @@ const App: Component = () => {
                             }
                         });
                     } else {
-                        // Fresh-open. Determine initial query from
-                        // the editor selection; fall back to an
-                        // EMPTY query when nothing is selected (user
-                        // requirement — Ctrl+F no longer restores
-                        // the previous query on reopen).
-                        const sel = cmView.state.selection.main;
-                        let initialQuery = "";
-                        if (!sel.empty) {
-                            const text = cmView.state.sliceDoc(sel.from, sel.to);
-                            if (!text.includes("\n")) {
-                                initialQuery = text;
-                            }
-                        }
-                        // Push into both the shared find store and
-                        // CM6's own SearchQuery so the panel's
-                        // `mount()` rehydrates from a consistent
-                        // state. Replace value is also cleared
-                        // alongside the query so a stale replace
-                        // string doesn't ride along into the fresh
-                        // session.
-                        setFindQuery(initialQuery);
-                        cmView.dispatch({
-                            effects: setSearchQuery.of(
-                                new SearchQuery({
-                                    search: initialQuery,
-                                    caseSensitive: findCaseSensitive(),
-                                    wholeWord: findWholeWord(),
-                                    regexp: findRegex(),
-                                    replace: findReplaceText(),
-                                }),
-                            ),
-                        });
+                        // Closed panels clear their query, so the
+                        // first open can use CM6's single-dispatch
+                        // opener and avoid an extra split-pane
+                        // layout/measure pass.
                         openSearchPanel(cmView);
-                        queueMicrotask(() => {
-                            const input =
-                                cmView.dom.querySelector<HTMLInputElement>(
-                                    ".mz-search-panel .mz-search-input",
-                                );
-                            if (input) {
-                                input.focus();
-                                input.select();
-                            } else {
-                                cmView.focus();
-                            }
-                        });
                     }
                 } catch (err) {
                     console.warn("[ctrl-f] toggle search panel failed:", err);
@@ -1780,6 +1752,7 @@ const App: Component = () => {
                 e.preventDefault();
                 e.stopPropagation();
                 e.stopImmediatePropagation();
+                clearEditorSearchQuery(cmView);
                 closeSearchPanel(cmView);
                 cmView.focus();
                 return;

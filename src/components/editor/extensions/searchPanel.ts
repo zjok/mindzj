@@ -274,7 +274,7 @@ export function createVSCodeSearchPanel(view: EditorView): Panel {
                 }),
             ),
         });
-        updateCounter();
+        scheduleCounterUpdate();
     }
 
     findInput.addEventListener("input", commit);
@@ -291,8 +291,7 @@ export function createVSCodeSearchPanel(view: EditorView): Panel {
             else findNext(view);
         } else if (e.key === "Escape") {
             e.preventDefault();
-            closeSearchPanel(view);
-            view.focus();
+            closePanelAndFocus();
         }
     });
 
@@ -303,8 +302,7 @@ export function createVSCodeSearchPanel(view: EditorView): Panel {
             else doReplaceNext();
         } else if (e.key === "Escape") {
             e.preventDefault();
-            closeSearchPanel(view);
-            view.focus();
+            closePanelAndFocus();
         }
     });
 
@@ -325,8 +323,7 @@ export function createVSCodeSearchPanel(view: EditorView): Panel {
     });
 
     closeBtn.addEventListener("click", () => {
-        closeSearchPanel(view);
-        view.focus();
+        closePanelAndFocus();
     });
 
     // Replace: if preserve-case is on, compute a case-preserved
@@ -365,9 +362,59 @@ export function createVSCodeSearchPanel(view: EditorView): Panel {
         findInput.focus();
     });
 
-    // ── Counter updates ──
-    function updateCounter() {
-        counter.textContent = getMatchProgress(view);
+    // Close + counter helpers.
+    function clearQueryForClose() {
+        const current = getSearchQuery(view.state);
+        view.dispatch({
+            effects: setSearchQuery.of(
+                new SearchQuery({
+                    search: "",
+                    caseSensitive: current.caseSensitive,
+                    wholeWord: current.wholeWord,
+                    regexp: current.regexp,
+                    replace: "",
+                }),
+            ),
+        });
+    }
+
+    function closePanelAndFocus() {
+        clearQueryForClose();
+        closeSearchPanel(view);
+        view.focus();
+    }
+
+    // Counter updates are deferred so the panel can paint first.
+    let counterRaf: number | null = null;
+    let counterTimer: number | null = null;
+
+    function cancelCounterUpdate() {
+        if (counterRaf !== null) {
+            window.cancelAnimationFrame(counterRaf);
+            counterRaf = null;
+        }
+        if (counterTimer !== null) {
+            window.clearTimeout(counterTimer);
+            counterTimer = null;
+        }
+    }
+
+    function scheduleCounterUpdate() {
+        const query = getSearchQuery(view.state);
+        if (!query.search || !query.valid) {
+            cancelCounterUpdate();
+            counter.textContent = "";
+            return;
+        }
+
+        cancelCounterUpdate();
+        counterRaf = window.requestAnimationFrame(() => {
+            counterRaf = null;
+            counterTimer = window.setTimeout(() => {
+                counterTimer = null;
+                counter.textContent = getMatchProgress(view);
+            }, 0);
+        });
     }
 
     return {
@@ -384,7 +431,7 @@ export function createVSCodeSearchPanel(view: EditorView): Panel {
                 regexToggle.setActive(q.regexp);
                 if (q.replace) replaceInput.value = q.replace;
             }
-            updateCounter();
+            scheduleCounterUpdate();
             queueMicrotask(() => {
                 findInput.focus();
                 findInput.select();
@@ -398,8 +445,11 @@ export function createVSCodeSearchPanel(view: EditorView): Panel {
                     tr.effects.some((ef) => ef.is(setSearchQuery)),
                 )
             ) {
-                updateCounter();
+                scheduleCounterUpdate();
             }
+        },
+        destroy() {
+            cancelCounterUpdate();
         },
     };
 }
