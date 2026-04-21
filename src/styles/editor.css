@@ -302,26 +302,86 @@
     border-top: 1px solid var(--mz-border);
 }
 
+/* Split-pane scrollbar styling. All four selectors below are kept
+   explicit so the primary (left) and secondary (right) panes look
+   identical — previously the primary pane could pick up the webview's
+   default chunkier scrollbar because some CSS specificity paths let
+   the CodeMirror internal theme override our rule. `!important` on
+   the width + background keeps the two panes locked to the same 8px
+   monochrome bar regardless of which theme token or CM6 style rule
+   the browser resolved last. */
 .mz-split-pane .cm-scroller::-webkit-scrollbar,
-.mz-split-pane .mz-reading-scroll-container::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+.mz-split-pane .mz-reading-scroll-container::-webkit-scrollbar,
+.mz-pane-wrap-primary .cm-scroller::-webkit-scrollbar,
+.mz-pane-wrap-primary .mz-reading-scroll-container::-webkit-scrollbar,
+.mz-pane-wrap-secondary .cm-scroller::-webkit-scrollbar,
+.mz-pane-wrap-secondary .mz-reading-scroll-container::-webkit-scrollbar {
+    width: 8px !important;
+    height: 8px !important;
+    background: var(--mz-scrollbar-track) !important;
 }
 
 .mz-split-pane .cm-scroller::-webkit-scrollbar-track,
-.mz-split-pane .mz-reading-scroll-container::-webkit-scrollbar-track {
-    background: var(--mz-scrollbar-track);
+.mz-split-pane .mz-reading-scroll-container::-webkit-scrollbar-track,
+.mz-pane-wrap-primary .cm-scroller::-webkit-scrollbar-track,
+.mz-pane-wrap-primary .mz-reading-scroll-container::-webkit-scrollbar-track,
+.mz-pane-wrap-secondary .cm-scroller::-webkit-scrollbar-track,
+.mz-pane-wrap-secondary .mz-reading-scroll-container::-webkit-scrollbar-track {
+    background: var(--mz-scrollbar-track) !important;
+    border: none !important;
+    margin: 0 !important;
 }
 
 .mz-split-pane .cm-scroller::-webkit-scrollbar-thumb,
-.mz-split-pane .mz-reading-scroll-container::-webkit-scrollbar-thumb {
-    background: var(--mz-scrollbar-thumb);
-    border-radius: 4px;
+.mz-split-pane .mz-reading-scroll-container::-webkit-scrollbar-thumb,
+.mz-pane-wrap-primary .cm-scroller::-webkit-scrollbar-thumb,
+.mz-pane-wrap-primary .mz-reading-scroll-container::-webkit-scrollbar-thumb,
+.mz-pane-wrap-secondary .cm-scroller::-webkit-scrollbar-thumb,
+.mz-pane-wrap-secondary .mz-reading-scroll-container::-webkit-scrollbar-thumb {
+    background: var(--mz-scrollbar-thumb) !important;
+    border-radius: 4px !important;
+    border: none !important;
 }
 
 .mz-split-pane .cm-scroller::-webkit-scrollbar-thumb:hover,
-.mz-split-pane .mz-reading-scroll-container::-webkit-scrollbar-thumb:hover {
-    background: var(--mz-border-strong);
+.mz-split-pane .mz-reading-scroll-container::-webkit-scrollbar-thumb:hover,
+.mz-pane-wrap-primary .cm-scroller::-webkit-scrollbar-thumb:hover,
+.mz-pane-wrap-primary .mz-reading-scroll-container::-webkit-scrollbar-thumb:hover,
+.mz-pane-wrap-secondary .cm-scroller::-webkit-scrollbar-thumb:hover,
+.mz-pane-wrap-secondary .mz-reading-scroll-container::-webkit-scrollbar-thumb:hover {
+    background: var(--mz-border-strong) !important;
+}
+
+/* Pane wrapper + inner editor/reading container flush against the
+   split divider. Zero padding/margin guarantees the scrollbar's right
+   edge touches the divider line — the "scrollbar should hug the
+   divider" requirement. Applied to both panes symmetrically so the
+   left and right look the same. */
+.mz-pane-wrap-primary,
+.mz-pane-wrap-secondary {
+    padding: 0;
+    margin: 0;
+    border: none;
+    overflow: hidden;
+}
+
+.mz-pane-wrap-primary .mz-split-pane,
+.mz-pane-wrap-secondary .mz-split-pane {
+    padding-right: 0;
+    border-right: none;
+}
+
+/* Firefox-style fallback: the `scrollbar-*` properties don't take
+   pseudo-element rules, so we set them on the scrollable element
+   itself. Matches the 8px thin thumb on systems where the webkit
+   rules aren't honored (shouldn't happen in Tauri's WebView2 but
+   cheap insurance). */
+.mz-pane-wrap-primary .cm-scroller,
+.mz-pane-wrap-primary .mz-reading-scroll-container,
+.mz-pane-wrap-secondary .cm-scroller,
+.mz-pane-wrap-secondary .mz-reading-scroll-container {
+    scrollbar-width: thin;
+    scrollbar-color: var(--mz-scrollbar-thumb) var(--mz-scrollbar-track);
 }
 
 html[data-theme="dark"] .cm-editor .cm-panels-bottom {

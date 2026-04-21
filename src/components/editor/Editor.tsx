@@ -1784,10 +1784,14 @@ export const Editor: Component<EditorProps> = (props) => {
         const handleToggleViewModeWithSave = async (event: Event) => {
             if (!isPaneActive()) return;
             if (!editorView || !currentFilePath) return;
-            const detail = (event as CustomEvent<{ path?: string | null }>).detail;
+            const detail = (event as CustomEvent<{
+                path?: string | null;
+                release?: () => void;
+            }>).detail;
             if (detail?.path && detail.path !== currentFilePath) return;
 
             event.preventDefault();
+            const release = detail?.release;
             const content = editorView.state.doc.toString();
             try {
                 const savedContent = resolvedFile()?.content ?? "";
@@ -1802,6 +1806,10 @@ export const Editor: Component<EditorProps> = (props) => {
                 editorStore.toggleReadingMode(currentFilePath);
             } catch (error) {
                 console.error("Toggle view mode save failed:", error);
+            } finally {
+                // Release the App-level reentrancy guard so the NEXT Ctrl+E
+                // press (e.g. toggling back to editor) isn't swallowed.
+                release?.();
             }
         };
 

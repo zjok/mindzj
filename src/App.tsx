@@ -1272,21 +1272,48 @@ const App: Component = () => {
         return overrides[command] || defaultKeys;
     }
 
+    // Reentrancy guard for Ctrl+E. OS key-repeat and rapid pressing during
+    // async save operations used to stack multiple toggle dispatches,
+    // which in split mode combined with the sidebar global-search
+    // re-search listener could hang the UI thread in a cascade of file
+    // reads + mode-rebuilds. One-in-flight at a time keeps the sequence
+    // sane even if the user mashes the key.
+    let toggleViewModePending = false;
     function toggleViewModeWithSave(path: string | null | undefined) {
-        const resolvedPath = path ?? null;
-        const currentMode = editorStore.getViewModeForFile(resolvedPath);
-        if (currentMode === "reading") {
-            editorStore.toggleReadingMode(resolvedPath ?? undefined);
-            return;
-        }
+        if (toggleViewModePending) return;
+        toggleViewModePending = true;
+        const release = () => {
+            toggleViewModePending = false;
+        };
+        try {
+            const resolvedPath = path ?? null;
+            const currentMode = editorStore.getViewModeForFile(resolvedPath);
+            if (currentMode === "reading") {
+                editorStore.toggleReadingMode(resolvedPath ?? undefined);
+                queueMicrotask(release);
+                return;
+            }
 
-        const event = new CustomEvent("mindzj:toggle-view-mode-with-save", {
-            cancelable: true,
-            detail: { path: resolvedPath },
-        });
-        const handled = !document.dispatchEvent(event);
-        if (!handled) {
-            editorStore.toggleReadingMode(resolvedPath ?? undefined);
+            const event = new CustomEvent("mindzj:toggle-view-mode-with-save", {
+                cancelable: true,
+                detail: { path: resolvedPath, release },
+            });
+            const handled = !document.dispatchEvent(event);
+            if (!handled) {
+                editorStore.toggleReadingMode(resolvedPath ?? undefined);
+                queueMicrotask(release);
+            }
+            // If handled, the Editor's async save promise will call
+            // release() when it settles (success or failure). Fallback
+            // timeout guards against a handler that never calls back.
+            if (handled) {
+                setTimeout(() => {
+                    if (toggleViewModePending) toggleViewModePending = false;
+                }, 3000);
+            }
+        } catch (err) {
+            toggleViewModePending = false;
+            throw err;
         }
     }
 
@@ -2565,12 +2592,38 @@ const SplitWorkspaceView: Component<{
             ? { width: `${dividerThickness}px`, height: "100%", cursor: "col-resize" }
             : { width: "100%", height: `${dividerThickness}px`, cursor: "row-resize" },
     );
-    const paneStyle = (slot: PaneSlot) => ({
-        flex: `${slot === "primary" ? props.splitRatio : 1 - props.splitRatio} 1 0`,
-        "min-width": "0",
-        "min-height": "0",
-        display: "flex",
-    });
+    // When non-split, the primary pane absorbs the whole container so
+    // the fallback layout (single pane at 100%) looks identical to the
+    // previous `<Show fallback=…>` structure — except we keep the split
+    // container mounted so flipping `isSplit()` never unmounts the
+    // primary `<PaneFileView>`. Remounting was the source of the first-
+    // time "Split right" lag: it tore down the already-warm CM6 editor
+    // and rebuilt it from cold, on top of spinning up the secondary
+    // editor.
+    const paneStyle = (slot: PaneSlot) => {
+        if (!isSplit()) {
+            if (slot === "primary") {
+                return {
+                    flex: "1 1 0",
+                    "min-width": "0",
+                    "min-height": "0",
+                    display: "flex",
+                } as const;
+            }
+            return {
+                flex: "0 0 0",
+                "min-width": "0",
+                "min-height": "0",
+                display: "none",
+            } as const;
+        }
+        return {
+            flex: `${slot === "primary" ? props.splitRatio : 1 - props.splitRatio} 1 0`,
+            "min-width": "0",
+            "min-height": "0",
+            display: "flex",
+        } as const;
+    };
 
     const startDividerDrag = (event: MouseEvent) => {
         event.preventDefault();
@@ -2624,37 +2677,37 @@ const SplitWorkspaceView: Component<{
                 </div>
             }
         >
-            <Show
-                when={isSplit()}
-                fallback={
-                    <PaneFileView
-                        filePath={props.primaryPath!}
-                        active={true}
-                        split={false}
-                        onActivate={() => props.onActivatePane("primary")}
-                    />
-                }
+            {/* Always-mounted split container. The primary PaneFileView
+                lives inside it regardless of whether the user is in
+                split mode — toggling `isSplit()` only adds/removes the
+                divider + secondary pane. This prevents the primary
+                Editor from being remounted on first "Split right",
+                which used to rebuild CodeMirror from cold (the source
+                of the several-hundred-millisecond freeze). */}
+            <div
+                ref={containerRef}
+                style={{
+                    flex: "1",
+                    display: "flex",
+                    "flex-direction": flexDirection(),
+                    "min-width": "0",
+                    "min-height": "0",
+                    overflow: "hidden",
+                    background: "var(--mz-bg-primary)",
+                }}
             >
                 <div
-                    ref={containerRef}
-                    style={{
-                        flex: "1",
-                        display: "flex",
-                        "flex-direction": flexDirection(),
-                        "min-width": "0",
-                        "min-height": "0",
-                        overflow: "hidden",
-                        background: "var(--mz-bg-primary)",
-                    }}
+                    class={isSplit() ? "mz-pane-wrap mz-pane-wrap-primary" : "mz-pane-wrap mz-pane-wrap-primary mz-pane-wrap-solo"}
+                    style={paneStyle("primary")}
                 >
-                    <div style={paneStyle("primary")}>
-                        <PaneFileView
-                            filePath={props.primaryPath!}
-                            active={props.activeSlot === "primary"}
-                            split={true}
-                            onActivate={() => props.onActivatePane("primary")}
-                        />
-                    </div>
+                    <PaneFileView
+                        filePath={props.primaryPath!}
+                        active={!isSplit() || props.activeSlot === "primary"}
+                        split={isSplit()}
+                        onActivate={() => props.onActivatePane("primary")}
+                    />
+                </div>
+                <Show when={isSplit()}>
                     <div
                         onMouseDown={startDividerDrag}
                         style={{
@@ -2664,7 +2717,7 @@ const SplitWorkspaceView: Component<{
                             position: "relative",
                         }}
                     />
-                    <div style={paneStyle("secondary")}>
+                    <div class="mz-pane-wrap mz-pane-wrap-secondary" style={paneStyle("secondary")}>
                         <PaneFileView
                             filePath={props.secondaryPath!}
                             active={props.activeSlot === "secondary"}
@@ -2673,8 +2726,8 @@ const SplitWorkspaceView: Component<{
                             onClose={() => props.onClosePane("secondary")}
                         />
                     </div>
-                </div>
-            </Show>
+                </Show>
+            </div>
         </Show>
     );
 };
