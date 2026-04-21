@@ -316,7 +316,7 @@
 .mz-pane-wrap-primary .mz-reading-scroll-container::-webkit-scrollbar,
 .mz-pane-wrap-secondary .cm-scroller::-webkit-scrollbar,
 .mz-pane-wrap-secondary .mz-reading-scroll-container::-webkit-scrollbar {
-    width: 8px !important;
+    width: 6px !important;
     height: 8px !important;
     background: var(--mz-scrollbar-track) !important;
 }
@@ -338,17 +338,42 @@
 .mz-pane-wrap-primary .mz-reading-scroll-container::-webkit-scrollbar-thumb,
 .mz-pane-wrap-secondary .cm-scroller::-webkit-scrollbar-thumb,
 .mz-pane-wrap-secondary .mz-reading-scroll-container::-webkit-scrollbar-thumb {
-    background: var(--mz-scrollbar-thumb) !important;
-    border-radius: 4px !important;
-    border: none !important;
+    background-color: var(--mz-scrollbar-thumb) !important;
+    background-clip: border-box !important;
+    border: 0 solid transparent !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    min-height: 0 !important;
+    min-width: 0 !important;
+    border-radius: 3px !important;
+}
+
+/* Kill the gap webkit draws between the scrollbar-track and the
+   scrollbar-thumb. By default Chromium pads the thumb with a 1–2px
+   transparent border (so the rounded thumb appears to float inside
+   the track); we want the thumb to fill the full 8px track width
+   edge-to-edge so the left pane's scrollbar visually butts up
+   against the split divider with no visible gutter. The
+   `background-clip: border-box` + zero-width transparent border
+   override keeps the thumb painted all the way to the track's
+   boundary regardless of the browser's default padding. */
+.mz-split-pane .cm-scroller::-webkit-scrollbar-corner,
+.mz-split-pane .mz-reading-scroll-container::-webkit-scrollbar-corner,
+.mz-pane-wrap-primary .cm-scroller::-webkit-scrollbar-corner,
+.mz-pane-wrap-primary .mz-reading-scroll-container::-webkit-scrollbar-corner,
+.mz-pane-wrap-secondary .cm-scroller::-webkit-scrollbar-corner,
+.mz-pane-wrap-secondary .mz-reading-scroll-container::-webkit-scrollbar-corner {
+    background: var(--mz-scrollbar-track) !important;
 }
 
 .mz-split-pane .cm-scroller::-webkit-scrollbar-thumb:hover,
 .mz-split-pane .mz-reading-scroll-container::-webkit-scrollbar-thumb:hover,
 .mz-pane-wrap-primary .cm-scroller::-webkit-scrollbar-thumb:hover,
-.mz-pane-wrap-primary .mz-reading-scroll-container::-webkit-scrollbar-thumb:hover,
+.mz-pane-wrap-primary
+    .mz-reading-scroll-container::-webkit-scrollbar-thumb:hover,
 .mz-pane-wrap-secondary .cm-scroller::-webkit-scrollbar-thumb:hover,
-.mz-pane-wrap-secondary .mz-reading-scroll-container::-webkit-scrollbar-thumb:hover {
+.mz-pane-wrap-secondary
+    .mz-reading-scroll-container::-webkit-scrollbar-thumb:hover {
     background: var(--mz-border-strong) !important;
 }
 
@@ -376,13 +401,7 @@
    itself. Matches the 8px thin thumb on systems where the webkit
    rules aren't honored (shouldn't happen in Tauri's WebView2 but
    cheap insurance). */
-.mz-pane-wrap-primary .cm-scroller,
-.mz-pane-wrap-primary .mz-reading-scroll-container,
-.mz-pane-wrap-secondary .cm-scroller,
-.mz-pane-wrap-secondary .mz-reading-scroll-container {
-    scrollbar-width: thin;
-    scrollbar-color: var(--mz-scrollbar-thumb) var(--mz-scrollbar-track);
-}
+
 
 html[data-theme="dark"] .cm-editor .cm-panels-bottom {
     border-top: 1px solid #474747;
