@@ -24,6 +24,7 @@ import {
     SearchPanel,
     setQuery as setGlobalSearchQuery,
     runSearchNow as runGlobalSearchNow,
+    cancelInFlightSearch as cancelGlobalSearch,
 } from "./components/sidebar/SearchPanel";
 import { Calendar } from "./components/sidebar/Calendar";
 import { TabBar } from "./components/tabs/TabBar";
@@ -474,6 +475,17 @@ const App: Component = () => {
     }
 
     async function handleOpenSplitInPane(path: string, direction: SplitDirection) {
+        // Cooperatively cancel any in-flight sidebar global search
+        // BEFORE we start the split. Spinning up a new Editor
+        // (secondary pane) while the search loop is still hammering
+        // `invoke("read_file")` in 16-wide batches used to freeze
+        // the app — the main thread has to share time between CM6
+        // init + decoration building on one side and N more file-
+        // read promises on the other, and both contended for IPC.
+        // The sidebar search can easily be re-run later once the
+        // split has settled; interrupting it here is the cheapest
+        // way to guarantee the split open stays snappy.
+        cancelGlobalSearch();
         // ═══════════════════════════════════════════════════════════
         //  Unified Split-into-pane routine
         // ═══════════════════════════════════════════════════════════

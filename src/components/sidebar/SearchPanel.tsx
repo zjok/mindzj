@@ -50,6 +50,15 @@ const [regexError, setRegexError] = createSignal<string | null>(null);
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 let searchRunId = 0;
 
+// Cancellation token the in-flight `runSearch` loop polls between
+// file-read batches. When flipped, the current run bails out of the
+// batch loop, drops accumulated partial results, and releases the
+// isSearching flag. Used by `cancelInFlightSearch()` below and
+// external callers that need to yield the main thread — e.g.
+// opening a new split pane while a vault-wide search is churning
+// through thousands of `invoke("read_file")` round-trips.
+let searchCancel = { cancelled: false };
+
 /** Exposed setter so App.tsx's Ctrl+Shift+F handler can pre-populate
  *  the query with whatever the user had selected in the editor. */
 export function setQuery(value: string) {
@@ -65,6 +74,30 @@ export function getQuery() {
 /** Exposed so App.tsx / hotkeys can trigger an immediate search. */
 export function runSearchNow() {
   void runSearch(query());
+}
+
+/**
+ * Abort the in-flight vault-wide search if one is running. The
+ * cancellation is cooperative: the batch loop inside `runSearch`
+ * polls the token at each batch boundary, so the current batch
+ * (up to ~16 concurrent `read_file` calls) still finishes but no
+ * further batches start. Results computed so far are discarded.
+ *
+ * Called from `App.tsx` before operations that would otherwise
+ * queue up additional heavy work on top of the search — opening a
+ * new split pane is the main case: the new pane's Editor spin-up +
+ * CM6 initialization has to share the main thread with however
+ * many more file-read promises the search still has pending, and
+ * users have reported the app locking up for seconds under that
+ * combined load.
+ */
+export function cancelInFlightSearch() {
+  if (!isSearching()) return;
+  searchCancel.cancelled = true;
+  // Rotate the token so any NEW runSearch call gets a fresh one
+  // and isn't retroactively cancelled by this signal.
+  searchCancel = { cancelled: false };
+  setIsSearching(false);
 }
 
 function escapeRegExp(s: string): string {
@@ -197,12 +230,22 @@ async function runSearch(value: string, markSearching = true): Promise<void> {
   }
 
   const runId = ++searchRunId;
+  // Capture the token this run is allowed to honor. `cancelInFlightSearch`
+  // rotates the shared `searchCancel` reference to a fresh object, so
+  // a newly-started run after a cancel won't see the previous cancel
+  // flag (stale reference). Each run only listens to its own token.
+  const cancelToken = searchCancel;
   if (markSearching) setIsSearching(true);
   try {
     const paths = collectSearchableFiles(vaultStore.fileTree());
     const out: SearchResult[] = [];
     const concurrency = 16;
     for (let i = 0; i < paths.length; i += concurrency) {
+      // Cooperative cancellation checkpoint — external callers
+      // (e.g. "user opened a split pane while we're 600 files into
+      // a 5000-file vault-wide scan") flip the token to let the
+      // main thread focus on whatever they're trying to do.
+      if (cancelToken.cancelled || runId !== searchRunId) return;
       const batch = paths.slice(i, i + concurrency);
       const batchResults = await Promise.all(
         batch.map(async (p) => {
@@ -220,22 +263,23 @@ async function runSearch(value: string, markSearching = true): Promise<void> {
         if (r) out.push(r);
       }
     }
+    if (cancelToken.cancelled || runId !== searchRunId) return;
     // Sort by total match count (score) descending, path ascending
     // as the stable tiebreaker so re-runs preserve order.
     out.sort((a, b) => {
       if (b.score !== a.score) return b.score - a.score;
       return a.path.localeCompare(b.path);
     });
-    if (runId === searchRunId) {
-      setResults(out);
-    }
+    setResults(out);
   } catch (error) {
     console.error("Search failed:", error);
-    if (runId === searchRunId) {
+    if (runId === searchRunId && !cancelToken.cancelled) {
       setResults([]);
     }
   } finally {
-    if (markSearching && runId === searchRunId) setIsSearching(false);
+    if (markSearching && runId === searchRunId && !cancelToken.cancelled) {
+      setIsSearching(false);
+    }
   }
 }
 

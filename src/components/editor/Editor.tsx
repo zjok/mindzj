@@ -1430,18 +1430,21 @@ export const Editor: Component<EditorProps> = (props) => {
         // so mode-switches can always restore the correct position.
         installScrollTracker(editorView);
 
-        // Force a full measure + decoration flush on the next animation
-        // frame. Without this, switching INTO live-preview mode from
-        // another mode left the editor visually blank until the user
-        // clicked or scrolled — CM6 had the decorations computed but
-        // hadn't painted them yet because the container's layout wasn't
-        // ready when `new EditorView` ran. `requestMeasure` + a no-op
-        // dispatch triggers the viewport pass that actually draws the
-        // decorations.
+        // Force a viewport measure on the next animation frame so the
+        // decorations CM6 built during `new EditorView` actually paint
+        // (without this, switching INTO live-preview from another mode
+        // left the editor visually blank until the user clicked or
+        // scrolled). We used to also dispatch an empty `{}` transaction
+        // right after `requestMeasure()`, but it served no purpose
+        // beyond triggering `updateListener` + every StateField's
+        // update() path for a no-op change — which, in split mode with
+        // two editors mounted, contributed measurable cost to the cold
+        // editor-mount phase and to any subsequent Ctrl+F that happened
+        // before the first user interaction caused a "real" transaction.
+        // A lone `requestMeasure()` paints the decorations all the same.
         requestAnimationFrame(() => {
             if (!editorView) return;
             editorView.requestMeasure();
-            editorView.dispatch({});
         });
     }
 
