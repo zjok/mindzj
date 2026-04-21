@@ -1713,7 +1713,17 @@ export const ReadingView: Component<ReadingViewProps> = (props) => {
                         }}
                     />
                 </div>
-                <Show when={findPanelOpen()}>
+                {/* Only the ACTIVE pane renders the find panel. The
+                    `findPanelOpen` signal is shared across panes (so it
+                    survives Ctrl+E mode switches), but in split mode
+                    both ReadingView instances would otherwise render a
+                    duplicate panel — one in each pane. Gating on
+                    `isPaneActive()` keeps the panel scoped to whichever
+                    pane currently owns focus. Searching then only
+                    operates on THIS pane's container, which is what
+                    `ReadingFindPanel` already wires via its `container`
+                    prop. */}
+                <Show when={findPanelOpen() && isPaneActive()}>
                     <ReadingFindPanel
                         container={containerRef ?? null}
                         scrollContainer={scrollContainerRef ?? null}

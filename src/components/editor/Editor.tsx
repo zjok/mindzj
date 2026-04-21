@@ -1364,7 +1364,17 @@ export const Editor: Component<EditorProps> = (props) => {
         // viewport measured — `openSearchPanel` dispatches a
         // transaction that otherwise races with CM6's internal
         // startup dispatch and occasionally drops the panel mount.
-        const shouldRestoreOpen = findPanelOpen();
+        //
+        // In split mode only the ACTIVE pane auto-opens its panel:
+        // without the `isPaneActive()` gate, an inactive pane being
+        // rebuilt (e.g. the user renamed its file) would pop a search
+        // panel on top of its content just because the OTHER pane
+        // happened to have one open. The query itself (if any) still
+        // gets seeded into the CM search state so that when the user
+        // DOES later press Ctrl+F on this pane, their previous query
+        // is pre-filled — matching the cross-mode preservation promise
+        // of the shared findState store.
+        const shouldRestoreOpen = findPanelOpen() && isPaneActive();
         const restoreSearch = findQuery();
         const restoreReplace = findReplaceText();
         const restoreCase = findCaseSensitive();

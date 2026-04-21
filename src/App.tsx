@@ -51,7 +51,7 @@ import {
     setSearchQuery,
     SearchQuery,
 } from "@codemirror/search";
-import type { EditorView } from "@codemirror/view";
+import { EditorView } from "@codemirror/view";
 import { t } from "./i18n";
 import {
     setFindQuery,
@@ -1389,6 +1389,43 @@ const App: Component = () => {
         return true;
     }
 
+    // Resolve the CodeMirror EditorView that belongs to whichever pane
+    // the user currently considers "focused". In single-pane mode this
+    // is just the lone editor; in split mode the choice matters — the
+    // Ctrl+F handler needs to open the search widget in the pane the
+    // user is actually looking at, not the stale
+    // `__mindzj_plugin_editor_api` global which only updates when an
+    // editor mounts/unmounts.
+    function findActivePaneEditorView(paneWrap?: HTMLElement | null): EditorView | undefined {
+        // 1. Whatever has document focus, if it's inside a cm-editor,
+        //    is the most reliable signal.
+        const focusedInEditor = document.activeElement?.closest<HTMLElement>(".cm-editor");
+        if (focusedInEditor) {
+            const v = EditorView.findFromDOM(focusedInEditor);
+            if (v) return v;
+        }
+        // 2. The active pane's wrapper → its cm-editor descendant.
+        //    Handles e.g. Ctrl+F pressed while focus sits in the
+        //    sidebar search input.
+        const wrap = paneWrap ?? (() => {
+            const slot = activePaneSlot();
+            return document.querySelector<HTMLElement>(
+                slot === "secondary"
+                    ? ".mz-pane-wrap-secondary"
+                    : ".mz-pane-wrap-primary",
+            );
+        })();
+        const cmEditor = wrap?.querySelector<HTMLElement>(".cm-editor");
+        if (cmEditor) {
+            const v = EditorView.findFromDOM(cmEditor);
+            if (v) return v;
+        }
+        // 3. Legacy fallback — only correct in the single-pane case,
+        //    but harmless when 1) and 2) failed to resolve anything.
+        const api = (window as any).__mindzj_plugin_editor_api;
+        return (api?.cm as EditorView | undefined) ?? undefined;
+    }
+
     function handleGlobalKeydown(e: KeyboardEvent) {
         if (handleTabSwitchKeydown(e)) return;
 
@@ -1448,12 +1485,30 @@ const App: Component = () => {
             const activePath = activePanePath() ?? vaultStore.activeFile()?.path ?? null;
             const activeMode = editorStore.getViewModeForFile(activePath);
 
+            // Find the DOM element that wraps ONLY the active pane's
+            // content. In split mode this is either
+            // `.mz-pane-wrap-secondary` or `.mz-pane-wrap-primary`
+            // depending on which pane the user last focused; outside
+            // split mode there's only the primary wrap. Scoping all
+            // the "is the panel already open?" + "which CM view do we
+            // target?" queries to THIS element is what makes Ctrl+F
+            // only act on the focused pane.
+            const activePaneWrap: HTMLElement | null = (() => {
+                const slot = activePaneSlot();
+                const selector = slot === "secondary"
+                    ? ".mz-pane-wrap-secondary"
+                    : ".mz-pane-wrap-primary";
+                return document.querySelector<HTMLElement>(selector);
+            })();
+
             // Reading mode has its own SolidJS panel in
-            // ReadingView.tsx; look for its rendered DOM to tell if
-            // it's currently open.
-            const readingPanelOpen = !!document.querySelector(
-                ".mz-reading-find-panel",
-            );
+            // ReadingView.tsx; look for its rendered DOM inside the
+            // ACTIVE pane to tell if it's currently open. Scoping
+            // this to the active pane's wrapper keeps split-mode
+            // Ctrl+F from latching onto a panel in the other pane.
+            const readingPanelOpen = !!(activePaneWrap
+                ?? document
+            ).querySelector(".mz-reading-find-panel");
 
             // Ctrl+F is no longer a toggle. If the panel is already
             // open and the user has selected text, REFILL the query
@@ -1507,8 +1562,20 @@ const App: Component = () => {
             // Source / live-preview modes: drive CM6's built-in
             // search state. The panel UI is styled as a VS Code
             // floating widget via `.cm-panels-top` CSS in editor.css.
-            const api = (window as any).__mindzj_plugin_editor_api;
-            const cmView = api?.cm as EditorView | undefined;
+            //
+            // IMPORTANT: in split mode we MUST target the CM view
+            // inside the currently-focused pane, not the stale
+            // `__mindzj_plugin_editor_api` global (which trails
+            // focus changes and can point at the wrong pane). We
+            // resolve the view from the DOM in this order:
+            //   1. The `.cm-editor` that owns document focus — if
+            //      the user just clicked inside an editor this is
+            //      the authoritative answer.
+            //   2. The `.cm-editor` inside the active pane's wrapper
+            //      — covers the case where focus went to a sidebar
+            //      (e.g. Ctrl+F from the global-search input).
+            //   3. The plugin-API fallback kept for backward compat.
+            const cmView = findActivePaneEditorView(activePaneWrap);
             if (cmView) {
                 try {
                     if (searchPanelOpen(cmView.state)) {
@@ -1612,7 +1679,18 @@ const App: Component = () => {
             !e.shiftKey &&
             !e.metaKey
         ) {
-            const readingPanel = document.querySelector(
+            // Scope both the reading-panel check and the CM view
+            // lookup to the focused pane so Escape in split mode
+            // closes the panel on THIS pane only — otherwise the
+            // global queries below would pick the first panel in
+            // document order, which might belong to the other pane.
+            const slot = activePaneSlot();
+            const activeWrap = document.querySelector<HTMLElement>(
+                slot === "secondary"
+                    ? ".mz-pane-wrap-secondary"
+                    : ".mz-pane-wrap-primary",
+            );
+            const readingPanel = (activeWrap ?? document).querySelector(
                 ".mz-reading-find-panel",
             );
             if (readingPanel) {
@@ -1624,8 +1702,7 @@ const App: Component = () => {
                 );
                 return;
             }
-            const api = (window as any).__mindzj_plugin_editor_api;
-            const cmView = api?.cm as EditorView | undefined;
+            const cmView = findActivePaneEditorView(activeWrap);
             if (cmView && searchPanelOpen(cmView.state)) {
                 e.preventDefault();
                 e.stopPropagation();
