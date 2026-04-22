@@ -1319,7 +1319,7 @@ async function openExternalUrl(url: string) {
   }
 }
 
-const APP_VERSION = "0.1.3";
+const APP_VERSION = "0.1.4";
 const APP_RELEASE_DATE = "2026-04";
 const APP_REPO_URL = "https://github.com/zjok/mindzj";
 const APP_ISSUE_URL = "https://github.com/zjok/mindzj/issues";
