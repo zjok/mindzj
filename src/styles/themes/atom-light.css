@@ -1,0 +1,54 @@
+/* ===================================================================
+   Atom One Light — original Atom editor's default light theme,
+   warm-white background with a muted blue/purple accent palette.
+   =================================================================== */
+[data-theme="atom-light"] {
+  --mz-bg-primary: #fafafa;
+  --mz-bg-secondary: #f0f0f0;
+  --mz-bg-tertiary: #e5e5e6;
+  --mz-bg-hover: #ebebec;
+  --mz-bg-active: #d6d6d7;
+  --mz-bg-selection: rgba(66, 133, 244, 0.22);
+
+  --mz-text-primary: #383a42;
+  --mz-text-secondary: #5f6672;
+  --mz-text-muted: #a0a1a7;
+  --mz-text-on-accent: #ffffff;
+
+  --mz-accent: #526fff;
+  --mz-accent-hover: #4058e6;
+  --mz-accent-subtle: rgba(82, 111, 255, 0.12);
+  --mz-drag-indicator: var(--mz-accent);
+
+  --mz-border: #d9d9d9;
+  --mz-border-strong: #bcbcbd;
+
+  --mz-scrollbar-thumb: #c6c6c7;
+  --mz-scrollbar-track: transparent;
+
+  --mz-syntax-keyword: #a626a4;
+  --mz-syntax-string: #50a14f;
+  --mz-syntax-number: #986801;
+  --mz-syntax-comment: #a0a1a7;
+  --mz-syntax-function: #4078f2;
+  --mz-syntax-variable: #e45649;
+  --mz-syntax-type: #c18401;
+  --mz-syntax-link: #4078f2;
+  --mz-syntax-heading: #a626a4;
+  --mz-syntax-bold: #e45649;
+  --mz-syntax-italic: #a626a4;
+  --mz-syntax-strikethrough: #a0a1a7;
+  --mz-syntax-code-bg: rgba(0, 0, 0, 0.05);
+  --mz-syntax-highlight-bg: rgba(255, 233, 99, 0.6);
+
+  --mz-success: #50a14f;
+  --mz-warning: #c18401;
+  --mz-error: #e45649;
+  --mz-info: #4078f2;
+
+  --mz-callout-note: #4078f2;
+  --mz-callout-tip: #50a14f;
+  --mz-callout-warning: #c18401;
+  --mz-callout-danger: #e45649;
+  --mz-callout-info: #0184bc;
+}

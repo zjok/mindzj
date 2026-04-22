@@ -1,6 +1,13 @@
 import { createSignal, createRoot, createEffect } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 import { DEFAULT_ATTACHMENT_FOLDER } from "../utils/vaultPaths";
+import {
+  BUILT_IN_SKIN_IDS,
+  CUSTOM_SKIN_PREFIX,
+  customSkinName,
+  isCustomSkin,
+  resolveDataTheme,
+} from "../styles/themes";
 
 export const DEFAULT_FONT_FAMILY =
   '"Inter", "Segoe UI", -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Microsoft YaHei", "Noto Sans", Ubuntu, Cantarell, sans-serif';
@@ -43,12 +50,35 @@ export async function applyCssSnippets(enabled: string[]) {
   styleEl.textContent = parts.join("\n\n");
 }
 
-export type Theme = "light" | "dark" | "system";
+/**
+ * Active skin identifier.
+ *
+ * Besides the original `"light" | "dark" | "system"` trio we now accept:
+ *   - Any built-in preset ID from `src/styles/themes/index.ts`
+ *     (`"github-dark"`, `"nord"`, `"tokyo-night"`, …).
+ *   - A `"custom:<name>"` reference that points at
+ *     `.mindzj/themes/<name>.css` inside the current vault.
+ *
+ * The type stays `string` on purpose — backend persistence is a plain
+ * string, and narrowing it in TypeScript would force every caller to
+ * cast when dealing with user-imported skins whose names we don't know
+ * at compile time.
+ */
+export type Theme = string;
 type PersistedTheme = Theme | "Light" | "Dark" | "System";
 
 interface PersistedSettings extends Omit<Partial<AppSettings>, "theme"> {
   theme?: PersistedTheme | null;
 }
+
+/** Theme IDs that the settings store must not forget about across reloads. */
+export const KNOWN_SKIN_IDS: readonly string[] = [
+  ...BUILT_IN_SKIN_IDS,
+  "system",
+];
+
+/** Readable label for `custom:` prefix — re-exported so UIs can use it. */
+export const CUSTOM_THEME_PREFIX = CUSTOM_SKIN_PREFIX;
 
 export interface AppSettings {
   theme: Theme;
@@ -183,26 +213,43 @@ function hotkeyOverridesToBindings(overrides: Record<string, string>): HotkeyBin
 
 function normalizeTheme(theme: PersistedTheme | null | undefined): Theme {
   if (typeof theme !== "string") return DEFAULT_SETTINGS.theme;
-  switch (theme.toLowerCase()) {
+  const trimmed = theme.trim();
+  if (!trimmed) return DEFAULT_SETTINGS.theme;
+  // Normalize the three legacy enum spellings, but preserve any other
+  // value (built-in preset IDs and `custom:<name>` references) verbatim.
+  switch (trimmed) {
+    case "Light":
     case "light":
       return "light";
+    case "Dark":
+    case "dark":
+      return "dark";
+    case "System":
     case "system":
       return "system";
-    case "dark":
     default:
-      return "dark";
+      return trimmed;
   }
 }
 
-function serializeTheme(theme: Theme): "Light" | "Dark" | "System" {
+/**
+ * Convert the in-memory skin ID back into the string shape the backend
+ * expects. Historically this was the tagged enum `"Light"/"Dark"/"System"`;
+ * now the backend accepts any string (see `deserialize_theme` in
+ * `types.rs`), so we pass unknown IDs through unchanged. The three
+ * legacy spellings are preserved so settings files written by older
+ * versions of the app round-trip cleanly.
+ */
+function serializeTheme(theme: Theme): string {
   switch (theme) {
     case "light":
       return "Light";
+    case "dark":
+      return "Dark";
     case "system":
       return "System";
-    case "dark":
     default:
-      return "Dark";
+      return theme;
   }
 }
 
@@ -233,17 +280,73 @@ function serializeSettingsForBackend(settings: AppSettings) {
   };
 }
 
+/**
+ * Inject (or clear) the CSS of a `custom:<name>` skin into the DOM.
+ *
+ * Custom skins live on disk as `.mindzj/themes/<name>.css`. When the
+ * user switches TO a custom skin we fetch the CSS via the Rust
+ * `read_theme` command and put it in a single `<style
+ * id="mz-custom-skin">` element at the END of `<head>` so its rules
+ * cascade OVER the built-in `:root`/`[data-theme=...]` variable
+ * definitions in `variables.css` and `themes/*.css`. Switching
+ * AWAY (or the skin failing to load) clears the style element so
+ * the built-in palette comes back on its own.
+ */
+async function applyCustomSkin(id: string | null) {
+  let styleEl = document.getElementById("mz-custom-skin") as HTMLStyleElement | null;
+  if (!styleEl) {
+    styleEl = document.createElement("style");
+    styleEl.id = "mz-custom-skin";
+    document.head.appendChild(styleEl);
+  }
+  if (!id || !isCustomSkin(id)) {
+    styleEl.textContent = "";
+    return;
+  }
+  const name = customSkinName(id);
+  if (!name) {
+    styleEl.textContent = "";
+    return;
+  }
+  try {
+    // Backend returns the bare filename list, so we pass `<name>.css`.
+    const css = await invoke<string>("read_theme", { name: `${name}.css` });
+    styleEl.textContent = `/* custom skin: ${name} */\n${css}`;
+  } catch (e) {
+    console.warn(`[skin] failed to load custom theme "${name}":`, e);
+    styleEl.textContent = "";
+  }
+}
+
 function createSettingsStore() {
   const [settings, setSettings] = createSignal<AppSettings>(createDefaultSettings());
 
-  // Apply theme to DOM
+  // Apply skin (data-theme attribute + custom CSS injection) to the DOM.
+  //
+  // Built-in skins: we set `data-theme` to the skin ID and clear the
+  // custom-skin <style> element. The matching CSS file in
+  // `src/styles/themes/` is already loaded at build time, so the
+  // browser's selector matching picks up the new variables
+  // immediately.
+  //
+  // `system`: resolve to light/dark once via `prefers-color-scheme`;
+  // we don't subscribe to changes here because the rest of the app
+  // (and most users) treat "system" as a one-shot preference rather
+  // than a live-updating binding.
+  //
+  // `custom:<name>`: still set `data-theme` to a stable sentinel
+  // ("custom") so any `[data-theme="custom"]` rules in the injected
+  // CSS match, then load the CSS contents from disk into a
+  // single <style> tag at the end of <head>.
   createEffect(() => {
     const theme = settings().theme;
-    if (theme === "system") {
-      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-      document.documentElement.setAttribute("data-theme", prefersDark ? "dark" : "light");
+    if (isCustomSkin(theme)) {
+      document.documentElement.setAttribute("data-theme", "custom");
+      void applyCustomSkin(theme);
     } else {
-      document.documentElement.setAttribute("data-theme", theme);
+      const resolved = resolveDataTheme(theme);
+      document.documentElement.setAttribute("data-theme", resolved);
+      void applyCustomSkin(null);
     }
   });
 
@@ -408,12 +511,51 @@ function createSettingsStore() {
     setSettings(createDefaultSettings());
   }
 
-  // Toggle theme
+  // Toggle between light and dark. Preserves the "family" of the user's
+  // current skin when possible — e.g. toggling from `github-dark` takes
+  // you to `github-light`, toggling from `nord` (dark only) defaults to
+  // the app's built-in light. For custom / unknown skins we fall back
+  // to the app defaults so the toolbar button always produces a
+  // visible change.
   function toggleTheme() {
     const current = settings().theme;
-    const next: Theme =
-      current === "dark" ? "light" : current === "light" ? "system" : "dark";
+    let next: Theme;
+    if (current === "system") {
+      next = "dark";
+    } else if (current === "dark") {
+      next = "light";
+    } else if (current === "light") {
+      next = "system";
+    } else {
+      // Try to find a light/dark counterpart for the current built-in.
+      const pairs: Record<string, string> = {
+        "github-dark": "github-light",
+        "github-light": "github-dark",
+        "solarized-dark": "solarized-light",
+        "solarized-light": "solarized-dark",
+      };
+      if (pairs[current]) {
+        next = pairs[current];
+      } else {
+        // Custom / one-sided theme — just jump to the app defaults.
+        next = "dark";
+      }
+    }
     updateSetting("theme", next);
+  }
+
+  /**
+   * Force a re-read of the currently-active custom skin from disk.
+   * Called by the Settings → Appearance "Reload theme" button after
+   * the user edits the `.css` file externally. No-op (but still
+   * returns a resolved promise) when the active skin isn't a custom
+   * one, so callers can safely `await` it unconditionally.
+   */
+  async function reloadCustomSkin(): Promise<void> {
+    const current = settings().theme;
+    if (isCustomSkin(current)) {
+      await applyCustomSkin(current);
+    }
   }
 
   return {
@@ -422,6 +564,7 @@ function createSettingsStore() {
     updateSetting,
     toggleTheme,
     resetSettings,
+    reloadCustomSkin,
   };
 }
 

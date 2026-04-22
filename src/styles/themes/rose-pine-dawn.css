@@ -1,0 +1,55 @@
+/* ===================================================================
+   Rosé Pine Dawn — the warm "dawn" light variant of Rosé Pine. Cream
+   background with faded rose/pine/iris accents. Ideal daytime palette
+   for users who find pure white backgrounds tiring over a long session.
+   =================================================================== */
+[data-theme="rose-pine-dawn"] {
+  --mz-bg-primary: #faf4ed;         /* base */
+  --mz-bg-secondary: #fffaf3;       /* surface */
+  --mz-bg-tertiary: #f2e9e1;        /* overlay */
+  --mz-bg-hover: #f4ede4;
+  --mz-bg-active: #dfdad9;          /* highlight-med */
+  --mz-bg-selection: rgba(180, 99, 122, 0.18);
+
+  --mz-text-primary: #575279;       /* text */
+  --mz-text-secondary: #797593;     /* subtle */
+  --mz-text-muted: #9893a5;         /* muted */
+  --mz-text-on-accent: #faf4ed;
+
+  --mz-accent: #b4637a;              /* love */
+  --mz-accent-hover: #d7827e;        /* rose */
+  --mz-accent-subtle: rgba(180, 99, 122, 0.14);
+  --mz-drag-indicator: var(--mz-accent);
+
+  --mz-border: #dfdad9;
+  --mz-border-strong: #cecacd;       /* highlight-high */
+
+  --mz-scrollbar-thumb: #cecacd;
+  --mz-scrollbar-track: transparent;
+
+  --mz-syntax-keyword: #907aa9;     /* iris */
+  --mz-syntax-string: #56949f;      /* foam */
+  --mz-syntax-number: #ea9d34;      /* gold */
+  --mz-syntax-comment: #9893a5;
+  --mz-syntax-function: #d7827e;    /* rose */
+  --mz-syntax-variable: #b4637a;    /* love */
+  --mz-syntax-type: #286983;        /* pine */
+  --mz-syntax-link: #56949f;
+  --mz-syntax-heading: #ea9d34;
+  --mz-syntax-bold: #b4637a;
+  --mz-syntax-italic: #907aa9;
+  --mz-syntax-strikethrough: #9893a5;
+  --mz-syntax-code-bg: rgba(87, 82, 121, 0.08);
+  --mz-syntax-highlight-bg: rgba(234, 157, 52, 0.2);
+
+  --mz-success: #56949f;
+  --mz-warning: #ea9d34;
+  --mz-error: #b4637a;
+  --mz-info: #286983;
+
+  --mz-callout-note: #56949f;
+  --mz-callout-tip: #286983;
+  --mz-callout-warning: #ea9d34;
+  --mz-callout-danger: #b4637a;
+  --mz-callout-info: #907aa9;
+}

@@ -1,0 +1,56 @@
+/* ===================================================================
+   Sublime Text — Mariana (Dark)
+   Drawn from the "Mariana" palette that ships with Sublime Text 4:
+   cool navy-slate background, teal accents, and the same orange/purple
+   syntax tokens as Sublime Light — just inverted base tones.
+   =================================================================== */
+[data-theme="sublime-dark"] {
+  --mz-bg-primary: #222f3b;
+  --mz-bg-secondary: #1e2935;
+  --mz-bg-tertiary: #2e3e4e;
+  --mz-bg-hover: #34455a;
+  --mz-bg-active: #3b4e62;
+  --mz-bg-selection: rgba(112, 192, 232, 0.25);
+
+  --mz-text-primary: #d8dee9;
+  --mz-text-secondary: #a6b2c0;
+  --mz-text-muted: #7a8798;
+  --mz-text-on-accent: #222f3b;
+
+  --mz-accent: #70c0e8;
+  --mz-accent-hover: #9dd4f0;
+  --mz-accent-subtle: rgba(112, 192, 232, 0.16);
+  --mz-drag-indicator: var(--mz-accent);
+
+  --mz-border: #2e3e4e;
+  --mz-border-strong: #41546a;
+
+  --mz-scrollbar-thumb: #41546a;
+  --mz-scrollbar-track: transparent;
+
+  --mz-syntax-keyword: #ee7091;
+  --mz-syntax-string: #99c794;
+  --mz-syntax-number: #f9ae58;
+  --mz-syntax-comment: #627084;
+  --mz-syntax-function: #70c0e8;
+  --mz-syntax-variable: #d28b7c;
+  --mz-syntax-type: #ffcc66;
+  --mz-syntax-link: #70c0e8;
+  --mz-syntax-heading: #f9ae58;
+  --mz-syntax-bold: #ee7091;
+  --mz-syntax-italic: #c695c6;
+  --mz-syntax-strikethrough: #627084;
+  --mz-syntax-code-bg: rgba(255, 255, 255, 0.06);
+  --mz-syntax-highlight-bg: rgba(249, 174, 88, 0.22);
+
+  --mz-success: #99c794;
+  --mz-warning: #ffcc66;
+  --mz-error: #ee7091;
+  --mz-info: #70c0e8;
+
+  --mz-callout-note: #70c0e8;
+  --mz-callout-tip: #99c794;
+  --mz-callout-warning: #ffcc66;
+  --mz-callout-danger: #ee7091;
+  --mz-callout-info: #c695c6;
+}

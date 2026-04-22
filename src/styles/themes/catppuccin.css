@@ -1,0 +1,54 @@
+/* ===================================================================
+   Catppuccin — Mocha flavor, the dark default from the
+   catppuccin.com community palette. Pastel-warm with a mauve accent.
+   =================================================================== */
+[data-theme="catppuccin"] {
+  --mz-bg-primary: #1e1e2e;        /* base */
+  --mz-bg-secondary: #181825;      /* mantle */
+  --mz-bg-tertiary: #11111b;       /* crust */
+  --mz-bg-hover: #313244;          /* surface0 */
+  --mz-bg-active: #45475a;         /* surface1 */
+  --mz-bg-selection: rgba(203, 166, 247, 0.25);
+
+  --mz-text-primary: #cdd6f4;      /* text */
+  --mz-text-secondary: #bac2de;    /* subtext1 */
+  --mz-text-muted: #a6adc8;        /* subtext0 */
+  --mz-text-on-accent: #1e1e2e;
+
+  --mz-accent: #cba6f7;            /* mauve */
+  --mz-accent-hover: #b4befe;      /* lavender */
+  --mz-accent-subtle: rgba(203, 166, 247, 0.16);
+  --mz-drag-indicator: var(--mz-accent);
+
+  --mz-border: #313244;
+  --mz-border-strong: #45475a;
+
+  --mz-scrollbar-thumb: #585b70;   /* surface2 */
+  --mz-scrollbar-track: transparent;
+
+  --mz-syntax-keyword: #cba6f7;    /* mauve */
+  --mz-syntax-string: #a6e3a1;     /* green */
+  --mz-syntax-number: #fab387;     /* peach */
+  --mz-syntax-comment: #7f849c;    /* overlay1 */
+  --mz-syntax-function: #89b4fa;   /* blue */
+  --mz-syntax-variable: #f38ba8;   /* red */
+  --mz-syntax-type: #f9e2af;       /* yellow */
+  --mz-syntax-link: #89dceb;       /* sky */
+  --mz-syntax-heading: #f9e2af;
+  --mz-syntax-bold: #f38ba8;
+  --mz-syntax-italic: #cba6f7;
+  --mz-syntax-strikethrough: #6c7086;
+  --mz-syntax-code-bg: rgba(205, 214, 244, 0.08);
+  --mz-syntax-highlight-bg: rgba(249, 226, 175, 0.22);
+
+  --mz-success: #a6e3a1;
+  --mz-warning: #f9e2af;
+  --mz-error: #f38ba8;
+  --mz-info: #89b4fa;
+
+  --mz-callout-note: #89b4fa;
+  --mz-callout-tip: #a6e3a1;
+  --mz-callout-warning: #f9e2af;
+  --mz-callout-danger: #f38ba8;
+  --mz-callout-info: #89dceb;
+}

@@ -1,0 +1,54 @@
+/* ===================================================================
+   Gruvbox — the retro-warm dark palette by morhetz. Earthy browns,
+   olive green, and apricot orange. Values match gruvbox-dark "medium".
+   =================================================================== */
+[data-theme="gruvbox"] {
+  --mz-bg-primary: #282828;        /* dark0 */
+  --mz-bg-secondary: #32302f;      /* dark0_soft */
+  --mz-bg-tertiary: #3c3836;       /* dark1 */
+  --mz-bg-hover: #504945;          /* dark2 */
+  --mz-bg-active: #665c54;         /* dark3 */
+  --mz-bg-selection: rgba(254, 128, 25, 0.25);
+
+  --mz-text-primary: #ebdbb2;      /* light1 */
+  --mz-text-secondary: #d5c4a1;    /* light2 */
+  --mz-text-muted: #a89984;        /* light4 */
+  --mz-text-on-accent: #282828;
+
+  --mz-accent: #fe8019;            /* bright_orange */
+  --mz-accent-hover: #fabd2f;      /* bright_yellow */
+  --mz-accent-subtle: rgba(254, 128, 25, 0.16);
+  --mz-drag-indicator: var(--mz-accent);
+
+  --mz-border: #3c3836;
+  --mz-border-strong: #504945;
+
+  --mz-scrollbar-thumb: #665c54;
+  --mz-scrollbar-track: transparent;
+
+  --mz-syntax-keyword: #fb4934;    /* bright_red */
+  --mz-syntax-string: #b8bb26;     /* bright_green */
+  --mz-syntax-number: #d3869b;     /* bright_purple */
+  --mz-syntax-comment: #928374;    /* gray */
+  --mz-syntax-function: #fabd2f;   /* bright_yellow */
+  --mz-syntax-variable: #83a598;   /* bright_blue */
+  --mz-syntax-type: #8ec07c;       /* bright_aqua */
+  --mz-syntax-link: #83a598;
+  --mz-syntax-heading: #fabd2f;
+  --mz-syntax-bold: #fb4934;
+  --mz-syntax-italic: #d3869b;
+  --mz-syntax-strikethrough: #928374;
+  --mz-syntax-code-bg: rgba(235, 219, 178, 0.08);
+  --mz-syntax-highlight-bg: rgba(250, 189, 47, 0.22);
+
+  --mz-success: #b8bb26;
+  --mz-warning: #fabd2f;
+  --mz-error: #fb4934;
+  --mz-info: #83a598;
+
+  --mz-callout-note: #83a598;
+  --mz-callout-tip: #b8bb26;
+  --mz-callout-warning: #fabd2f;
+  --mz-callout-danger: #fb4934;
+  --mz-callout-info: #8ec07c;
+}

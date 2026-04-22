@@ -1,0 +1,54 @@
+/* ===================================================================
+   Solarized Light — Ethan Schoonover's base3/base2 warm-paper palette,
+   balanced sixteen-color syntax across warm/cool accents.
+   =================================================================== */
+[data-theme="solarized-light"] {
+  --mz-bg-primary: #fdf6e3;        /* base3 */
+  --mz-bg-secondary: #eee8d5;      /* base2 */
+  --mz-bg-tertiary: #e3dec7;
+  --mz-bg-hover: #e3dec7;
+  --mz-bg-active: #d6cfae;
+  --mz-bg-selection: rgba(38, 139, 210, 0.18); /* blue */
+
+  --mz-text-primary: #586e75;      /* base01 */
+  --mz-text-secondary: #657b83;    /* base00 */
+  --mz-text-muted: #93a1a1;        /* base1 */
+  --mz-text-on-accent: #fdf6e3;
+
+  --mz-accent: #268bd2;            /* blue */
+  --mz-accent-hover: #1d6fa5;
+  --mz-accent-subtle: rgba(38, 139, 210, 0.12);
+  --mz-drag-indicator: var(--mz-accent);
+
+  --mz-border: #d9d2b6;
+  --mz-border-strong: #b9b08e;
+
+  --mz-scrollbar-thumb: #b9b08e;
+  --mz-scrollbar-track: transparent;
+
+  --mz-syntax-keyword: #859900;    /* green */
+  --mz-syntax-string: #2aa198;     /* cyan */
+  --mz-syntax-number: #d33682;     /* magenta */
+  --mz-syntax-comment: #93a1a1;
+  --mz-syntax-function: #268bd2;   /* blue */
+  --mz-syntax-variable: #b58900;   /* yellow */
+  --mz-syntax-type: #cb4b16;       /* orange */
+  --mz-syntax-link: #268bd2;
+  --mz-syntax-heading: #cb4b16;
+  --mz-syntax-bold: #dc322f;       /* red */
+  --mz-syntax-italic: #6c71c4;     /* violet */
+  --mz-syntax-strikethrough: #93a1a1;
+  --mz-syntax-code-bg: rgba(88, 110, 117, 0.1);
+  --mz-syntax-highlight-bg: rgba(181, 137, 0, 0.18);
+
+  --mz-success: #859900;
+  --mz-warning: #b58900;
+  --mz-error: #dc322f;
+  --mz-info: #268bd2;
+
+  --mz-callout-note: #268bd2;
+  --mz-callout-tip: #859900;
+  --mz-callout-warning: #b58900;
+  --mz-callout-danger: #dc322f;
+  --mz-callout-info: #2aa198;
+}

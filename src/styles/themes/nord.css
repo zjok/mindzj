@@ -1,0 +1,54 @@
+/* ===================================================================
+   Nord — arctic, north-bluish palette by Arctic Ice Studio.
+   Cool blues and muted greens, standard nord0..nord15 tokens.
+   =================================================================== */
+[data-theme="nord"] {
+  --mz-bg-primary: #2e3440;        /* nord0 */
+  --mz-bg-secondary: #3b4252;      /* nord1 */
+  --mz-bg-tertiary: #434c5e;       /* nord2 */
+  --mz-bg-hover: #4c566a;          /* nord3 */
+  --mz-bg-active: #4c566a;
+  --mz-bg-selection: rgba(136, 192, 208, 0.28); /* nord8 */
+
+  --mz-text-primary: #eceff4;      /* nord6 */
+  --mz-text-secondary: #d8dee9;    /* nord4 */
+  --mz-text-muted: #a6adbb;
+  --mz-text-on-accent: #2e3440;
+
+  --mz-accent: #88c0d0;            /* nord8 */
+  --mz-accent-hover: #8fbcbb;      /* nord7 */
+  --mz-accent-subtle: rgba(136, 192, 208, 0.16);
+  --mz-drag-indicator: var(--mz-accent);
+
+  --mz-border: #434c5e;
+  --mz-border-strong: #4c566a;
+
+  --mz-scrollbar-thumb: #4c566a;
+  --mz-scrollbar-track: transparent;
+
+  --mz-syntax-keyword: #81a1c1;    /* nord9 */
+  --mz-syntax-string: #a3be8c;     /* nord14 */
+  --mz-syntax-number: #b48ead;     /* nord15 */
+  --mz-syntax-comment: #616e88;
+  --mz-syntax-function: #88c0d0;   /* nord8 */
+  --mz-syntax-variable: #d8dee9;   /* nord4 */
+  --mz-syntax-type: #8fbcbb;       /* nord7 */
+  --mz-syntax-link: #88c0d0;
+  --mz-syntax-heading: #88c0d0;
+  --mz-syntax-bold: #ebcb8b;       /* nord13 */
+  --mz-syntax-italic: #b48ead;
+  --mz-syntax-strikethrough: #616e88;
+  --mz-syntax-code-bg: rgba(255, 255, 255, 0.06);
+  --mz-syntax-highlight-bg: rgba(235, 203, 139, 0.25); /* nord13 */
+
+  --mz-success: #a3be8c;           /* nord14 */
+  --mz-warning: #ebcb8b;           /* nord13 */
+  --mz-error: #bf616a;             /* nord11 */
+  --mz-info: #88c0d0;
+
+  --mz-callout-note: #81a1c1;
+  --mz-callout-tip: #a3be8c;
+  --mz-callout-warning: #ebcb8b;
+  --mz-callout-danger: #bf616a;
+  --mz-callout-info: #88c0d0;
+}

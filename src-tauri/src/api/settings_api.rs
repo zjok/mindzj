@@ -89,7 +89,10 @@ pub async fn update_settings(
     Ok(())
 }
 
-/// Update theme.
+/// Update the active skin. Accepts either the legacy `Light`/`Dark`/
+/// `System` enum payload or a free-form string (built-in skin ID like
+/// `"github-dark"` or a `"custom:<name>"` reference to a user-imported
+/// theme).
 #[tauri::command]
 pub async fn set_theme(
     state: State<'_, AppState>,
@@ -102,7 +105,7 @@ pub async fn set_theme(
             code: "LOCK_ERROR".into(),
             message: "Failed to acquire settings lock".into(),
         })?;
-        s.theme = theme;
+        s.theme = theme.as_id();
     }
     ctx.save_settings().map_err(CommandError::from)?;
     Ok(())

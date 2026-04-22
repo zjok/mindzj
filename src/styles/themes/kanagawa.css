@@ -1,0 +1,55 @@
+/* ===================================================================
+   Kanagawa — warm Japanese-inspired palette by rebelot, modeled after
+   Hokusai's "The Great Wave off Kanagawa". Deep indigo-navy background
+   with warm ochre / sakura pink / autumn red accents.
+   =================================================================== */
+[data-theme="kanagawa"] {
+  --mz-bg-primary: #1f1f28;          /* sumiInk1 */
+  --mz-bg-secondary: #16161d;        /* sumiInk0 */
+  --mz-bg-tertiary: #2a2a37;         /* sumiInk2 */
+  --mz-bg-hover: #363646;            /* sumiInk3 */
+  --mz-bg-active: #54546d;           /* sumiInk4 */
+  --mz-bg-selection: rgba(223, 169, 120, 0.22);
+
+  --mz-text-primary: #dcd7ba;        /* fujiWhite */
+  --mz-text-secondary: #c8c093;      /* oldWhite */
+  --mz-text-muted: #727169;          /* fujiGray */
+  --mz-text-on-accent: #1f1f28;
+
+  --mz-accent: #dca561;              /* boatYellow2 */
+  --mz-accent-hover: #ffa066;        /* surimiOrange */
+  --mz-accent-subtle: rgba(220, 165, 97, 0.18);
+  --mz-drag-indicator: var(--mz-accent);
+
+  --mz-border: #363646;
+  --mz-border-strong: #54546d;
+
+  --mz-scrollbar-thumb: #54546d;
+  --mz-scrollbar-track: transparent;
+
+  --mz-syntax-keyword: #957fb8;     /* oniViolet */
+  --mz-syntax-string: #98bb6c;      /* springGreen */
+  --mz-syntax-number: #d27e99;      /* sakuraPink */
+  --mz-syntax-comment: #727169;
+  --mz-syntax-function: #7e9cd8;    /* crystalBlue */
+  --mz-syntax-variable: #e6c384;    /* carpYellow */
+  --mz-syntax-type: #7fb4ca;        /* springBlue */
+  --mz-syntax-link: #7fb4ca;
+  --mz-syntax-heading: #e6c384;
+  --mz-syntax-bold: #c34043;        /* autumnRed */
+  --mz-syntax-italic: #957fb8;
+  --mz-syntax-strikethrough: #727169;
+  --mz-syntax-code-bg: rgba(220, 215, 186, 0.06);
+  --mz-syntax-highlight-bg: rgba(230, 195, 132, 0.22);
+
+  --mz-success: #98bb6c;
+  --mz-warning: #e6c384;
+  --mz-error: #c34043;
+  --mz-info: #7e9cd8;
+
+  --mz-callout-note: #7fb4ca;
+  --mz-callout-tip: #98bb6c;
+  --mz-callout-warning: #dca561;
+  --mz-callout-danger: #c34043;
+  --mz-callout-info: #7e9cd8;
+}

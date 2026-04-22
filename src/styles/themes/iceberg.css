@@ -1,0 +1,54 @@
+/* ===================================================================
+   Iceberg — dark blue-green palette by cocopon, ported from Vim.
+   Deep navy background with soft cyan / violet / ochre accents.
+   =================================================================== */
+[data-theme="iceberg"] {
+  --mz-bg-primary: #161821;
+  --mz-bg-secondary: #1e2132;
+  --mz-bg-tertiary: #282d44;
+  --mz-bg-hover: #2e3245;
+  --mz-bg-active: #3b4167;
+  --mz-bg-selection: rgba(132, 165, 216, 0.28);
+
+  --mz-text-primary: #c6c8d1;
+  --mz-text-secondary: #abb0bf;
+  --mz-text-muted: #6b7089;
+  --mz-text-on-accent: #161821;
+
+  --mz-accent: #84a5d8;
+  --mz-accent-hover: #a0bbdb;
+  --mz-accent-subtle: rgba(132, 165, 216, 0.18);
+  --mz-drag-indicator: var(--mz-accent);
+
+  --mz-border: #2e3245;
+  --mz-border-strong: #3b4167;
+
+  --mz-scrollbar-thumb: #3b4167;
+  --mz-scrollbar-track: transparent;
+
+  --mz-syntax-keyword: #b4be82;
+  --mz-syntax-string: #89b8c2;
+  --mz-syntax-number: #a093c7;
+  --mz-syntax-comment: #6b7089;
+  --mz-syntax-function: #84a5d8;
+  --mz-syntax-variable: #e2a478;
+  --mz-syntax-type: #a093c7;
+  --mz-syntax-link: #89b8c2;
+  --mz-syntax-heading: #e2a478;
+  --mz-syntax-bold: #e27878;
+  --mz-syntax-italic: #a093c7;
+  --mz-syntax-strikethrough: #6b7089;
+  --mz-syntax-code-bg: rgba(198, 200, 209, 0.08);
+  --mz-syntax-highlight-bg: rgba(226, 164, 120, 0.22);
+
+  --mz-success: #b4be82;
+  --mz-warning: #e2a478;
+  --mz-error: #e27878;
+  --mz-info: #84a5d8;
+
+  --mz-callout-note: #84a5d8;
+  --mz-callout-tip: #b4be82;
+  --mz-callout-warning: #e2a478;
+  --mz-callout-danger: #e27878;
+  --mz-callout-info: #89b8c2;
+}

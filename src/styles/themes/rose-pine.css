@@ -1,0 +1,55 @@
+/* ===================================================================
+   Rosé Pine — "all natural pine, faux fur and a bit of soho vibes for
+   the classy minimalist". Warm plum/rose palette designed to be
+   comfortable for long focus sessions — strong deep bg + pastel accents.
+   =================================================================== */
+[data-theme="rose-pine"] {
+  --mz-bg-primary: #191724;         /* base */
+  --mz-bg-secondary: #1f1d2e;       /* surface */
+  --mz-bg-tertiary: #26233a;        /* overlay */
+  --mz-bg-hover: #26233a;
+  --mz-bg-active: #403d52;          /* highlight-med */
+  --mz-bg-selection: rgba(235, 188, 186, 0.22);
+
+  --mz-text-primary: #e0def4;       /* text */
+  --mz-text-secondary: #c4a7e7;     /* iris */
+  --mz-text-muted: #6e6a86;         /* muted */
+  --mz-text-on-accent: #191724;
+
+  --mz-accent: #ebbcba;              /* rose */
+  --mz-accent-hover: #f6c177;        /* gold */
+  --mz-accent-subtle: rgba(235, 188, 186, 0.18);
+  --mz-drag-indicator: var(--mz-accent);
+
+  --mz-border: #26233a;
+  --mz-border-strong: #403d52;
+
+  --mz-scrollbar-thumb: #524f67;    /* highlight-high */
+  --mz-scrollbar-track: transparent;
+
+  --mz-syntax-keyword: #c4a7e7;     /* iris */
+  --mz-syntax-string: #9ccfd8;      /* foam */
+  --mz-syntax-number: #f6c177;      /* gold */
+  --mz-syntax-comment: #6e6a86;
+  --mz-syntax-function: #ebbcba;    /* rose */
+  --mz-syntax-variable: #eb6f92;    /* love */
+  --mz-syntax-type: #31748f;        /* pine */
+  --mz-syntax-link: #9ccfd8;
+  --mz-syntax-heading: #f6c177;
+  --mz-syntax-bold: #eb6f92;
+  --mz-syntax-italic: #c4a7e7;
+  --mz-syntax-strikethrough: #6e6a86;
+  --mz-syntax-code-bg: rgba(224, 222, 244, 0.06);
+  --mz-syntax-highlight-bg: rgba(246, 193, 119, 0.22);
+
+  --mz-success: #9ccfd8;
+  --mz-warning: #f6c177;
+  --mz-error: #eb6f92;
+  --mz-info: #31748f;
+
+  --mz-callout-note: #9ccfd8;
+  --mz-callout-tip: #31748f;
+  --mz-callout-warning: #f6c177;
+  --mz-callout-danger: #eb6f92;
+  --mz-callout-info: #c4a7e7;
+}

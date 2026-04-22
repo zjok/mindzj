@@ -1,0 +1,56 @@
+/* ===================================================================
+   Catppuccin Latte — the warm-light flavor of Catppuccin. Cream/peach
+   background, soft mauve accent, and the same pastel syntax family
+   as Mocha (Catppuccin Dark). One of the gentler "easy on the eyes"
+   light themes — no stark white, just warm cream.
+   =================================================================== */
+[data-theme="catppuccin-latte"] {
+  --mz-bg-primary: #eff1f5;         /* base */
+  --mz-bg-secondary: #e6e9ef;       /* mantle */
+  --mz-bg-tertiary: #dce0e8;        /* crust */
+  --mz-bg-hover: #dce0e8;
+  --mz-bg-active: #bcc0cc;          /* surface1 */
+  --mz-bg-selection: rgba(136, 57, 239, 0.16);
+
+  --mz-text-primary: #4c4f69;       /* text */
+  --mz-text-secondary: #5c5f77;     /* subtext1 */
+  --mz-text-muted: #8c8fa1;         /* subtext0 */
+  --mz-text-on-accent: #eff1f5;
+
+  --mz-accent: #8839ef;              /* mauve */
+  --mz-accent-hover: #7287fd;        /* lavender */
+  --mz-accent-subtle: rgba(136, 57, 239, 0.14);
+  --mz-drag-indicator: var(--mz-accent);
+
+  --mz-border: #ccd0da;              /* surface0 */
+  --mz-border-strong: #acb0be;       /* surface2 */
+
+  --mz-scrollbar-thumb: #acb0be;
+  --mz-scrollbar-track: transparent;
+
+  --mz-syntax-keyword: #8839ef;     /* mauve */
+  --mz-syntax-string: #40a02b;      /* green */
+  --mz-syntax-number: #fe640b;      /* peach */
+  --mz-syntax-comment: #9ca0b0;     /* overlay1 */
+  --mz-syntax-function: #1e66f5;    /* blue */
+  --mz-syntax-variable: #d20f39;    /* red */
+  --mz-syntax-type: #df8e1d;        /* yellow */
+  --mz-syntax-link: #04a5e5;        /* sky */
+  --mz-syntax-heading: #df8e1d;
+  --mz-syntax-bold: #d20f39;
+  --mz-syntax-italic: #8839ef;
+  --mz-syntax-strikethrough: #6c6f85;
+  --mz-syntax-code-bg: rgba(76, 79, 105, 0.08);
+  --mz-syntax-highlight-bg: rgba(223, 142, 29, 0.22);
+
+  --mz-success: #40a02b;
+  --mz-warning: #df8e1d;
+  --mz-error: #d20f39;
+  --mz-info: #1e66f5;
+
+  --mz-callout-note: #1e66f5;
+  --mz-callout-tip: #40a02b;
+  --mz-callout-warning: #df8e1d;
+  --mz-callout-danger: #d20f39;
+  --mz-callout-info: #04a5e5;
+}

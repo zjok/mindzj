@@ -719,3 +719,95 @@ pub async fn get_snippets_dir(
         .map(|p| p.to_string_lossy().to_string())
         .map_err(CommandError::from)
 }
+
+// ---------------------------------------------------------------------------
+// Custom themes / skins (Obsidian-style per-vault `.mindzj/themes/*.css`)
+// ---------------------------------------------------------------------------
+
+/// List `.css` files in `.mindzj/themes/`. Each entry is a bare filename
+/// (e.g. `my-theme.css`). The frontend renders one entry per file in the
+/// skin picker and references them as `custom:<stem>` in settings.
+#[tauri::command]
+pub async fn list_themes(
+    state: State<'_, AppState>,
+    window: tauri::WebviewWindow,
+) -> Result<Vec<String>, CommandError> {
+    let ctx = state.get_vault_context(window.label())?;
+    ctx.vault.list_themes().map_err(CommandError::from)
+}
+
+/// Read the raw CSS content of a custom theme by its bare filename
+/// (e.g. `my-theme.css`). The file must live directly inside
+/// `.mindzj/themes/`.
+#[tauri::command]
+pub async fn read_theme(
+    state: State<'_, AppState>,
+    window: tauri::WebviewWindow,
+    name: String,
+) -> Result<String, CommandError> {
+    let ctx = state.get_vault_context(window.label())?;
+    ctx.vault.read_theme(&name).map_err(CommandError::from)
+}
+
+/// Import a `.css` file from an ABSOLUTE filesystem path into
+/// `.mindzj/themes/`. The frontend gets the absolute path from a
+/// `@tauri-apps/plugin-dialog` file picker, so the Tauri frontend
+/// scope doesn't need to grant read access for arbitrary locations.
+///
+/// Returns the sanitized bare filename that ended up on disk — the
+/// frontend stores `custom:<stem>` in `settings.theme`.
+#[tauri::command]
+pub async fn import_theme(
+    state: State<'_, AppState>,
+    window: tauri::WebviewWindow,
+    source_absolute_path: String,
+    overwrite: Option<bool>,
+) -> Result<String, CommandError> {
+    let ctx = state.get_vault_context(window.label())?;
+    ctx.vault
+        .import_theme(&source_absolute_path, overwrite.unwrap_or(false))
+        .map_err(CommandError::from)
+}
+
+/// Delete a custom theme by its bare filename. A no-op if the file is
+/// already gone, so the UI can safely issue deletes even after external
+/// file system changes.
+#[tauri::command]
+pub async fn delete_theme(
+    state: State<'_, AppState>,
+    window: tauri::WebviewWindow,
+    name: String,
+) -> Result<(), CommandError> {
+    let ctx = state.get_vault_context(window.label())?;
+    ctx.vault.delete_theme(&name).map_err(CommandError::from)
+}
+
+/// Write a CSS string as `<bare_name>.css` inside `.mindzj/themes/`.
+/// Used by the "new empty theme" scaffold button in the skin picker.
+#[tauri::command]
+pub async fn write_theme(
+    state: State<'_, AppState>,
+    window: tauri::WebviewWindow,
+    bare_name: String,
+    content: String,
+) -> Result<String, CommandError> {
+    let ctx = state.get_vault_context(window.label())?;
+    ctx.vault
+        .write_theme(&bare_name, &content)
+        .map_err(CommandError::from)
+}
+
+/// Return the absolute path of the vault's `.mindzj/themes/` folder
+/// (creating it on demand). The frontend uses this to "reveal in file
+/// manager" via the shell plugin.
+#[tauri::command]
+pub async fn get_themes_dir(
+    state: State<'_, AppState>,
+    window: tauri::WebviewWindow,
+) -> Result<String, CommandError> {
+    let ctx = state.get_vault_context(window.label())?;
+    ctx.vault
+        .themes_dir()
+        .map(|p| p.to_string_lossy().to_string())
+        .map_err(CommandError::from)
+}

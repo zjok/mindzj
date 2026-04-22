@@ -727,6 +727,13 @@ pub fn run() {
             api::vault_api::list_css_snippets,
             api::vault_api::read_css_snippet,
             api::vault_api::get_snippets_dir,
+            // Custom themes / skins
+            api::vault_api::list_themes,
+            api::vault_api::read_theme,
+            api::vault_api::import_theme,
+            api::vault_api::delete_theme,
+            api::vault_api::write_theme,
+            api::vault_api::get_themes_dir,
             api::vault_api::write_binary_file,
             api::vault_api::read_binary_file,
             api::vault_api::reveal_in_file_manager,

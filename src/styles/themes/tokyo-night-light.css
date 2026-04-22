@@ -1,0 +1,55 @@
+/* ===================================================================
+   Tokyo Night Light — enkia's companion light palette to Tokyo Night.
+   Ivory background with cool indigo accents; same syntax hues as the
+   dark variant, but swapped into the bright family for daytime work.
+   =================================================================== */
+[data-theme="tokyo-night-light"] {
+  --mz-bg-primary: #d5d6db;
+  --mz-bg-secondary: #c4c8da;
+  --mz-bg-tertiary: #b7bbd4;
+  --mz-bg-hover: #bfc4db;
+  --mz-bg-active: #a8acc4;
+  --mz-bg-selection: rgba(52, 84, 138, 0.2);
+
+  --mz-text-primary: #343b58;
+  --mz-text-secondary: #40527a;
+  --mz-text-muted: #6a7288;
+  --mz-text-on-accent: #ffffff;
+
+  --mz-accent: #34548a;
+  --mz-accent-hover: #2d4f9a;
+  --mz-accent-subtle: rgba(52, 84, 138, 0.12);
+  --mz-drag-indicator: var(--mz-accent);
+
+  --mz-border: #9699a8;
+  --mz-border-strong: #7c7f8f;
+
+  --mz-scrollbar-thumb: #8489a0;
+  --mz-scrollbar-track: transparent;
+
+  --mz-syntax-keyword: #5a4a78;
+  --mz-syntax-string: #485e30;
+  --mz-syntax-number: #965027;
+  --mz-syntax-comment: #848cb5;
+  --mz-syntax-function: #34548a;
+  --mz-syntax-variable: #8c4351;
+  --mz-syntax-type: #0f4b6e;
+  --mz-syntax-link: #0f4b6e;
+  --mz-syntax-heading: #5a4a78;
+  --mz-syntax-bold: #8c4351;
+  --mz-syntax-italic: #5a4a78;
+  --mz-syntax-strikethrough: #848cb5;
+  --mz-syntax-code-bg: rgba(52, 59, 88, 0.1);
+  --mz-syntax-highlight-bg: rgba(166, 111, 89, 0.22);
+
+  --mz-success: #485e30;
+  --mz-warning: #8f5e15;
+  --mz-error: #8c4351;
+  --mz-info: #34548a;
+
+  --mz-callout-note: #34548a;
+  --mz-callout-tip: #485e30;
+  --mz-callout-warning: #8f5e15;
+  --mz-callout-danger: #8c4351;
+  --mz-callout-info: #0f4b6e;
+}

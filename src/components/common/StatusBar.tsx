@@ -12,6 +12,7 @@ import { t } from "../../i18n";
 import { vaultStore } from "../../stores/vault";
 import { editorStore } from "../../stores/editor";
 import { settingsStore } from "../../stores/settings";
+import { skinMode } from "../../styles/themes";
 
 interface NoteLink {
   source: string;
@@ -260,7 +261,7 @@ export const StatusBar: Component = () => {
           event.currentTarget.style.color = "var(--mz-text-muted)";
         }}
       >
-        {settingsStore.settings().theme === "dark" ? "☾" : "☀"}
+        {skinMode(settingsStore.settings().theme) === "dark" ? "☾" : "☀"}
       </button>
     </div>
   );

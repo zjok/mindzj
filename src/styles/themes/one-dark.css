@@ -1,0 +1,55 @@
+/* ===================================================================
+   One Dark (Atom) — the original Atom "One Dark" palette, with the
+   familiar #282c34 background, #abb2bf text, and magenta/blue/green
+   syntax tokens. Matches VS Code's Atom-One-Dark port 1:1.
+   =================================================================== */
+[data-theme="one-dark"] {
+  --mz-bg-primary: #282c34;
+  --mz-bg-secondary: #21252b;
+  --mz-bg-tertiary: #1b1d23;
+  --mz-bg-hover: #2c313c;
+  --mz-bg-active: #3e4451;
+  --mz-bg-selection: rgba(97, 175, 239, 0.25);
+
+  --mz-text-primary: #abb2bf;
+  --mz-text-secondary: #9da5b4;
+  --mz-text-muted: #5c6370;
+  --mz-text-on-accent: #282c34;
+
+  --mz-accent: #61afef;
+  --mz-accent-hover: #528bff;
+  --mz-accent-subtle: rgba(97, 175, 239, 0.16);
+  --mz-drag-indicator: var(--mz-accent);
+
+  --mz-border: #3e4451;
+  --mz-border-strong: #4b5263;
+
+  --mz-scrollbar-thumb: #4b5263;
+  --mz-scrollbar-track: transparent;
+
+  --mz-syntax-keyword: #c678dd;
+  --mz-syntax-string: #98c379;
+  --mz-syntax-number: #d19a66;
+  --mz-syntax-comment: #5c6370;
+  --mz-syntax-function: #61afef;
+  --mz-syntax-variable: #e06c75;
+  --mz-syntax-type: #e5c07b;
+  --mz-syntax-link: #528bff;
+  --mz-syntax-heading: #e5c07b;
+  --mz-syntax-bold: #e06c75;
+  --mz-syntax-italic: #c678dd;
+  --mz-syntax-strikethrough: #5c6370;
+  --mz-syntax-code-bg: rgba(255, 255, 255, 0.06);
+  --mz-syntax-highlight-bg: rgba(229, 192, 123, 0.25);
+
+  --mz-success: #98c379;
+  --mz-warning: #e5c07b;
+  --mz-error: #e06c75;
+  --mz-info: #61afef;
+
+  --mz-callout-note: #528bff;
+  --mz-callout-tip: #98c379;
+  --mz-callout-warning: #e5c07b;
+  --mz-callout-danger: #e06c75;
+  --mz-callout-info: #56b6c2;
+}

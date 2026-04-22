@@ -1,0 +1,56 @@
+/* ===================================================================
+   Zenburn — Jani Nurminen's legendary low-contrast dark theme. A
+   muted warm grey-brown background with desaturated accents — the
+   archetypal "low eye-strain" palette that set the template every
+   modern warm-dark theme draws from.
+   =================================================================== */
+[data-theme="zenburn"] {
+  --mz-bg-primary: #3f3f3f;
+  --mz-bg-secondary: #383838;
+  --mz-bg-tertiary: #494949;
+  --mz-bg-hover: #4c4c4c;
+  --mz-bg-active: #575757;
+  --mz-bg-selection: rgba(240, 223, 175, 0.22);
+
+  --mz-text-primary: #dcdccc;
+  --mz-text-secondary: #b8bba6;
+  --mz-text-muted: #8f8f8f;
+  --mz-text-on-accent: #3f3f3f;
+
+  --mz-accent: #f0dfaf;
+  --mz-accent-hover: #e0cf9f;
+  --mz-accent-subtle: rgba(240, 223, 175, 0.18);
+  --mz-drag-indicator: var(--mz-accent);
+
+  --mz-border: #494949;
+  --mz-border-strong: #646464;
+
+  --mz-scrollbar-thumb: #646464;
+  --mz-scrollbar-track: transparent;
+
+  --mz-syntax-keyword: #f0dfaf;
+  --mz-syntax-string: #cc9393;
+  --mz-syntax-number: #8cd0d3;
+  --mz-syntax-comment: #7f9f7f;
+  --mz-syntax-function: #efef8f;
+  --mz-syntax-variable: #dfaf8f;
+  --mz-syntax-type: #dfdfbf;
+  --mz-syntax-link: #94bff3;
+  --mz-syntax-heading: #dfdfbf;
+  --mz-syntax-bold: #cc9393;
+  --mz-syntax-italic: #dc8cc3;
+  --mz-syntax-strikethrough: #7f9f7f;
+  --mz-syntax-code-bg: rgba(220, 220, 204, 0.06);
+  --mz-syntax-highlight-bg: rgba(240, 223, 175, 0.28);
+
+  --mz-success: #7f9f7f;
+  --mz-warning: #f0dfaf;
+  --mz-error: #cc9393;
+  --mz-info: #94bff3;
+
+  --mz-callout-note: #94bff3;
+  --mz-callout-tip: #7f9f7f;
+  --mz-callout-warning: #f0dfaf;
+  --mz-callout-danger: #cc9393;
+  --mz-callout-info: #8cd0d3;
+}

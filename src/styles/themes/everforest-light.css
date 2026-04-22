@@ -1,0 +1,55 @@
+/* ===================================================================
+   Everforest Light — sainnhe's cream-paper companion to Everforest Dark.
+   Warm off-white background, muted sage/earth accents. Very readable
+   over long sessions because the bg is ivory rather than stark white.
+   =================================================================== */
+[data-theme="everforest-light"] {
+  --mz-bg-primary: #fdf6e3;         /* bg0 */
+  --mz-bg-secondary: #f4f0d9;       /* bg_dim */
+  --mz-bg-tertiary: #efebd4;        /* bg1 */
+  --mz-bg-hover: #e6e2cc;           /* bg2 */
+  --mz-bg-active: #e0dcc7;          /* bg3 */
+  --mz-bg-selection: rgba(141, 161, 1, 0.16);
+
+  --mz-text-primary: #5c6a72;       /* fg */
+  --mz-text-secondary: #829181;     /* grey1 */
+  --mz-text-muted: #939f91;         /* grey2 */
+  --mz-text-on-accent: #fdf6e3;
+
+  --mz-accent: #8da101;              /* green */
+  --mz-accent-hover: #35a77c;        /* aqua */
+  --mz-accent-subtle: rgba(141, 161, 1, 0.12);
+  --mz-drag-indicator: var(--mz-accent);
+
+  --mz-border: #e0dcc7;
+  --mz-border-strong: #bdc3af;
+
+  --mz-scrollbar-thumb: #bdc3af;
+  --mz-scrollbar-track: transparent;
+
+  --mz-syntax-keyword: #f85552;     /* red */
+  --mz-syntax-string: #8da101;      /* green */
+  --mz-syntax-number: #df69ba;      /* purple */
+  --mz-syntax-comment: #939f91;
+  --mz-syntax-function: #3a94c5;    /* blue */
+  --mz-syntax-variable: #f57d26;    /* orange */
+  --mz-syntax-type: #dfa000;        /* yellow */
+  --mz-syntax-link: #3a94c5;
+  --mz-syntax-heading: #dfa000;
+  --mz-syntax-bold: #f85552;
+  --mz-syntax-italic: #df69ba;
+  --mz-syntax-strikethrough: #939f91;
+  --mz-syntax-code-bg: rgba(92, 106, 114, 0.08);
+  --mz-syntax-highlight-bg: rgba(223, 160, 0, 0.24);
+
+  --mz-success: #8da101;
+  --mz-warning: #dfa000;
+  --mz-error: #f85552;
+  --mz-info: #3a94c5;
+
+  --mz-callout-note: #3a94c5;
+  --mz-callout-tip: #8da101;
+  --mz-callout-warning: #dfa000;
+  --mz-callout-danger: #f85552;
+  --mz-callout-info: #35a77c;
+}

@@ -185,7 +185,17 @@ pub struct OutlineHeading {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppSettings {
-    pub theme: Theme,
+    /// Active skin ID. Was originally a `Theme` enum with just
+    /// `Light`/`Dark`/`System`; widened to a free-form string so
+    /// built-in preset skins ("github-dark", "nord", ...) and
+    /// per-vault custom skins (`custom:<name>`) can coexist with
+    /// the original three values without a schema migration.
+    ///
+    /// The frontend resolves the string into a `data-theme`
+    /// attribute and — for `custom:<name>` IDs — injects the
+    /// matching CSS file from `.mindzj/themes/<name>.css`.
+    #[serde(default = "default_theme", deserialize_with = "deserialize_theme")]
+    pub theme: String,
     pub font_size: u32,
     #[serde(default = "default_font_family")]
     pub font_family: String,
@@ -259,6 +269,41 @@ pub struct AppSettings {
 fn default_true() -> bool { true }
 fn default_attachment_folder() -> String { ".mindzj/images".to_string() }
 fn default_show_markdown_toolbar() -> bool { true }
+fn default_theme() -> String { "dark".to_string() }
+
+/// Accept both the historical JSON shapes and the new one:
+///   - Legacy enum-style values serialized as `"Light"` / `"Dark"` /
+///     `"System"` (or any casing — we normalize to lowercase).
+///   - Legacy lowercase `"light"` / `"dark"` / `"system"`.
+///   - New free-form skin IDs like `"github-dark"`, `"nord"`, or
+///     `"custom:my-theme"` — passed through unchanged.
+///
+/// A null or missing value falls back to the `default_theme()` ("dark").
+fn deserialize_theme<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde::Deserialize;
+    let opt = Option::<String>::deserialize(deserializer)?;
+    Ok(normalize_theme(opt))
+}
+
+fn normalize_theme(value: Option<String>) -> String {
+    let raw = match value {
+        Some(v) => v,
+        None => return default_theme(),
+    };
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return default_theme();
+    }
+    match trimmed {
+        "Light" | "light" => "light".to_string(),
+        "Dark" | "dark" => "dark".to_string(),
+        "System" | "system" => "system".to_string(),
+        other => other.to_string(),
+    }
+}
 fn default_font_family() -> String {
     "\"Inter\", \"Segoe UI\", -apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"PingFang SC\", \"Microsoft YaHei\", \"Noto Sans\", Ubuntu, Cantarell, sans-serif".to_string()
 }
@@ -270,7 +315,7 @@ fn default_image_wheel_zoom_step() -> u32 { 20 }
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
-            theme: Theme::Dark,
+            theme: default_theme(),
             font_size: 16,
             font_family: default_font_family(),
             show_markdown_toolbar: default_show_markdown_toolbar(),
@@ -401,14 +446,42 @@ pub struct HotkeyBinding {
     pub keys: String,
 }
 
+/// Deprecated placeholder kept for command signatures that still take a
+/// "theme" parameter. The active skin is now a free-form string (see
+/// `AppSettings::theme`), but the `set_theme` Tauri command continues to
+/// accept the legacy enum payload so older frontends still work. New
+/// code should call `update_settings` with the full `AppSettings`
+/// struct — `set_theme` is only used by the legacy frontend path.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(untagged)]
 pub enum Theme {
+    /// Free-form string (preferred) — accepts all built-in and custom IDs.
+    Str(String),
+    /// Legacy tagged enum form for older persisted settings.
+    Tag(ThemeTag),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum ThemeTag {
     #[serde(alias = "light")]
     Light,
     #[serde(alias = "dark")]
     Dark,
     #[serde(alias = "system")]
     System,
+}
+
+impl Theme {
+    /// Collapse any variant into the canonical string ID stored in
+    /// `AppSettings::theme`.
+    pub fn as_id(&self) -> String {
+        match self {
+            Theme::Str(s) => normalize_theme(Some(s.clone())),
+            Theme::Tag(ThemeTag::Light) => "light".to_string(),
+            Theme::Tag(ThemeTag::Dark) => "dark".to_string(),
+            Theme::Tag(ThemeTag::System) => "system".to_string(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

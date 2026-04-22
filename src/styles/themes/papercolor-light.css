@@ -1,0 +1,56 @@
+/* ===================================================================
+   PaperColor Light — NLKNguyen's crisp paper-inspired palette. Off-white
+   background with high-contrast but not harsh accents, designed to mimic
+   ink on real paper. Excellent for long writing sessions because the
+   background reads as "cream" rather than "LED white".
+   =================================================================== */
+[data-theme="papercolor-light"] {
+  --mz-bg-primary: #eeeeee;
+  --mz-bg-secondary: #e4e4e4;
+  --mz-bg-tertiary: #d7d7d7;
+  --mz-bg-hover: #dadada;
+  --mz-bg-active: #bcbcbc;
+  --mz-bg-selection: rgba(0, 95, 135, 0.15);
+
+  --mz-text-primary: #444444;
+  --mz-text-secondary: #585858;
+  --mz-text-muted: #878787;
+  --mz-text-on-accent: #eeeeee;
+
+  --mz-accent: #005f87;
+  --mz-accent-hover: #0087af;
+  --mz-accent-subtle: rgba(0, 95, 135, 0.12);
+  --mz-drag-indicator: var(--mz-accent);
+
+  --mz-border: #bcbcbc;
+  --mz-border-strong: #9e9e9e;
+
+  --mz-scrollbar-thumb: #9e9e9e;
+  --mz-scrollbar-track: transparent;
+
+  --mz-syntax-keyword: #af0000;
+  --mz-syntax-string: #008700;
+  --mz-syntax-number: #d70087;
+  --mz-syntax-comment: #878787;
+  --mz-syntax-function: #005faf;
+  --mz-syntax-variable: #d75f00;
+  --mz-syntax-type: #8700af;
+  --mz-syntax-link: #005faf;
+  --mz-syntax-heading: #d70087;
+  --mz-syntax-bold: #af0000;
+  --mz-syntax-italic: #8700af;
+  --mz-syntax-strikethrough: #878787;
+  --mz-syntax-code-bg: rgba(68, 68, 68, 0.08);
+  --mz-syntax-highlight-bg: rgba(215, 175, 0, 0.3);
+
+  --mz-success: #008700;
+  --mz-warning: #d75f00;
+  --mz-error: #af0000;
+  --mz-info: #005faf;
+
+  --mz-callout-note: #005faf;
+  --mz-callout-tip: #008700;
+  --mz-callout-warning: #d75f00;
+  --mz-callout-danger: #af0000;
+  --mz-callout-info: #0087af;
+}

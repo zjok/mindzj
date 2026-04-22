@@ -1,0 +1,56 @@
+/* ===================================================================
+   Gruvbox Light — the warm-paper companion to Gruvbox Dark. Creamy
+   background (`light0`), strong ochre text, and the same earthy red /
+   olive / mustard syntax accents. Very easy on the eyes over long
+   writing sessions because the contrast never goes pure-white.
+   =================================================================== */
+[data-theme="gruvbox-light"] {
+  --mz-bg-primary: #fbf1c7;         /* light0 */
+  --mz-bg-secondary: #f2e5bc;       /* light0_soft */
+  --mz-bg-tertiary: #ebdbb2;        /* light1 */
+  --mz-bg-hover: #ebdbb2;
+  --mz-bg-active: #d5c4a1;          /* light2 */
+  --mz-bg-selection: rgba(175, 58, 3, 0.16);
+
+  --mz-text-primary: #3c3836;       /* dark1 */
+  --mz-text-secondary: #504945;     /* dark2 */
+  --mz-text-muted: #7c6f64;         /* dark4 */
+  --mz-text-on-accent: #fbf1c7;
+
+  --mz-accent: #af3a03;              /* faded_orange */
+  --mz-accent-hover: #d65d0e;        /* neutral_orange */
+  --mz-accent-subtle: rgba(175, 58, 3, 0.12);
+  --mz-drag-indicator: var(--mz-accent);
+
+  --mz-border: #d5c4a1;
+  --mz-border-strong: #bdae93;       /* light3 */
+
+  --mz-scrollbar-thumb: #bdae93;
+  --mz-scrollbar-track: transparent;
+
+  --mz-syntax-keyword: #9d0006;     /* faded_red */
+  --mz-syntax-string: #79740e;      /* faded_green */
+  --mz-syntax-number: #8f3f71;      /* faded_purple */
+  --mz-syntax-comment: #928374;     /* gray */
+  --mz-syntax-function: #b57614;    /* faded_yellow */
+  --mz-syntax-variable: #076678;    /* faded_blue */
+  --mz-syntax-type: #427b58;        /* faded_aqua */
+  --mz-syntax-link: #076678;
+  --mz-syntax-heading: #b57614;
+  --mz-syntax-bold: #9d0006;
+  --mz-syntax-italic: #8f3f71;
+  --mz-syntax-strikethrough: #928374;
+  --mz-syntax-code-bg: rgba(60, 56, 54, 0.08);
+  --mz-syntax-highlight-bg: rgba(215, 153, 33, 0.28);
+
+  --mz-success: #79740e;
+  --mz-warning: #b57614;
+  --mz-error: #9d0006;
+  --mz-info: #076678;
+
+  --mz-callout-note: #076678;
+  --mz-callout-tip: #79740e;
+  --mz-callout-warning: #b57614;
+  --mz-callout-danger: #9d0006;
+  --mz-callout-info: #427b58;
+}

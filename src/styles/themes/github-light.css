@@ -1,0 +1,56 @@
+/* ===================================================================
+   GitHub Light — palette from primer.style, the design system
+   used by github.com in light mode. Clean, high-contrast, blue
+   accents. Loaded AFTER variables.css so the variables declared
+   here override the `:root` dark defaults.
+   =================================================================== */
+[data-theme="github-light"] {
+  --mz-bg-primary: #ffffff;
+  --mz-bg-secondary: #f6f8fa;
+  --mz-bg-tertiary: #eaeef2;
+  --mz-bg-hover: #eaeef2;
+  --mz-bg-active: #d0d7de;
+  --mz-bg-selection: rgba(84, 174, 255, 0.25);
+
+  --mz-text-primary: #1f2328;
+  --mz-text-secondary: #656d76;
+  --mz-text-muted: #8c959f;
+  --mz-text-on-accent: #ffffff;
+
+  --mz-accent: #0969da;
+  --mz-accent-hover: #0860c7;
+  --mz-accent-subtle: rgba(9, 105, 218, 0.12);
+  --mz-drag-indicator: var(--mz-accent);
+
+  --mz-border: #d0d7de;
+  --mz-border-strong: #afb8c1;
+
+  --mz-scrollbar-thumb: #afb8c1;
+  --mz-scrollbar-track: transparent;
+
+  --mz-syntax-keyword: #cf222e;
+  --mz-syntax-string: #0a3069;
+  --mz-syntax-number: #0550ae;
+  --mz-syntax-comment: #6e7781;
+  --mz-syntax-function: #8250df;
+  --mz-syntax-variable: #953800;
+  --mz-syntax-type: #116329;
+  --mz-syntax-link: #0969da;
+  --mz-syntax-heading: #1f2328;
+  --mz-syntax-bold: #1f2328;
+  --mz-syntax-italic: #6e7781;
+  --mz-syntax-strikethrough: #8c959f;
+  --mz-syntax-code-bg: rgba(175, 184, 193, 0.2);
+  --mz-syntax-highlight-bg: rgba(255, 223, 93, 0.55);
+
+  --mz-success: #1a7f37;
+  --mz-warning: #9a6700;
+  --mz-error: #cf222e;
+  --mz-info: #0969da;
+
+  --mz-callout-note: #0969da;
+  --mz-callout-tip: #1a7f37;
+  --mz-callout-warning: #9a6700;
+  --mz-callout-danger: #cf222e;
+  --mz-callout-info: #0550ae;
+}

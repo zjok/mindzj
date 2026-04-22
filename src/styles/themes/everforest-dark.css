@@ -1,0 +1,56 @@
+/* ===================================================================
+   Everforest Dark — sainnhe's forest-themed palette. Warm-green
+   bg with soft earth-tone accents. One of the best "easy on the
+   eyes" dark themes for long focus sessions because nothing
+   exceeds mid-saturation.
+   =================================================================== */
+[data-theme="everforest-dark"] {
+  --mz-bg-primary: #2d353b;         /* bg0 */
+  --mz-bg-secondary: #272e33;       /* bg_dim */
+  --mz-bg-tertiary: #343f44;        /* bg1 */
+  --mz-bg-hover: #3d484d;           /* bg2 */
+  --mz-bg-active: #475258;          /* bg3 */
+  --mz-bg-selection: rgba(167, 192, 128, 0.22);
+
+  --mz-text-primary: #d3c6aa;       /* fg */
+  --mz-text-secondary: #a7c080;     /* green */
+  --mz-text-muted: #859289;         /* grey1 */
+  --mz-text-on-accent: #2d353b;
+
+  --mz-accent: #a7c080;              /* green */
+  --mz-accent-hover: #83c092;        /* aqua */
+  --mz-accent-subtle: rgba(167, 192, 128, 0.18);
+  --mz-drag-indicator: var(--mz-accent);
+
+  --mz-border: #3d484d;
+  --mz-border-strong: #56635f;       /* grey2 */
+
+  --mz-scrollbar-thumb: #56635f;
+  --mz-scrollbar-track: transparent;
+
+  --mz-syntax-keyword: #e67e80;     /* red */
+  --mz-syntax-string: #a7c080;      /* green */
+  --mz-syntax-number: #d699b6;      /* purple */
+  --mz-syntax-comment: #859289;
+  --mz-syntax-function: #7fbbb3;    /* blue */
+  --mz-syntax-variable: #e69875;    /* orange */
+  --mz-syntax-type: #dbbc7f;        /* yellow */
+  --mz-syntax-link: #7fbbb3;
+  --mz-syntax-heading: #dbbc7f;
+  --mz-syntax-bold: #e67e80;
+  --mz-syntax-italic: #d699b6;
+  --mz-syntax-strikethrough: #859289;
+  --mz-syntax-code-bg: rgba(211, 198, 170, 0.08);
+  --mz-syntax-highlight-bg: rgba(219, 188, 127, 0.24);
+
+  --mz-success: #a7c080;
+  --mz-warning: #dbbc7f;
+  --mz-error: #e67e80;
+  --mz-info: #7fbbb3;
+
+  --mz-callout-note: #7fbbb3;
+  --mz-callout-tip: #a7c080;
+  --mz-callout-warning: #dbbc7f;
+  --mz-callout-danger: #e67e80;
+  --mz-callout-info: #83c092;
+}

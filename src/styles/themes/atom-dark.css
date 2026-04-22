@@ -1,0 +1,56 @@
+/* ===================================================================
+   Atom Dark — companion to Atom Light, using the original Atom
+   editor's dark defaults. Charcoal slate background with muted
+   keyword/string accents. (One Dark is also listed separately for
+   users who want the more saturated Atom variant.)
+   =================================================================== */
+[data-theme="atom-dark"] {
+  --mz-bg-primary: #1d1f21;
+  --mz-bg-secondary: #24262a;
+  --mz-bg-tertiary: #2b2d30;
+  --mz-bg-hover: #323438;
+  --mz-bg-active: #3a3d42;
+  --mz-bg-selection: rgba(91, 139, 201, 0.28);
+
+  --mz-text-primary: #c5c8c6;
+  --mz-text-secondary: #9a9c9a;
+  --mz-text-muted: #707070;
+  --mz-text-on-accent: #1d1f21;
+
+  --mz-accent: #81a2be;
+  --mz-accent-hover: #a6c4da;
+  --mz-accent-subtle: rgba(129, 162, 190, 0.18);
+  --mz-drag-indicator: var(--mz-accent);
+
+  --mz-border: #2d2f33;
+  --mz-border-strong: #3e4248;
+
+  --mz-scrollbar-thumb: #3e4248;
+  --mz-scrollbar-track: transparent;
+
+  --mz-syntax-keyword: #b294bb;
+  --mz-syntax-string: #b5bd68;
+  --mz-syntax-number: #de935f;
+  --mz-syntax-comment: #707880;
+  --mz-syntax-function: #81a2be;
+  --mz-syntax-variable: #cc6666;
+  --mz-syntax-type: #f0c674;
+  --mz-syntax-link: #81a2be;
+  --mz-syntax-heading: #f0c674;
+  --mz-syntax-bold: #cc6666;
+  --mz-syntax-italic: #b294bb;
+  --mz-syntax-strikethrough: #707880;
+  --mz-syntax-code-bg: rgba(255, 255, 255, 0.05);
+  --mz-syntax-highlight-bg: rgba(240, 198, 116, 0.22);
+
+  --mz-success: #b5bd68;
+  --mz-warning: #f0c674;
+  --mz-error: #cc6666;
+  --mz-info: #81a2be;
+
+  --mz-callout-note: #81a2be;
+  --mz-callout-tip: #b5bd68;
+  --mz-callout-warning: #f0c674;
+  --mz-callout-danger: #cc6666;
+  --mz-callout-info: #8abeb7;
+}

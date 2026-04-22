@@ -1,0 +1,55 @@
+/* ===================================================================
+   Monokai — the classic Sublime Text palette by Wimer Hazenberg. Warm
+   charcoal background, pink keywords, chartreuse functions, ochre
+   strings. Hex values come straight from the original monokai.tmTheme.
+   =================================================================== */
+[data-theme="monokai"] {
+  --mz-bg-primary: #272822;
+  --mz-bg-secondary: #1e1f1c;
+  --mz-bg-tertiary: #3e3d32;
+  --mz-bg-hover: #3e3d32;
+  --mz-bg-active: #49483e;
+  --mz-bg-selection: rgba(73, 72, 62, 0.95);
+
+  --mz-text-primary: #f8f8f2;
+  --mz-text-secondary: #cfcfc2;
+  --mz-text-muted: #75715e;
+  --mz-text-on-accent: #272822;
+
+  --mz-accent: #a6e22e;            /* chartreuse */
+  --mz-accent-hover: #b5f24a;
+  --mz-accent-subtle: rgba(166, 226, 46, 0.16);
+  --mz-drag-indicator: var(--mz-accent);
+
+  --mz-border: #3e3d32;
+  --mz-border-strong: #49483e;
+
+  --mz-scrollbar-thumb: #75715e;
+  --mz-scrollbar-track: transparent;
+
+  --mz-syntax-keyword: #f92672;    /* pink */
+  --mz-syntax-string: #e6db74;     /* ochre */
+  --mz-syntax-number: #ae81ff;     /* purple */
+  --mz-syntax-comment: #75715e;
+  --mz-syntax-function: #a6e22e;   /* green */
+  --mz-syntax-variable: #fd971f;   /* orange */
+  --mz-syntax-type: #66d9ef;       /* cyan */
+  --mz-syntax-link: #66d9ef;
+  --mz-syntax-heading: #a6e22e;
+  --mz-syntax-bold: #f92672;
+  --mz-syntax-italic: #ae81ff;
+  --mz-syntax-strikethrough: #75715e;
+  --mz-syntax-code-bg: rgba(248, 248, 242, 0.06);
+  --mz-syntax-highlight-bg: rgba(230, 219, 116, 0.22);
+
+  --mz-success: #a6e22e;
+  --mz-warning: #fd971f;
+  --mz-error: #f92672;
+  --mz-info: #66d9ef;
+
+  --mz-callout-note: #66d9ef;
+  --mz-callout-tip: #a6e22e;
+  --mz-callout-warning: #fd971f;
+  --mz-callout-danger: #f92672;
+  --mz-callout-info: #ae81ff;
+}

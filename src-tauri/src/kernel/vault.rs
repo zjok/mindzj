@@ -376,6 +376,152 @@ impl Vault {
         Ok(dir)
     }
 
+    // -----------------------------------------------------------------------
+    // Custom theme (skin) storage — same model as CSS snippets, but the
+    // enabled theme is singular (at most one custom skin active) and is
+    // referenced from `settings.theme` as `custom:<bare_name>`.
+    // -----------------------------------------------------------------------
+
+    /// Absolute path of the per-vault themes directory. Created on demand
+    /// so callers can always rely on the directory existing.
+    pub fn themes_dir(&self) -> KernelResult<PathBuf> {
+        let dir = self.root.join(".mindzj").join("themes");
+        if !dir.exists() {
+            fs::create_dir_all(&dir)?;
+        }
+        Ok(dir)
+    }
+
+    /// List `.css` files directly under `.mindzj/themes/`. Each entry is
+    /// a bare filename (e.g. `my-theme.css`). The bare stem without the
+    /// `.css` extension is what gets stored in settings as
+    /// `custom:<stem>`.
+    pub fn list_themes(&self) -> KernelResult<Vec<String>> {
+        let dir = self.themes_dir()?;
+        if !dir.is_dir() {
+            return Ok(Vec::new());
+        }
+        let mut names: Vec<String> = Vec::new();
+        for entry in fs::read_dir(&dir)? {
+            let entry = entry?;
+            let file_name = entry.file_name().to_string_lossy().to_string();
+            if file_name.to_lowercase().ends_with(".css") && entry.metadata()?.is_file() {
+                names.push(file_name);
+            }
+        }
+        names.sort();
+        Ok(names)
+    }
+
+    /// Read the raw CSS content of a custom theme by its bare filename.
+    /// The file must live directly inside `.mindzj/themes/`.
+    pub fn read_theme(&self, name: &str) -> KernelResult<String> {
+        // Reject any path separators — theme names are flat file names.
+        if name.contains('/') || name.contains('\\') || name.starts_with('.') {
+            return Err(KernelError::PathTraversalDenied(name.to_string()));
+        }
+        let path = self.themes_dir()?.join(name);
+        if !path.exists() || !path.is_file() {
+            return Err(KernelError::FileNotFound(name.to_string()));
+        }
+        Ok(fs::read_to_string(&path)?)
+    }
+
+    /// Copy a user-supplied `.css` file from an ABSOLUTE source path into
+    /// `.mindzj/themes/`, preserving its original filename (but with the
+    /// extension normalized to lowercase `.css`). Rejects non-`.css`
+    /// inputs and files that would overwrite an existing theme unless
+    /// `overwrite` is true.
+    ///
+    /// Returns the bare filename (e.g. `my-theme.css`) the user can
+    /// reference as `custom:my-theme`.
+    pub fn import_theme(
+        &self,
+        source_absolute_path: &str,
+        overwrite: bool,
+    ) -> KernelResult<String> {
+        let src = Path::new(source_absolute_path);
+        if !src.is_file() {
+            return Err(KernelError::FileNotFound(source_absolute_path.to_string()));
+        }
+        let ext = src
+            .extension()
+            .and_then(|e| e.to_str())
+            .map(|e| e.to_ascii_lowercase());
+        if ext.as_deref() != Some("css") {
+            return Err(KernelError::InvalidFileName(format!(
+                "Theme file must have a .css extension, got '{}'",
+                source_absolute_path
+            )));
+        }
+        let stem = src
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .ok_or_else(|| KernelError::InvalidFileName(source_absolute_path.to_string()))?;
+        // Sanitize the stem: drop any character we forbid in vault file
+        // names so a hostile path can't slip past `validate_file_name`.
+        let sanitized_stem: String = stem
+            .chars()
+            .map(|c| {
+                if matches!(c, '/' | '\\' | '\0' | ':' | '*' | '?' | '"' | '<' | '>' | '|') {
+                    '-'
+                } else {
+                    c
+                }
+            })
+            .collect::<String>()
+            .trim_matches(|c: char| c.is_whitespace() || c == '.')
+            .to_string();
+        if sanitized_stem.is_empty() {
+            return Err(KernelError::InvalidFileName(source_absolute_path.to_string()));
+        }
+        Self::validate_file_name(&sanitized_stem)?;
+        let file_name = format!("{}.css", sanitized_stem);
+        let dest = self.themes_dir()?.join(&file_name);
+        if dest.exists() && !overwrite {
+            return Err(KernelError::FileAlreadyExists(file_name));
+        }
+        let bytes = fs::read(&src)?;
+        fs::write(&dest, &bytes)?;
+        Ok(file_name)
+    }
+
+    /// Delete a custom theme by its bare filename. No-op if the file
+    /// doesn't exist (so the UI can safely re-issue deletes after an
+    /// external delete).
+    pub fn delete_theme(&self, name: &str) -> KernelResult<()> {
+        if name.contains('/') || name.contains('\\') || name.starts_with('.') {
+            return Err(KernelError::PathTraversalDenied(name.to_string()));
+        }
+        let path = self.themes_dir()?.join(name);
+        if path.exists() && path.is_file() {
+            fs::remove_file(&path)?;
+        }
+        Ok(())
+    }
+
+    /// Write a CSS string to `.mindzj/themes/<name>.css` (normalising
+    /// the extension). Used by "Save as new theme" / scaffolding flows
+    /// that don't start from an external file.
+    pub fn write_theme(&self, bare_name: &str, content: &str) -> KernelResult<String> {
+        let trimmed = bare_name.trim();
+        if trimmed.is_empty() {
+            return Err(KernelError::InvalidFileName("Theme name cannot be empty".into()));
+        }
+        // Strip any .css the caller may have tacked on, and re-append it
+        // canonically. Keeps the on-disk filenames consistent.
+        let stem = trimmed
+            .strip_suffix(".css")
+            .or_else(|| trimmed.strip_suffix(".CSS"))
+            .unwrap_or(trimmed);
+        Self::validate_file_name(stem)?;
+        let file_name = format!("{}.css", stem);
+        let dir = self.themes_dir()?;
+        let dest = dir.join(&file_name);
+        fs::write(&dest, content)?;
+        Ok(file_name)
+    }
+
     fn build_tree(
         &self,
         relative_dir: &str,

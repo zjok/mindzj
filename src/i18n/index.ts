@@ -420,7 +420,55 @@ const MESSAGES: Record<string, TranslationMap> = {
   "hotkeys.toggleBlockquote": { "zh-CN": "切换引用", en: "Toggle blockquote", ja: "引用を切り替え", fr: "Activer/désactiver la citation", de: "Blockzitat umschalten", es: "Alternar cita" },
   "hotkeys.insertTimestamp": { "zh-CN": "插入时间戳 (H2)", en: "Insert timestamp (H2)", ja: "タイムスタンプを挿入 (H2)", fr: "Insérer un horodatage (H2)", de: "Zeitstempel einfügen (H2)", es: "Insertar marca temporal (H2)" },
   "hotkeys.insertSeparator": { "zh-CN": "插入分隔线 (***)", en: "Insert separator (***)", ja: "区切り線を挿入 (***)", fr: "Insérer un séparateur (***)", de: "Trennlinie einfügen (***)", es: "Insertar separador (***)" },
-  "hotkeys.screenshot": { "zh-CN": "截图", en: "Screenshot", ja: "スクリーンショット", fr: "Capture d’écran", de: "Screenshot", es: "Captura de pantalla" }
+  "hotkeys.screenshot": { "zh-CN": "截图", en: "Screenshot", ja: "スクリーンショット", fr: "Capture d’écran", de: "Screenshot", es: "Captura de pantalla" },
+  // --- Skin store / theme picker -------------------------------------------
+  // Heading over the full skin grid (used to live under "toolbar.toggleTheme").
+  "settings.themeSection": { "zh-CN": "皮肤", en: "Skin", ja: "スキン", fr: "Thème", de: "Skin", es: "Piel" },
+  "settings.customSkinsSection": { "zh-CN": "自定义皮肤", en: "Custom skins", ja: "カスタムスキン", fr: "Thèmes personnalisés", de: "Eigene Skins", es: "Pieles personalizadas" },
+  "settings.customSkinsDescription": {
+    "zh-CN": "将 .css 文件放入当前仓库的 .mindzj/themes/ 目录，或通过下面的“导入皮肤”按钮选择本地 CSS 文件。每个仓库可以有不同的皮肤。",
+    en: "Drop .css files into this vault's .mindzj/themes/ folder, or click “Import skin” below to select a local CSS file. Each vault can use a different skin.",
+    ja: "現在の保管庫の .mindzj/themes/ に .css ファイルを入れるか、下の「皮膚をインポート」でローカルの CSS を選択してください。保管庫ごとに別の皮膚を使えます。",
+    fr: "Déposez des fichiers .css dans le dossier .mindzj/themes/ du coffre, ou cliquez sur « Importer un thème » ci-dessous pour sélectionner un CSS local. Chaque coffre peut utiliser un thème différent.",
+    de: "Lege .css-Dateien in den Ordner .mindzj/themes/ des Tresors oder klicke unten auf „Skin importieren“, um eine lokale CSS-Datei auszuwählen. Jeder Tresor kann einen eigenen Skin verwenden.",
+    es: "Coloca archivos .css en la carpeta .mindzj/themes/ de la bóveda, o haz clic en «Importar piel» para elegir un CSS local. Cada bóveda puede usar una piel distinta."
+  },
+  "settings.skinImport": { "zh-CN": "导入皮肤...", en: "Import skin...", ja: "スキンをインポート...", fr: "Importer un thème...", de: "Skin importieren...", es: "Importar piel..." },
+  "settings.skinImportDialogTitle": { "zh-CN": "选择要导入的 .css 皮肤文件", en: "Select a .css skin file to import", ja: "インポートする .css スキンファイルを選択", fr: "Sélectionnez un fichier .css à importer", de: "Eine .css-Skin-Datei zum Importieren auswählen", es: "Selecciona un archivo .css para importar" },
+  "settings.skinNew": { "zh-CN": "新建空皮肤", en: "New empty skin", ja: "新規空スキン", fr: "Nouveau thème vide", de: "Neuer leerer Skin", es: "Nueva piel vacía" },
+  "settings.skinNewPrompt": { "zh-CN": "新皮肤的名称（不含 .css）", en: "Name for the new skin (no .css)", ja: "新しいスキン名（.css 不要）", fr: "Nom du nouveau thème (sans .css)", de: "Name des neuen Skins (ohne .css)", es: "Nombre de la nueva piel (sin .css)" },
+  "settings.skinApply": { "zh-CN": "应用此皮肤", en: "Apply this skin", ja: "このスキンを適用", fr: "Appliquer ce thème", de: "Diesen Skin anwenden", es: "Aplicar esta piel" },
+  "settings.skinDeleteConfirm": {
+    "zh-CN": "确定要删除自定义皮肤 “{name}” 吗？此操作无法撤销。",
+    en: "Delete custom skin “{name}”? This cannot be undone.",
+    ja: "カスタムスキン「{name}」を削除しますか？この操作は元に戻せません。",
+    fr: "Supprimer le thème « {name} » ? Cette action est irréversible.",
+    de: "Eigenen Skin „{name}“ löschen? Das kann nicht rückgängig gemacht werden.",
+    es: "¿Eliminar la piel personalizada \"{name}\"? No se puede deshacer."
+  },
+  "settings.skinCustomBadge": { "zh-CN": "自定义", en: "Custom", ja: "カスタム", fr: "Personnalisé", de: "Eigen", es: "Personalizado" },
+  "settings.loadingThemes": { "zh-CN": "正在加载皮肤列表...", en: "Loading skins...", ja: "スキンを読み込み中...", fr: "Chargement des thèmes...", de: "Skins werden geladen...", es: "Cargando pieles..." },
+  "settings.noCustomSkins": {
+    "zh-CN": "当前仓库还没有自定义皮肤。",
+    en: "This vault has no custom skins yet.",
+    ja: "この保管庫にはまだカスタムスキンがありません。",
+    fr: "Ce coffre n’a pas encore de thème personnalisé.",
+    de: "Dieser Tresor hat noch keine eigenen Skins.",
+    es: "Esta bóveda aún no tiene pieles personalizadas."
+  },
+  "settings.noCustomSkinsHint": {
+    "zh-CN": "点击“导入皮肤”选择本地 .css 文件，或点击“打开文件夹”把文件手动放进去。",
+    en: "Click “Import skin” to pick a local .css file, or “Open folder” to drop one in manually.",
+    ja: "「スキンをインポート」でローカル .css を選ぶか、「フォルダーを開く」で手動で配置してください。",
+    fr: "Cliquez sur « Importer un thème » pour choisir un .css local, ou sur « Ouvrir le dossier » pour en déposer un manuellement.",
+    de: "Klicke auf „Skin importieren“, um eine lokale .css-Datei auszuwählen, oder auf „Ordner öffnen“, um sie manuell abzulegen.",
+    es: "Haz clic en «Importar piel» para elegir un .css local, o en «Abrir carpeta» para añadir uno manualmente."
+  },
+  // Light / dark section headings in the skin picker grid.
+  "settings.skinGroupDark": { "zh-CN": "深色皮肤", en: "Dark skins", ja: "ダークスキン", fr: "Thèmes sombres", de: "Dunkle Skins", es: "Pieles oscuras" },
+  "settings.skinGroupLight": { "zh-CN": "浅色皮肤", en: "Light skins", ja: "ライトスキン", fr: "Thèmes clairs", de: "Helle Skins", es: "Pieles claras" },
+  // Transient toast-style banner after Reload completes.
+  "settings.skinReloadDone": { "zh-CN": "皮肤已重新加载", en: "Skins reloaded", ja: "スキンを再読み込みしました", fr: "Thèmes rechargés", de: "Skins neu geladen", es: "Pieles recargadas" }
 };
 
 export function normalizeLocale(locale?: string | null): SupportedLocale {

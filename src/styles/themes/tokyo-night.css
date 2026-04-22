@@ -1,0 +1,55 @@
+/* ===================================================================
+   Tokyo Night — enkia's night variant of the Tokyo Night family
+   (same values used by the vscode / neovim ports). Cool navy
+   background with cyan / mint / lavender accents.
+   =================================================================== */
+[data-theme="tokyo-night"] {
+  --mz-bg-primary: #1a1b26;
+  --mz-bg-secondary: #16161e;
+  --mz-bg-tertiary: #1f2335;
+  --mz-bg-hover: #24283b;
+  --mz-bg-active: #292e42;
+  --mz-bg-selection: rgba(125, 207, 255, 0.24);
+
+  --mz-text-primary: #c0caf5;
+  --mz-text-secondary: #a9b1d6;
+  --mz-text-muted: #565f89;
+  --mz-text-on-accent: #1a1b26;
+
+  --mz-accent: #7aa2f7;
+  --mz-accent-hover: #7dcfff;
+  --mz-accent-subtle: rgba(122, 162, 247, 0.16);
+  --mz-drag-indicator: var(--mz-accent);
+
+  --mz-border: #292e42;
+  --mz-border-strong: #3b4261;
+
+  --mz-scrollbar-thumb: #3b4261;
+  --mz-scrollbar-track: transparent;
+
+  --mz-syntax-keyword: #bb9af7;    /* magenta */
+  --mz-syntax-string: #9ece6a;     /* green */
+  --mz-syntax-number: #ff9e64;     /* orange */
+  --mz-syntax-comment: #565f89;
+  --mz-syntax-function: #7aa2f7;   /* blue */
+  --mz-syntax-variable: #f7768e;   /* red */
+  --mz-syntax-type: #2ac3de;       /* cyan */
+  --mz-syntax-link: #7dcfff;
+  --mz-syntax-heading: #bb9af7;
+  --mz-syntax-bold: #f7768e;
+  --mz-syntax-italic: #bb9af7;
+  --mz-syntax-strikethrough: #565f89;
+  --mz-syntax-code-bg: rgba(192, 202, 245, 0.08);
+  --mz-syntax-highlight-bg: rgba(224, 175, 104, 0.22);
+
+  --mz-success: #9ece6a;
+  --mz-warning: #e0af68;
+  --mz-error: #f7768e;
+  --mz-info: #7dcfff;
+
+  --mz-callout-note: #7aa2f7;
+  --mz-callout-tip: #9ece6a;
+  --mz-callout-warning: #e0af68;
+  --mz-callout-danger: #f7768e;
+  --mz-callout-info: #7dcfff;
+}
