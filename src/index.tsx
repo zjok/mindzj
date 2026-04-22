@@ -8,6 +8,10 @@ import "./styles/variables.css";
 // Order among the theme files doesn't matter — each one targets a
 // distinct `data-theme` attribute value, so their rule sets never
 // compete for the same selector.
+import "./styles/themes/mindzj-dark-warm.css";
+import "./styles/themes/mindzj-light-warm.css";
+import "./styles/themes/dracula.css";
+import "./styles/themes/dracula-light.css";
 import "./styles/themes/github-light.css";
 import "./styles/themes/github-dark.css";
 import "./styles/themes/atom-dark.css";

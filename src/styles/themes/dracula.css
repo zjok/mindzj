@@ -1,0 +1,57 @@
+/* ===================================================================
+   Dracula — the iconic dark palette from dracula.com (Zeno Rocha).
+   Eight signature accent colours (cyan, green, orange, pink, purple,
+   red, yellow) on a deep #282a36 slate, with muted blue-grey comments.
+   Values taken verbatim from the official spec so editors ported
+   to MindZJ can round-trip identically.
+   =================================================================== */
+[data-theme="dracula"] {
+  --mz-bg-primary: #282a36;            /* Background */
+  --mz-bg-secondary: #21222c;
+  --mz-bg-tertiary: #343746;
+  --mz-bg-hover: #363948;
+  --mz-bg-active: #44475a;             /* Current Line / Selection */
+  --mz-bg-selection: rgba(68, 71, 90, 0.85);
+
+  --mz-text-primary: #f8f8f2;          /* Foreground */
+  --mz-text-secondary: #bfbfc6;
+  --mz-text-muted: #6272a4;            /* Comment */
+  --mz-text-on-accent: #282a36;
+
+  --mz-accent: #bd93f9;                 /* Purple */
+  --mz-accent-hover: #ff79c6;           /* Pink */
+  --mz-accent-subtle: rgba(189, 147, 249, 0.18);
+  --mz-drag-indicator: var(--mz-accent);
+
+  --mz-border: #343746;
+  --mz-border-strong: #44475a;
+
+  --mz-scrollbar-thumb: #44475a;
+  --mz-scrollbar-track: transparent;
+
+  --mz-syntax-keyword: #ff79c6;        /* Pink */
+  --mz-syntax-string: #f1fa8c;         /* Yellow */
+  --mz-syntax-number: #bd93f9;         /* Purple */
+  --mz-syntax-comment: #6272a4;
+  --mz-syntax-function: #50fa7b;       /* Green */
+  --mz-syntax-variable: #8be9fd;       /* Cyan */
+  --mz-syntax-type: #8be9fd;
+  --mz-syntax-link: #8be9fd;
+  --mz-syntax-heading: #ffb86c;        /* Orange */
+  --mz-syntax-bold: #ff5555;           /* Red */
+  --mz-syntax-italic: #bd93f9;
+  --mz-syntax-strikethrough: #6272a4;
+  --mz-syntax-code-bg: rgba(248, 248, 242, 0.06);
+  --mz-syntax-highlight-bg: rgba(241, 250, 140, 0.22);
+
+  --mz-success: #50fa7b;
+  --mz-warning: #ffb86c;
+  --mz-error: #ff5555;
+  --mz-info: #8be9fd;
+
+  --mz-callout-note: #8be9fd;
+  --mz-callout-tip: #50fa7b;
+  --mz-callout-warning: #ffb86c;
+  --mz-callout-danger: #ff5555;
+  --mz-callout-info: #bd93f9;
+}

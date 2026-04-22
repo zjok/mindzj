@@ -1,0 +1,62 @@
+/* ===================================================================
+   MindZJ Dark — Warm (Night Light)
+   The default MindZJ Dark palette shifted toward amber, mimicking what
+   Windows' built-in "Night Light" filter does: the blue channel is
+   scaled down, red/yellow stays, and neutrals pick up a warm brown tint.
+   Result is the same visual structure as MindZJ Dark, just easier on
+   the eyes in the evening. Accent stays green (with a touch of olive)
+   so the app's identity is preserved.
+   =================================================================== */
+[data-theme="mindzj-dark-warm"] {
+  --mz-bg-primary: #231f1a;           /* was #1e1e1e */
+  --mz-bg-secondary: #2a2520;         /* was #252526 */
+  --mz-bg-tertiary: #322c24;          /* was #2d2d2d */
+  --mz-bg-hover: #3a3227;             /* was #333333 */
+  --mz-bg-active: #41382b;            /* was #3a3a3a */
+  --mz-bg-selection: rgba(214, 162, 82, 0.22);
+
+  --mz-text-primary: #d8cdb0;         /* was #cccccc */
+  --mz-text-secondary: #ac9f82;       /* was #9d9d9d */
+  --mz-text-muted: #978a6f;           /* was #8a8a8a */
+  --mz-text-on-accent: #231f1a;
+
+  --mz-accent: #8cb260;                /* was #1aad3f — warmer, olive-green */
+  --mz-accent-hover: #a5cc73;          /* was #20c748 */
+  --mz-accent-subtle: rgba(140, 178, 96, 0.18);
+  --mz-drag-indicator: var(--mz-accent);
+
+  --mz-border: #45392a;                /* was #3e3e3e */
+  --mz-border-strong: #5e4f38;         /* was #555555 */
+
+  --mz-scrollbar-thumb: #55462f;       /* was #494949 */
+  --mz-scrollbar-track: transparent;
+
+  /* Syntax — blues shift toward gold/amber, purples toward salmon,
+     greens slightly desaturated; reds stay red since they're already
+     warm and the user needs to recognise them for errors. */
+  --mz-syntax-keyword: #d89f78;       /* was #c678dd — salmon */
+  --mz-syntax-string: #b4ad5a;        /* was #98c379 — olive */
+  --mz-syntax-number: #d9995e;        /* was #d19a66 — warm orange */
+  --mz-syntax-comment: #7a6f5a;       /* was #5c6370 */
+  --mz-syntax-function: #d4b472;      /* was #61afef — gold */
+  --mz-syntax-variable: #d86c5e;      /* was #e06c75 — muted red */
+  --mz-syntax-type: #e0b672;          /* was #e5c07b */
+  --mz-syntax-link: #c89c5a;          /* was #528bff — amber */
+  --mz-syntax-heading: #e0b672;       /* was #e5c07b */
+  --mz-syntax-bold: #d86c5e;          /* was #e06c75 */
+  --mz-syntax-italic: #d89f78;        /* was #c678dd */
+  --mz-syntax-strikethrough: #7a6f5a;
+  --mz-syntax-code-bg: rgba(216, 205, 176, 0.08);
+  --mz-syntax-highlight-bg: rgba(224, 182, 114, 0.25);
+
+  --mz-success: #9bc080;
+  --mz-warning: #e0b672;
+  --mz-error: #d86c5e;
+  --mz-info: #d4b472;
+
+  --mz-callout-note: #c89c5a;
+  --mz-callout-tip: #9bc080;
+  --mz-callout-warning: #e0b672;
+  --mz-callout-danger: #d86c5e;
+  --mz-callout-info: #d4b472;
+}

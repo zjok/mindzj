@@ -1,0 +1,57 @@
+/* ===================================================================
+   Dracula Light (Alucard) — the official cream-background daylight
+   variant of Dracula, published by Zeno Rocha. Keeps the same eight
+   signature accents (cyan, green, orange, pink, purple, red, yellow)
+   but re-tuned for contrast against a near-white background so the
+   pink/purple don't wash out. Values from the official Alucard spec.
+   =================================================================== */
+[data-theme="dracula-light"] {
+  --mz-bg-primary: #f8f8f2;            /* Alucard Background */
+  --mz-bg-secondary: #eeeeee;
+  --mz-bg-tertiary: #e2e2dc;           /* Alucard Current Line */
+  --mz-bg-hover: #e2e2dc;
+  --mz-bg-active: #d4d4ce;
+  --mz-bg-selection: rgba(100, 74, 201, 0.18);
+
+  --mz-text-primary: #1f1f1f;          /* Alucard Foreground */
+  --mz-text-secondary: #3a3a3a;
+  --mz-text-muted: #635d60;            /* Alucard Comment */
+  --mz-text-on-accent: #f8f8f2;
+
+  --mz-accent: #644ac9;                 /* Alucard Purple */
+  --mz-accent-hover: #a40e63;           /* Alucard Pink */
+  --mz-accent-subtle: rgba(100, 74, 201, 0.14);
+  --mz-drag-indicator: var(--mz-accent);
+
+  --mz-border: #d4d4ce;
+  --mz-border-strong: #b0b0a8;
+
+  --mz-scrollbar-thumb: #b0b0a8;
+  --mz-scrollbar-track: transparent;
+
+  --mz-syntax-keyword: #a40e63;        /* Alucard Pink */
+  --mz-syntax-string: #846e15;         /* Alucard Yellow */
+  --mz-syntax-number: #644ac9;         /* Alucard Purple */
+  --mz-syntax-comment: #635d60;
+  --mz-syntax-function: #14710a;       /* Alucard Green */
+  --mz-syntax-variable: #036a96;       /* Alucard Cyan */
+  --mz-syntax-type: #036a96;
+  --mz-syntax-link: #036a96;
+  --mz-syntax-heading: #a34d14;        /* Alucard Orange */
+  --mz-syntax-bold: #cb3a2a;           /* Alucard Red */
+  --mz-syntax-italic: #644ac9;
+  --mz-syntax-strikethrough: #635d60;
+  --mz-syntax-code-bg: rgba(31, 31, 31, 0.06);
+  --mz-syntax-highlight-bg: rgba(132, 110, 21, 0.22);
+
+  --mz-success: #14710a;
+  --mz-warning: #a34d14;
+  --mz-error: #cb3a2a;
+  --mz-info: #036a96;
+
+  --mz-callout-note: #036a96;
+  --mz-callout-tip: #14710a;
+  --mz-callout-warning: #a34d14;
+  --mz-callout-danger: #cb3a2a;
+  --mz-callout-info: #644ac9;
+}
