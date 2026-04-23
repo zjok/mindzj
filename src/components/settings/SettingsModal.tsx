@@ -2138,40 +2138,44 @@ const CssSnippetsPanel: Component = () => {
 
   return (
     <div style={{ "margin-top": "24px" }}>
+      {/* Heading + description + action-button row all stacked on
+          their own lines. Previously the heading/description was a
+          flex sibling of the button row, which meant long-locale
+          translations (German / French) got squeezed into a narrow
+          column next to the buttons and wrapped awkwardly. Stacking
+          them vertically removes the horizontal-space competition
+          entirely — same fix as applied to the custom-skins panel. */}
       <div
         style={{
           display: "flex",
-          "align-items": "center",
-          "justify-content": "space-between",
+          "flex-direction": "column",
+          gap: "8px",
           "margin-bottom": "12px",
-          gap: "12px",
         }}
       >
-        <div style={{ flex: "1", "min-width": "0" }}>
-          <h3
-            style={{
-              "font-size": "var(--mz-font-size-md)",
-              "font-weight": "600",
-              color: "var(--mz-text-primary)",
-              margin: "0",
-            }}
-          >
-            {t("settings.cssSnippets")}
-          </h3>
-          <p
-            style={{
-              "font-size": "var(--mz-font-size-xs)",
-              color: "var(--mz-text-muted)",
-              margin: "4px 0 0",
-              "line-height": "1.5",
-            }}
-          >
-            {t("settings.cssSnippetsDescription.start")} <code>.mindzj/snippets/</code>
-            {t("settings.cssSnippetsDescription.middle")} "{t("common.reload")}"
-            {t("settings.cssSnippetsDescription.end")}
-          </p>
-        </div>
-        <div style={{ display: "flex", gap: "8px", "flex-shrink": "0" }}>
+        <h3
+          style={{
+            "font-size": "var(--mz-font-size-md)",
+            "font-weight": "600",
+            color: "var(--mz-text-primary)",
+            margin: "0",
+          }}
+        >
+          {t("settings.cssSnippets")}
+        </h3>
+        <p
+          style={{
+            "font-size": "var(--mz-font-size-xs)",
+            color: "var(--mz-text-muted)",
+            margin: "0",
+            "line-height": "1.5",
+          }}
+        >
+          {t("settings.cssSnippetsDescription.start")} <code>.mindzj/snippets/</code>
+          {t("settings.cssSnippetsDescription.middle")} "{t("common.reload")}"
+          {t("settings.cssSnippetsDescription.end")}
+        </p>
+        <div style={{ display: "flex", gap: "8px", "flex-wrap": "wrap", "margin-top": "4px" }}>
           <button
             onClick={() => { void createSnippet(); }}
             title={t("settings.newSnippet")}
@@ -2714,30 +2718,34 @@ const SkinPickerPanel: Component = () => {
         </For>
       </div>
 
-      {/* Custom themes section */}
-      <div style={{
-        display: "flex", "align-items": "center", "justify-content": "space-between",
-        "margin-top": "8px", gap: "12px",
-      }}>
-        <div style={{ flex: "1", "min-width": "0" }}>
-          <h3 style={{
-            "font-size": "var(--mz-font-size-md)",
-            "font-weight": "600",
-            color: "var(--mz-text-primary)",
-            margin: "0",
-          }}>
-            {t("settings.customSkinsSection")}
-          </h3>
-          <p style={{
-            "font-size": "var(--mz-font-size-xs)",
-            color: "var(--mz-text-muted)",
-            margin: "4px 0 0",
-            "line-height": "1.5",
-          }}>
-            {t("settings.customSkinsDescription")}
-          </p>
-        </div>
-        <div style={{ display: "flex", gap: "8px", "flex-shrink": "0", "flex-wrap": "wrap" }}>
+      {/* Custom themes section.
+          The heading, the description paragraph and the action-button
+          row each live on their own line. Previously the heading/desc
+          block was a flex sibling of the button row which meant that
+          in long-locale translations (German / French) the description
+          got squeezed into a narrow column next to the buttons and
+          wrapped awkwardly — so much so that the heading and
+          description sometimes overlapped visually. Stacking the three
+          pieces vertically removes the competition for horizontal
+          space entirely. */}
+      <div style={{ display: "flex", "flex-direction": "column", gap: "8px", "margin-top": "8px" }}>
+        <h3 style={{
+          "font-size": "var(--mz-font-size-md)",
+          "font-weight": "600",
+          color: "var(--mz-text-primary)",
+          margin: "0",
+        }}>
+          {t("settings.customSkinsSection")}
+        </h3>
+        <p style={{
+          "font-size": "var(--mz-font-size-xs)",
+          color: "var(--mz-text-muted)",
+          margin: "0",
+          "line-height": "1.5",
+        }}>
+          {t("settings.customSkinsDescription")}
+        </p>
+        <div style={{ display: "flex", gap: "8px", "flex-wrap": "wrap", "margin-top": "4px" }}>
           <button
             onClick={() => { void importTheme(); }}
             disabled={busy()}
