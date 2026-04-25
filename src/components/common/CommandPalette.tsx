@@ -10,12 +10,10 @@ import {
 import { vaultStore } from "../../stores/vault";
 import { editorStore } from "../../stores/editor";
 import { settingsStore } from "../../stores/settings";
-import { aiStore } from "../../stores/ai";
 import { listPluginCommands, runPluginCommand } from "../../stores/plugins";
 import type { VaultEntry } from "../../stores/vault";
 import { displayName } from "../../utils/displayName";
 import { openFileRouted } from "../../utils/openFileRouted";
-import { promptDialog } from "./ConfirmDialog";
 import { t } from "../../i18n";
 
 interface PaletteItem {
@@ -88,16 +86,9 @@ export const CommandPalette: Component<CommandPaletteProps> = (props) => {
       label: t("commandPalette.aiControl"),
       category: "command",
       description: t("commandPalette.aiControlDescription"),
-      action: async () => {
+      action: () => {
         props.onClose();
-        const prompt = await promptDialog(t("commandPalette.aiPrompt"), "");
-        if (!prompt?.trim()) return;
-        try {
-          const result = await aiStore.runInstruction(prompt.trim());
-          window.alert(result);
-        } catch (e: any) {
-          window.alert(e?.message || String(e));
-        }
+        document.dispatchEvent(new CustomEvent("mindzj:toggle-ai-panel"));
       },
     },
     {

@@ -43,6 +43,12 @@ interface RunInstructionOptions {
   restrictToActiveFile?: boolean;
 }
 
+interface AiConnectionTestResult {
+  model?: string | null;
+  content?: string | null;
+  models?: string[];
+}
+
 interface ToolExecutionContext {
   restrictToActiveFile: boolean;
   activePath: string | null;
@@ -76,6 +82,13 @@ function cloneConfig(config: AiProviderConfig): AiProviderConfig {
 
 function normalizeProviderType(provider: AiProviderType): "Ollama" | "LMStudio" | "ApiKeyLLM" {
   return provider === "Ollama" || provider === "LMStudio" ? provider : "ApiKeyLLM";
+}
+
+function providerDisplayName(config: AiProviderConfig): string {
+  const providerType = normalizeProviderType(config.provider_type);
+  if (providerType === "LMStudio") return "LM Studio";
+  if (providerType === "Ollama") return "Ollama";
+  return "Online LLM";
 }
 
 export function defaultAiProviderConfig(provider: AiProviderType): AiProviderConfig {
@@ -692,11 +705,12 @@ async function chatCompletionRequest(
   config: AiProviderConfig,
   messages: ChatMessage[],
   apiKey: string | null,
+  includeTools = true,
 ) {
   const family = inferProviderFamily(config);
-  if (family === "anthropic") return chatCompletionAnthropic(config, messages, apiKey);
-  if (family === "gemini") return chatCompletionGemini(config, messages, apiKey);
-  return chatCompletionOpenAiCompatible(config, messages, apiKey);
+  if (family === "anthropic") return chatCompletionAnthropic(config, messages, apiKey, includeTools);
+  if (family === "gemini") return chatCompletionGemini(config, messages, apiKey, includeTools);
+  return chatCompletionOpenAiCompatible(config, messages, apiKey, includeTools);
 }
 
 function authHeader(apiKey: string | null): Record<string, string> {
@@ -709,10 +723,39 @@ async function postAiJson(url: string, headers: Record<string, string>, body: un
   });
 }
 
+async function getAiJson(url: string, headers: Record<string, string>) {
+  return invoke<any>("ai_get_json", {
+    request: { url, headers },
+  });
+}
+
+function parseModelIds(data: any): string[] {
+  const raw = Array.isArray(data?.data)
+    ? data.data
+    : Array.isArray(data?.models)
+      ? data.models
+      : Array.isArray(data)
+        ? data
+        : [];
+  const ids = raw
+    .map((item: any) => {
+      if (typeof item === "string") return item;
+      return String(item?.id ?? item?.name ?? item?.model ?? "").trim();
+    })
+    .filter(Boolean);
+  return Array.from(new Set(ids));
+}
+
+async function listProviderModels(config: AiProviderConfig, apiKey: string | null): Promise<string[]> {
+  const data = await getAiJson(`${providerBaseUrl(config)}/models`, authHeader(apiKey));
+  return parseModelIds(data);
+}
+
 async function chatCompletionOpenAiCompatible(
   config: AiProviderConfig,
   messages: ChatMessage[],
   apiKey: string | null,
+  includeTools = true,
 ) {
   return postAiJson(
     `${providerBaseUrl(config)}/chat/completions`,
@@ -720,8 +763,7 @@ async function chatCompletionOpenAiCompatible(
     {
       model: config.model,
       messages,
-      tools: TOOLS,
-      tool_choice: "auto",
+      ...(includeTools ? { tools: TOOLS, tool_choice: "auto" } : {}),
     },
   );
 }
@@ -809,6 +851,7 @@ async function chatCompletionAnthropic(
   config: AiProviderConfig,
   messages: ChatMessage[],
   apiKey: string | null,
+  includeTools = true,
 ) {
   if (!apiKey) throw new Error("API key is required for this provider.");
   const converted = anthropicMessages(messages);
@@ -823,7 +866,7 @@ async function chatCompletionAnthropic(
       max_tokens: 4096,
       system: converted.system,
       messages: converted.messages,
-      tools: anthropicToolDefinitions(),
+      ...(includeTools ? { tools: anthropicToolDefinitions() } : {}),
     },
   );
   return normalizeAnthropicResponse(data);
@@ -938,6 +981,7 @@ async function chatCompletionGemini(
   config: AiProviderConfig,
   messages: ChatMessage[],
   apiKey: string | null,
+  includeTools = true,
 ) {
   if (!apiKey) throw new Error("API key is required for this provider.");
   const converted = geminiMessages(messages);
@@ -946,8 +990,12 @@ async function chatCompletionGemini(
     { "x-goog-api-key": apiKey },
     {
       ...converted,
-      tools: geminiToolDefinitions(),
-      toolConfig: { functionCallingConfig: { mode: "AUTO" } },
+      ...(includeTools
+        ? {
+            tools: geminiToolDefinitions(),
+            toolConfig: { functionCallingConfig: { mode: "AUTO" } },
+          }
+        : {}),
     },
   );
   return normalizeGeminiResponse(data);
@@ -982,6 +1030,46 @@ function createAiStore() {
     const config = configuredProvider();
     if (!config?.model || !providerBaseUrl(config)) return false;
     return !providerNeedsRealKey(config.provider_type) || config.has_api_key;
+  }
+
+  function currentModelLabel(): string {
+    const config = configuredProvider();
+    if (!config) return "Ollama";
+    const provider = providerDisplayName(config);
+    const model = (config.display_name || config.model || "").trim();
+    return model ? `${provider} · ${model}` : provider;
+  }
+
+  async function testConnection(config = configuredProvider()): Promise<AiConnectionTestResult> {
+    if (!config) throw new Error("AI provider is not configured.");
+    if (!providerBaseUrl(config)) throw new Error("AI endpoint is empty.");
+
+    const apiKey = await getApiKey(config);
+    if (providerNeedsRealKey(config.provider_type)) {
+      if (!config.model.trim()) throw new Error("AI model is empty.");
+      if (!config.has_api_key || !apiKey) throw new Error("API key is required for this provider.");
+      const data = await chatCompletionRequest(
+        config,
+        [{ role: "user", content: "Reply with OK." }],
+        apiKey,
+        false,
+      );
+      const content = String(data?.choices?.[0]?.message?.content ?? "").trim();
+      return { model: config.display_name || config.model, content: content || null };
+    }
+
+    const models = await listProviderModels(config, apiKey);
+    const detectedModel = models[0] || config.model.trim();
+    if (!detectedModel) throw new Error("AI provider returned no available models.");
+
+    const current = settingsStore.settings().ai_provider ?? config;
+    const next: AiProviderConfig = {
+      ...current,
+      ...config,
+      model: detectedModel,
+    };
+    await settingsStore.updateSetting("ai_provider", next);
+    return { model: detectedModel, models };
   }
 
   async function runInstruction(instruction: string, options?: RunInstructionOptions): Promise<string> {
@@ -1041,7 +1129,9 @@ function createAiStore() {
   return {
     defaultAiProviderConfig,
     isConfigured,
+    currentModelLabel,
     saveApiKey,
+    testConnection,
     runInstruction,
   };
 }

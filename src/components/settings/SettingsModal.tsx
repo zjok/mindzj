@@ -6,6 +6,7 @@
 import { Component, Show, For, createSignal, createEffect, createMemo, onMount, onCleanup } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 import { open as dialogOpen } from "@tauri-apps/plugin-dialog";
+import { Eye, EyeOff } from "lucide-solid";
 import { aiStore, defaultAiProviderConfig } from "../../stores/ai";
 import { settingsStore, type AiProviderConfig, type AiProviderType, type AppSettings, reloadCssSnippets, DEFAULT_FONT_FAMILY } from "../../stores/settings";
 import {
@@ -67,6 +68,7 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
   const [activePluginId, setActivePluginId] = createSignal<string | null>(null);
   const [activePluginName, setActivePluginName] = createSignal<string>("");
   const [aiApiKeyDraft, setAiApiKeyDraft] = createSignal("");
+  const [aiApiKeyVisible, setAiApiKeyVisible] = createSignal(false);
   const [aiTestResult, setAiTestResult] = createSignal<string | null>(null);
   const [aiAddingModel, setAiAddingModel] = createSignal(false);
   const [aiAddModelDraft, setAiAddModelDraft] = createSignal("");
@@ -115,19 +117,26 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
   const customAiProviders = () => s().ai_custom_providers ?? [];
   const isApiKeyAiProvider = (config = aiConfig()) =>
     config.provider_type !== "Ollama" && config.provider_type !== "LMStudio";
+  const aiCurrentApiProviderOption = () => {
+    const config = aiConfig();
+    if (!isApiKeyAiProvider(config)) return null;
+    if (config.id && customAiProviders().some((item) => item.id === config.id)) return null;
+    return {
+      value: config.id ? `custom:${config.id}` : "current-api-key-llm",
+      label: config.display_name || config.model || t("settings.aiProviderSavedFallback"),
+    };
+  };
   const aiProviderSelectValue = () => {
     const config = aiConfig();
     if (config.provider_type === "Ollama" || config.provider_type === "LMStudio") {
       return config.provider_type;
     }
-    return config.id && customAiProviders().some((item) => item.id === config.id)
-      ? `custom:${config.id}`
-      : "add-api-key-llm";
+    return config.id ? `custom:${config.id}` : "current-api-key-llm";
   };
   const aiProviderOptions = createMemo(() => [
     { value: "LMStudio", label: "LM Studio" },
     { value: "Ollama", label: "Ollama" },
-    { value: "add-api-key-llm", label: t("settings.aiProviderAddApiKey") },
+    ...(aiCurrentApiProviderOption() ? [aiCurrentApiProviderOption()!] : []),
     ...customAiProviders()
       .filter((config) => !!config.id)
       .map((config) => ({
@@ -154,7 +163,7 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
     set("ai_provider", { ...aiConfig(), ...patch });
     setAiTestResult(null);
   }
-  async function saveAiProvider() {
+  async function saveAiProvider(showStatus = true): Promise<boolean> {
     const current = aiConfig();
     const next: AiProviderConfig = {
       ...current,
@@ -162,8 +171,8 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
       display_name: current.model.trim() || current.display_name || null,
     };
     if (!next.model.trim()) {
-      setAiTestResult(t("settings.aiModelRequired"));
-      return;
+      if (showStatus) setAiTestResult(t("settings.aiModelRequired"));
+      return false;
     }
     const value = aiApiKeyDraft().trim();
     if (isApiKeyAiProvider(next)) {
@@ -179,7 +188,9 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
     }
     await set("ai_provider", next);
     setAiApiKeyDraft("");
-    setAiTestResult(t("settings.aiProviderSaved"));
+    setAiApiKeyVisible(false);
+    if (showStatus) setAiTestResult(t("settings.aiProviderSaved"));
+    return true;
   }
   async function saveNewAiProvider() {
     const model = aiAddModelDraft().trim();
@@ -199,6 +210,7 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
     await set("ai_provider", next);
     setAiAddModelDraft("");
     setAiApiKeyDraft("");
+    setAiApiKeyVisible(false);
     setAiAddingModel(false);
     setAiTestResult(t("settings.aiProviderSaved"));
   }
@@ -216,14 +228,29 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
     await set("ai_custom_providers", customAiProviders().filter((config) => config.id !== current.id));
     await set("ai_provider", defaultAiProviderConfig("Ollama"));
     setAiApiKeyDraft("");
+    setAiApiKeyVisible(false);
     setAiAddingModel(false);
     setAiTestResult(t("settings.aiProviderDeleted"));
   }
   async function testAiConfig() {
-    setAiTestResult(t("settings.aiConnecting"));
+    setAiTestResult(t("settings.aiTesting"));
     try {
-      const result = await aiStore.runInstruction("List the current vault notes count. Do not modify any file.");
-      setAiTestResult(result ? `${t("settings.aiConnected")}\n${result}` : t("settings.aiConnected"));
+      if (isApiKeyAiProvider() && aiApiKeyDraft().trim()) {
+        const saved = await saveAiProvider(false);
+        if (!saved) {
+          setAiTestResult(t("settings.aiModelRequired"));
+          return;
+        }
+      }
+      const result = await aiStore.testConnection(aiConfig());
+      const lines = [t("settings.aiConnected")];
+      if (result.model) {
+        lines.push(t("settings.aiDetectedModel", { model: result.model }));
+      }
+      if (result.content) {
+        lines.push(result.content);
+      }
+      setAiTestResult(lines.join("\n"));
     } catch (e: any) {
       setAiTestResult(`${t("settings.aiConnectionFailed")}: ${e?.message || String(e)}`);
     }
@@ -666,6 +693,7 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
                           setAiAddingModel(true);
                           setAiAddModelDraft("");
                           setAiApiKeyDraft("");
+                          setAiApiKeyVisible(false);
                           setAiTestResult(null);
                         }}
                         style={settingsButtonStyle}
@@ -680,12 +708,12 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
                       options={aiProviderOptions()}
                       width="190px"
                       onChange={(value) => {
-                        if (value === "add-api-key-llm") {
-                          setAiAddingModel(true);
-                          setAiAddModelDraft("");
+                        if (value === "current-api-key-llm") {
+                          setAiAddingModel(false);
                         } else if (value.startsWith("custom:")) {
                           const id = value.slice("custom:".length);
-                          const config = customAiProviders().find((item) => item.id === id);
+                          const config = customAiProviders().find((item) => item.id === id)
+                            ?? (aiConfig().id === id ? aiConfig() : null);
                           if (config) set("ai_provider", config);
                           setAiAddingModel(false);
                         } else {
@@ -693,6 +721,7 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
                           setAiAddingModel(false);
                         }
                         setAiApiKeyDraft("");
+                        setAiApiKeyVisible(false);
                         setAiTestResult(null);
                       }}
                     />
@@ -706,51 +735,40 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
                         onChange={(value) => updateAiConfig({ endpoint: value.trim() || null })}
                       />
                     </Show>
-                    <SettingInput
-                      label={t("settings.aiModel")}
-                      description={t("settings.aiModelDescription")}
-                      value={aiConfig().model}
-                      placeholder={defaultAiProviderConfig(aiConfig().provider_type).model}
-                      width="220px"
-                      onChange={(value) => updateAiConfig({ model: value.trim() })}
-                    />
                     <Show when={isApiKeyAiProvider()}>
-                      <SettingInput
+                      <AiApiKeyInput
                         label={t("settings.aiApiKey")}
                         description={aiConfig().has_api_key ? t("settings.aiApiKeyStored") : t("settings.aiApiKeyDescription")}
                         value={aiApiKeyDraft()}
-                        type="password"
+                        visible={aiApiKeyVisible()}
                         placeholder={t("settings.aiApiKeyPlaceholder")}
-                        width="220px"
+                        width="290px"
                         onChange={setAiApiKeyDraft}
+                        onToggleVisible={() => setAiApiKeyVisible((value) => !value)}
                       />
                     </Show>
                     <div style={{ display: "flex", gap: "12px", "justify-content": "flex-end", padding: "14px 0 4px" }}>
-                      <Show when={activeCustomProviderSaved()}>
+                      <Show when={isApiKeyAiProvider()}>
+                        <Show when={activeCustomProviderSaved()}>
+                          <button
+                            onClick={() => void deleteAiProvider()}
+                            style={settingsDangerButtonStyle}
+                          >
+                            {t("settings.aiDeleteProvider")}
+                          </button>
+                        </Show>
                         <button
-                          onClick={() => void deleteAiProvider()}
-                          style={settingsDangerButtonStyle}
+                          onClick={() => void saveAiProvider()}
+                          style={settingsButtonStyle}
                         >
-                          {t("settings.aiDeleteProvider")}
+                          {t("common.save")}
                         </button>
                       </Show>
-                      <button
-                        onClick={() => void saveAiProvider()}
-                        style={settingsButtonStyle}
-                      >
-                        {t("common.save")}
-                      </button>
                       <button
                         onClick={() => void testAiConfig()}
                         style={settingsButtonStyle}
                       >
-                        {t("settings.aiConnect")}
-                      </button>
-                      <button
-                        onClick={() => setAiTestResult(null)}
-                        style={settingsDangerButtonStyle}
-                      >
-                        {t("settings.aiStopClose")}
+                        {t("settings.aiTest")}
                       </button>
                     </div>
                   </>
@@ -764,14 +782,15 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
                   width="360px"
                   onChange={setAiAddModelDraft}
                 />
-                <SettingInput
+                <AiApiKeyInput
                   label={t("settings.aiApiKey")}
                   description={t("settings.aiApiKeyDescription")}
                   value={aiApiKeyDraft()}
-                  type="password"
+                  visible={aiApiKeyVisible()}
                   placeholder={t("settings.aiApiKeyPlaceholder")}
                   width="360px"
                   onChange={setAiApiKeyDraft}
+                  onToggleVisible={() => setAiApiKeyVisible((value) => !value)}
                 />
                 <div style={{ display: "flex", gap: "36px", "justify-content": "flex-end", padding: "48px 0 4px" }}>
                   <button
@@ -779,6 +798,7 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
                       setAiAddingModel(false);
                       setAiAddModelDraft("");
                       setAiApiKeyDraft("");
+                      setAiApiKeyVisible(false);
                       setAiTestResult(null);
                     }}
                     style={{ ...settingsButtonStyle, width: "160px" }}
@@ -2010,6 +2030,74 @@ const AboutLinkButton: Component<{
   </button>
 );
 
+const AiApiKeyInput: Component<{
+  label: string;
+  description?: string;
+  value: string;
+  visible: boolean;
+  placeholder?: string;
+  width?: string;
+  onChange: (value: string) => void;
+  onToggleVisible: () => void;
+}> = (props) => (
+  <div style={settingsRowStyle}>
+    <div style={{ flex: "1" }}>
+      <div style={settingsLabelStyle}>{props.label}</div>
+      <Show when={props.description}>
+        <div style={settingsDescStyle}>{props.description}</div>
+      </Show>
+    </div>
+    <div
+      style={{
+        display: "flex",
+        "align-items": "center",
+        width: props.width || "220px",
+        border: "1px solid var(--mz-border)",
+        "border-radius": "var(--mz-radius-sm)",
+        background: "var(--mz-bg-primary)",
+        "flex-shrink": "0",
+      }}
+    >
+      <input
+        type={props.visible ? "text" : "password"}
+        value={props.value}
+        placeholder={props.placeholder}
+        onInput={(event) => props.onChange(event.currentTarget.value)}
+        style={{
+          ...settingsInputBareStyle,
+          flex: "1",
+          width: "0",
+          border: "none",
+          background: "transparent",
+        }}
+      />
+      <button
+        type="button"
+        title={props.visible ? t("settings.aiHideApiKey") : t("settings.aiShowApiKey")}
+        aria-label={props.visible ? t("settings.aiHideApiKey") : t("settings.aiShowApiKey")}
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={props.onToggleVisible}
+        style={{
+          width: "32px",
+          height: "28px",
+          display: "flex",
+          "align-items": "center",
+          "justify-content": "center",
+          border: "none",
+          background: "transparent",
+          color: "var(--mz-text-muted)",
+          cursor: "pointer",
+          "flex-shrink": "0",
+        }}
+      >
+        <Show when={props.visible} fallback={<Eye size={16} />}>
+          <EyeOff size={16} />
+        </Show>
+      </button>
+    </div>
+  </div>
+);
+
 // ---------------------------------------------------------------------------
 // Styles
 // ---------------------------------------------------------------------------
@@ -2043,6 +2131,35 @@ const settingsButtonStyle = {
 const settingsDangerButtonStyle = {
   ...settingsButtonStyle,
   color: "var(--mz-error)",
+};
+
+const settingsRowStyle = {
+  display: "flex",
+  "align-items": "center",
+  "justify-content": "space-between",
+  padding: "8px 0",
+  gap: "16px",
+  "min-height": "40px",
+};
+
+const settingsLabelStyle = {
+  "font-size": "var(--mz-font-size-sm)",
+  color: "var(--mz-text-primary)",
+  "font-weight": "500",
+};
+
+const settingsDescStyle = {
+  "font-size": "var(--mz-font-size-xs)",
+  color: "var(--mz-text-muted)",
+  "margin-top": "2px",
+};
+
+const settingsInputBareStyle = {
+  padding: "4px 8px",
+  color: "var(--mz-text-primary)",
+  "font-size": "var(--mz-font-size-sm)",
+  "font-family": "var(--mz-font-sans)",
+  outline: "none",
 };
 
 // ---------------------------------------------------------------------------

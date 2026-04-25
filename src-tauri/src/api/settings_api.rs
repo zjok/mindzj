@@ -57,6 +57,48 @@ pub struct AiChatCompletionRequest {
     body: Value,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiGetJsonRequest {
+    url: String,
+    headers: Option<HashMap<String, String>>,
+}
+
+fn validate_ai_url(url: &str) -> Result<(), CommandError> {
+    if !(url.starts_with("http://") || url.starts_with("https://")) {
+        return Err(CommandError {
+            code: "INVALID_AI_ENDPOINT".into(),
+            message: "AI endpoint must start with http:// or https://".into(),
+        });
+    }
+    Ok(())
+}
+
+fn build_ai_headers(
+    custom_headers: Option<HashMap<String, String>>,
+    include_content_type: bool,
+) -> Result<HeaderMap, CommandError> {
+    let mut headers = HeaderMap::new();
+    if include_content_type {
+        headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+    }
+    if let Some(custom_headers) = custom_headers {
+        for (name, value) in custom_headers {
+            let header_name =
+                HeaderName::from_bytes(name.as_bytes()).map_err(|e| CommandError {
+                    code: "INVALID_AI_HEADER".into(),
+                    message: e.to_string(),
+                })?;
+            let header_value = HeaderValue::from_str(&value).map_err(|e| CommandError {
+                code: "INVALID_AI_HEADER".into(),
+                message: e.to_string(),
+            })?;
+            headers.insert(header_name, header_value);
+        }
+    }
+    Ok(headers)
+}
+
 // ---------------------------------------------------------------------------
 // Window state persistence helpers (shared between setup hook and commands)
 // ---------------------------------------------------------------------------
@@ -198,34 +240,56 @@ pub async fn set_ai_api_key(
 #[tauri::command]
 pub async fn ai_chat_completion(request: AiChatCompletionRequest) -> Result<Value, CommandError> {
     let url = request.url.trim();
-    if !(url.starts_with("http://") || url.starts_with("https://")) {
-        return Err(CommandError {
-            code: "INVALID_AI_ENDPOINT".into(),
-            message: "AI endpoint must start with http:// or https://".into(),
-        });
-    }
-
-    let mut headers = HeaderMap::new();
-    headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
-    if let Some(custom_headers) = request.headers {
-        for (name, value) in custom_headers {
-            let header_name =
-                HeaderName::from_bytes(name.as_bytes()).map_err(|e| CommandError {
-                    code: "INVALID_AI_HEADER".into(),
-                    message: e.to_string(),
-                })?;
-            let header_value = HeaderValue::from_str(&value).map_err(|e| CommandError {
-                code: "INVALID_AI_HEADER".into(),
-                message: e.to_string(),
-            })?;
-            headers.insert(header_name, header_value);
-        }
-    }
+    validate_ai_url(url)?;
+    let headers = build_ai_headers(request.headers, true)?;
 
     let response = reqwest::Client::new()
         .post(url)
         .headers(headers)
         .json(&request.body)
+        .send()
+        .await
+        .map_err(|e| CommandError {
+            code: "AI_PROVIDER_ERROR".into(),
+            message: e.to_string(),
+        })?;
+
+    let status = response.status();
+    let text = response.text().await.map_err(|e| CommandError {
+        code: "AI_PROVIDER_ERROR".into(),
+        message: e.to_string(),
+    })?;
+
+    if !status.is_success() {
+        return Err(CommandError {
+            code: "AI_PROVIDER_ERROR".into(),
+            message: format!(
+                "{}{}",
+                status.as_u16(),
+                if text.is_empty() {
+                    String::new()
+                } else {
+                    format!(": {}", text)
+                }
+            ),
+        });
+    }
+
+    serde_json::from_str(&text).map_err(|e| CommandError {
+        code: "AI_PROVIDER_ERROR".into(),
+        message: format!("Invalid AI response JSON: {}", e),
+    })
+}
+
+#[tauri::command]
+pub async fn ai_get_json(request: AiGetJsonRequest) -> Result<Value, CommandError> {
+    let url = request.url.trim();
+    validate_ai_url(url)?;
+    let headers = build_ai_headers(request.headers, false)?;
+
+    let response = reqwest::Client::new()
+        .get(url)
+        .headers(headers)
         .send()
         .await
         .map_err(|e| CommandError {

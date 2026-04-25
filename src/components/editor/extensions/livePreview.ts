@@ -841,12 +841,10 @@ function buildDecorationsImpl(
         }
 
         // --- Horizontal rule ---
-        // Line class is supplied by lineDecorationField. Here we just
-        // hide the raw `---` characters on non-cursor lines.
+        // Line class is supplied by lineDecorationField. Hide the raw
+        // marker so `---` and `***` render identically on the cursor line.
         if (/^(-{3,}|\*{3,}|_{3,})\s*$/.test(text)) {
-            if (!isCurrentLine) {
-                decorations.push(hideMarker.range(line.from, line.to));
-            }
+            decorations.push(hideMarker.range(line.from, line.to));
             continue;
         }
 

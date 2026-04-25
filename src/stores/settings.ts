@@ -7,6 +7,7 @@ import {
   customSkinName,
   isCustomSkin,
   resolveDataTheme,
+  skinMode,
 } from "../styles/themes";
 
 export const DEFAULT_FONT_FAMILY =
@@ -578,28 +579,35 @@ function createSettingsStore() {
   // visible change.
   function toggleTheme() {
     const current = settings().theme;
-    let next: Theme;
-    if (current === "system") {
-      next = "dark";
-    } else if (current === "dark") {
-      next = "light";
-    } else if (current === "light") {
-      next = "system";
-    } else {
-      // Try to find a light/dark counterpart for the current built-in.
-      const pairs: Record<string, string> = {
-        "github-dark": "github-light",
-        "github-light": "github-dark",
-        "solarized-dark": "solarized-light",
-        "solarized-light": "solarized-dark",
-      };
-      if (pairs[current]) {
-        next = pairs[current];
-      } else {
-        // Custom / one-sided theme — just jump to the app defaults.
-        next = "dark";
-      }
-    }
+    const pairs: Record<string, string> = {
+      dark: "light",
+      light: "dark",
+      "mindzj-dark-warm": "mindzj-light-warm",
+      "mindzj-light-warm": "mindzj-dark-warm",
+      dracula: "dracula-light",
+      "dracula-light": "dracula",
+      "github-dark": "github-light",
+      "github-light": "github-dark",
+      "atom-dark": "atom-light",
+      "atom-light": "atom-dark",
+      "one-dark": "one-light",
+      "one-light": "one-dark",
+      "sublime-dark": "sublime-light",
+      "sublime-light": "sublime-dark",
+      "tokyo-night": "tokyo-night-light",
+      "tokyo-night-light": "tokyo-night",
+      gruvbox: "gruvbox-light",
+      "gruvbox-light": "gruvbox",
+      catppuccin: "catppuccin-latte",
+      "catppuccin-latte": "catppuccin",
+      "rose-pine": "rose-pine-dawn",
+      "rose-pine-dawn": "rose-pine",
+      "everforest-dark": "everforest-light",
+      "everforest-light": "everforest-dark",
+      "solarized-dark": "solarized-light",
+      "solarized-light": "solarized-dark",
+    };
+    const next: Theme = pairs[current] ?? (skinMode(current) === "dark" ? "light" : "dark");
     updateSetting("theme", next);
   }
 

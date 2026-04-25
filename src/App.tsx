@@ -209,6 +209,7 @@ const App: Component = () => {
             ? secondaryPanePath() ?? primaryPanePath()
             : primaryPanePath(),
     );
+    const currentAiModelLabel = createMemo(() => aiStore.currentModelLabel());
     const splitPaneActive = createMemo(() => secondaryPanePath() !== null);
 
     // Screenshot state
@@ -829,6 +830,12 @@ const App: Component = () => {
         };
         document.addEventListener("mindzj:open-settings", handleOpenSettings);
         onCleanup(() => document.removeEventListener("mindzj:open-settings", handleOpenSettings));
+
+        const handleToggleAiPanel = () => {
+            setShowAiPanel((value) => !value);
+        };
+        document.addEventListener("mindzj:toggle-ai-panel", handleToggleAiPanel);
+        onCleanup(() => document.removeEventListener("mindzj:toggle-ai-panel", handleToggleAiPanel));
 
         // ── Reveal-in-tree: triggered from tab context menu ──
         const handleRevealInTree = () => {
@@ -2712,6 +2719,18 @@ const App: Component = () => {
                                 onSplitRatioChange={setSplitRatio}
                             />
                         </Show>
+                        <Show when={showAiPanel()}>
+                            <AiBottomPanel
+                                input={aiPanelInput()}
+                                output={aiPanelOutput()}
+                                busy={aiPanelBusy()}
+                                activePath={activePanePath() ?? vaultStore.activeFile()?.path ?? null}
+                                modelLabel={currentAiModelLabel()}
+                                onInput={setAiPanelInput}
+                                onRun={() => void runAiPanelInstruction()}
+                                onClose={() => setShowAiPanel(false)}
+                            />
+                        </Show>
                     </Show>
                 </main>
             </div>
@@ -2729,17 +2748,6 @@ const App: Component = () => {
             </Show>
             <Show when={showSettings()}>
                 <SettingsModal onClose={() => setShowSettings(false)} />
-            </Show>
-            <Show when={showAiPanel()}>
-                <AiBottomPanel
-                    input={aiPanelInput()}
-                    output={aiPanelOutput()}
-                    busy={aiPanelBusy()}
-                    activePath={activePanePath() ?? vaultStore.activeFile()?.path ?? null}
-                    onInput={setAiPanelInput}
-                    onRun={() => void runAiPanelInstruction()}
-                    onClose={() => setShowAiPanel(false)}
-                />
             </Show>
             <Show when={screenshotData()}>
                 <ScreenshotOverlay
@@ -2788,6 +2796,7 @@ const AiBottomPanel: Component<{
     output: string;
     busy: boolean;
     activePath: string | null;
+    modelLabel: string;
     onInput: (value: string) => void;
     onRun: () => void;
     onClose: () => void;
@@ -2801,20 +2810,17 @@ const AiBottomPanel: Component<{
     return (
         <div
             style={{
-                position: "fixed",
-                left: "0",
-                right: "0",
-                bottom: "24px",
                 height: "min(34vh, 300px)",
                 "min-height": "220px",
-                "z-index": "9998",
+                width: "100%",
+                "flex-shrink": "0",
                 display: "flex",
                 "flex-direction": "column",
                 background: "var(--mz-bg-secondary)",
                 border: "1px solid var(--mz-border)",
                 "border-left": "none",
                 "border-right": "none",
-                "box-shadow": "0 -8px 28px rgba(0,0,0,0.32)",
+                "box-shadow": "0 -6px 18px rgba(0,0,0,0.18)",
                 color: "var(--mz-text-primary)",
             }}
         >
@@ -2831,7 +2837,10 @@ const AiBottomPanel: Component<{
                 }}
             >
                 <div style={{ display: "flex", "align-items": "center", gap: "10px", "min-width": "0" }}>
-                    <strong>{t("aiPanel.title")}</strong>
+                    <strong style={{ "flex-shrink": "0" }}>{t("aiPanel.title")}</strong>
+                    <span style={{ color: "var(--mz-accent)", overflow: "hidden", "text-overflow": "ellipsis", "white-space": "nowrap", "min-width": "0" }}>
+                        {props.modelLabel}
+                    </span>
                     <span style={{ color: "var(--mz-text-muted)", overflow: "hidden", "text-overflow": "ellipsis", "white-space": "nowrap" }}>
                         {props.activePath || t("aiPanel.noActiveFile")}
                     </span>
