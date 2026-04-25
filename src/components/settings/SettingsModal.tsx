@@ -72,6 +72,7 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
   const [aiTestResult, setAiTestResult] = createSignal<string | null>(null);
   const [aiAddingModel, setAiAddingModel] = createSignal(false);
   const [aiAddModelDraft, setAiAddModelDraft] = createSignal("");
+  let aiApiKeyLoadToken = 0;
 
   function handleKeydown(e: KeyboardEvent) {
     if (e.key !== "Escape") return;
@@ -153,6 +154,20 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
   const aiAddMode = () => aiAddingModel();
   const aiProviderKindLabel = () =>
     isLocalAiProvider() ? t("settings.aiLocalModel") : t("settings.aiOnlineModel");
+  createEffect(() => {
+    const config = aiConfig();
+    const token = ++aiApiKeyLoadToken;
+    if (aiAddMode() || !isApiKeyAiProvider(config)) {
+      setAiApiKeyVisible(false);
+      if (!aiAddMode()) setAiApiKeyDraft("");
+      return;
+    }
+    setAiApiKeyVisible(false);
+    void aiStore.loadApiKey(config).then((key) => {
+      if (token !== aiApiKeyLoadToken) return;
+      setAiApiKeyDraft(key ?? "");
+    });
+  });
   function createApiKeyProviderConfig(): AiProviderConfig {
     return {
       ...defaultAiProviderConfig("ApiKeyLLM"),
@@ -187,7 +202,7 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
       await set("ai_custom_providers", updated);
     }
     await set("ai_provider", next);
-    setAiApiKeyDraft("");
+    setAiApiKeyDraft(value);
     setAiApiKeyVisible(false);
     if (showStatus) setAiTestResult(t("settings.aiProviderSaved"));
     return true;
@@ -209,7 +224,7 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
     await set("ai_custom_providers", [...customAiProviders(), next]);
     await set("ai_provider", next);
     setAiAddModelDraft("");
-    setAiApiKeyDraft("");
+    setAiApiKeyDraft(apiKey);
     setAiApiKeyVisible(false);
     setAiAddingModel(false);
     setAiTestResult(t("settings.aiProviderSaved"));
@@ -514,17 +529,20 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
 
           {/* Appearance Settings */}
           <Show when={activeTab() === "appearance"}>
-            <h2 style={titleStyle}>{t("settings.appearance")}</h2>
-
-            <SettingSection title={t("common.interfaceLanguage")}>
-              <SettingSelect
-                label={t("common.interfaceLanguage")}
-                description={t("settings.interfaceLanguageDescription")}
+            <div style={titleRowStyle}>
+              <h2 style={{ ...titleStyle, "margin-bottom": "0" }}>{t("settings.appearance")}</h2>
+              <select
+                title={t("common.interfaceLanguage")}
+                aria-label={t("common.interfaceLanguage")}
                 value={s().locale}
-                options={getLanguageOptions()}
-                onChange={(v) => set("locale", v)}
-              />
-            </SettingSection>
+                onChange={(event) => set("locale", event.currentTarget.value as AppSettings["locale"])}
+                style={titleSelectStyle}
+              >
+                <For each={getLanguageOptions()}>
+                  {(option) => <option value={option.value}>{option.label}</option>}
+                </For>
+              </select>
+            </div>
 
             <SettingSection title={t("settings.themeSection")}>
               <SkinPickerPanel />
@@ -2109,6 +2127,38 @@ const titleStyle = {
   "margin-bottom": "20px",
 };
 
+const titleRowStyle = {
+  display: "flex",
+  "align-items": "center",
+  "justify-content": "space-between",
+  gap: "12px",
+  "flex-wrap": "wrap",
+  "margin-bottom": "20px",
+} as const;
+
+const titleSelectStyle = {
+  width: "180px",
+  padding: "4px 8px",
+  border: "1px solid var(--mz-border)",
+  "border-radius": "var(--mz-radius-sm)",
+  background: "var(--mz-bg-primary)",
+  color: "var(--mz-text-primary)",
+  "font-size": "var(--mz-font-size-sm)",
+  "font-family": "var(--mz-font-sans)",
+  cursor: "pointer",
+} as const;
+
+const sectionTitleStyle = {
+  "font-size": "var(--mz-font-size-sm)",
+  "font-weight": "600",
+  color: "var(--mz-text-muted)",
+  "text-transform": "uppercase",
+  "letter-spacing": "0.5px",
+  "margin-bottom": "12px",
+  "padding-bottom": "6px",
+  "border-bottom": "1px solid var(--mz-border)",
+} as const;
+
 const aboutRow = {
   display: "flex",
   "justify-content": "space-between",
@@ -2564,14 +2614,7 @@ const CssSnippetsPanel: Component = () => {
           "margin-bottom": "12px",
         }}
       >
-        <h3
-          style={{
-            "font-size": "var(--mz-font-size-md)",
-            "font-weight": "600",
-            color: "var(--mz-text-primary)",
-            margin: "0",
-          }}
-        >
+        <h3 style={sectionTitleStyle}>
           {t("settings.cssSnippets")}
         </h3>
         <p
@@ -3140,14 +3183,9 @@ const SkinPickerPanel: Component = () => {
           pieces vertically removes the competition for horizontal
           space entirely. */}
       <div style={{ display: "flex", "flex-direction": "column", gap: "8px", "margin-top": "8px" }}>
-        <h3 style={{
-          "font-size": "var(--mz-font-size-md)",
-          "font-weight": "600",
-          color: "var(--mz-text-primary)",
-          margin: "0",
-        }}>
+        <div style={groupHeaderStyle}>
           {t("settings.customSkinsSection")}
-        </h3>
+        </div>
         <p style={{
           "font-size": "var(--mz-font-size-xs)",
           color: "var(--mz-text-muted)",

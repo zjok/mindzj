@@ -64,9 +64,9 @@ export const ContextMenu: Component<ContextMenuProps> = (props) => {
   };
 
   const adjustedY = () => {
-    const menuHeight = props.items.length * 32 + 8;
+    const menuHeight = Math.min(window.innerHeight - 16, props.items.length * 32 + 8);
     return props.y + menuHeight > window.innerHeight
-      ? window.innerHeight - menuHeight - 8
+      ? Math.max(8, window.innerHeight - menuHeight - 8)
       : props.y;
   };
 
@@ -97,6 +97,8 @@ export const ContextMenu: Component<ContextMenuProps> = (props) => {
           padding: "4px 0",
           "font-size": "var(--mz-font-size-sm)",
           "pointer-events": "auto",
+          "max-height": "calc(100vh - 16px)",
+          "overflow-y": "auto",
         }}
       >
         <For each={props.items}>

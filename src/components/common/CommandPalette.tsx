@@ -15,13 +15,86 @@ import type { VaultEntry } from "../../stores/vault";
 import { displayName } from "../../utils/displayName";
 import { openFileRouted } from "../../utils/openFileRouted";
 import { t } from "../../i18n";
+import { promptDialog } from "./ConfirmDialog";
 
 interface PaletteItem {
   id: string;
   label: string;
   category: "file" | "command" | "create";
   description?: string;
+  shortcut?: string;
   action: () => void | Promise<void>;
+}
+
+const DEFAULT_COMMAND_HOTKEYS: Record<string, string> = {
+  "ai-control": "Alt+`",
+  "new-note": "Ctrl+N",
+  "toggle-view-mode": "Ctrl+E",
+  bold: "Ctrl+B",
+  italic: "Ctrl+I",
+  strikethrough: "Ctrl+Shift+S",
+  underline: "Ctrl+U",
+  highlight: "Ctrl+Shift+H",
+  link: "Ctrl+K",
+  code: "Ctrl+Shift+E",
+  "heading-1": "Ctrl+1",
+  "heading-2": "Ctrl+2",
+  "heading-3": "Ctrl+3",
+  "heading-4": "Ctrl+4",
+  "heading-5": "Ctrl+5",
+  "heading-6": "Ctrl+6",
+  "move-line-up": "Alt+Up",
+  "move-line-down": "Alt+Down",
+  "toggle-comment": "Ctrl+/",
+  "toggle-blockquote": "Ctrl+Shift+.",
+  "toggle-sidebar": "Ctrl+`",
+  "plugin:timestamp-header:insert-timestamp": "Alt+F",
+  "plugin:timestamp-header:insert-separator": "Alt+A",
+};
+
+const PLUGIN_COMMAND_HOTKEY_ALIASES: Record<string, string> = {
+  "editor:toggle-bold": "bold",
+  "editor:toggle-italics": "italic",
+  "editor:toggle-strikethrough": "strikethrough",
+  "editor:toggle-underline": "underline",
+  "editor:toggle-highlight": "highlight",
+  "editor:toggle-code": "code",
+  "editor:toggle-blockquote": "toggle-blockquote",
+  "editor:toggle-comments": "toggle-comment",
+  "editor:insert-link": "link",
+  "editor:swap-line-up": "move-line-up",
+  "editor:swap-line-down": "move-line-down",
+  "editor:set-heading-1": "heading-1",
+  "editor:set-heading-2": "heading-2",
+  "editor:set-heading-3": "heading-3",
+  "editor:set-heading-4": "heading-4",
+  "editor:set-heading-5": "heading-5",
+  "editor:set-heading-6": "heading-6",
+  "app:toggle-left-sidebar": "toggle-sidebar",
+};
+
+function configuredHotkey(command: string): string {
+  const overrides = settingsStore.settings().hotkey_overrides || {};
+  return overrides[command] || DEFAULT_COMMAND_HOTKEYS[command] || "";
+}
+
+function formatPluginHotkey(hotkey?: { modifiers?: string[]; key?: string }): string {
+  if (!hotkey?.key) return "";
+  const parts = [
+    ...(hotkey.modifiers ?? []).map((modifier) =>
+      modifier.length === 1 ? modifier.toUpperCase() : modifier[0].toUpperCase() + modifier.slice(1),
+    ),
+    hotkey.key.length === 1 ? hotkey.key.toUpperCase() : hotkey.key,
+  ];
+  return parts.join("+");
+}
+
+function pluginCommandShortcut(commandId: string, hotkeys?: Array<{ modifiers?: string[]; key?: string }>): string {
+  const direct = configuredHotkey(commandId);
+  if (direct) return direct;
+  const alias = PLUGIN_COMMAND_HOTKEY_ALIASES[commandId];
+  if (alias) return configuredHotkey(alias);
+  return formatPluginHotkey(hotkeys?.[0]);
 }
 
 /**
@@ -86,6 +159,7 @@ export const CommandPalette: Component<CommandPaletteProps> = (props) => {
       label: t("commandPalette.aiControl"),
       category: "command",
       description: t("commandPalette.aiControlDescription"),
+      shortcut: configuredHotkey("ai-control"),
       action: () => {
         props.onClose();
         document.dispatchEvent(new CustomEvent("mindzj:toggle-ai-panel"));
@@ -96,8 +170,12 @@ export const CommandPalette: Component<CommandPaletteProps> = (props) => {
       label: t("commandPalette.newNote"),
       category: "command",
       description: t("commandPalette.newNoteDescription"),
+      shortcut: configuredHotkey("new-note"),
       action: async () => {
-        const name = `${t("commandPalette.untitled")}_${Date.now()}.md`;
+        const rawName = await promptDialog(t("fileTree.noteNamePrompt"), t("fileTree.newNoteDefault"));
+        const noteName = rawName?.trim();
+        if (!noteName) return;
+        const name = noteName.endsWith(".md") ? noteName : `${noteName}.md`;
         await vaultStore.createFile(name, "");
         await vaultStore.openFile(name);
       },
@@ -107,6 +185,7 @@ export const CommandPalette: Component<CommandPaletteProps> = (props) => {
       label: t("commandPalette.toggleTheme"),
       category: "command",
       description: t("commandPalette.toggleThemeDescription"),
+      shortcut: configuredHotkey("toggle-theme"),
       action: () => {
         settingsStore.toggleTheme();
       },
@@ -116,6 +195,7 @@ export const CommandPalette: Component<CommandPaletteProps> = (props) => {
       label: t("commandPalette.toggleView"),
       category: "command",
       description: t("commandPalette.toggleViewDescription"),
+      shortcut: configuredHotkey("toggle-view-mode"),
       action: () => {
         editorStore.cycleViewMode();
       },
@@ -125,6 +205,7 @@ export const CommandPalette: Component<CommandPaletteProps> = (props) => {
       label: t("commandPalette.reloadTree"),
       category: "command",
       description: t("common.refresh"),
+      shortcut: configuredHotkey("reload-tree"),
       action: async () => {
         await vaultStore.refreshFileTree();
       },
@@ -134,6 +215,7 @@ export const CommandPalette: Component<CommandPaletteProps> = (props) => {
       label: cmd.name,
       category: "command" as const,
       description: cmd.id,
+      shortcut: pluginCommandShortcut(cmd.id, cmd.hotkeys),
       action: async () => {
         await runPluginCommand(cmd.id);
       },
@@ -157,7 +239,7 @@ export const CommandPalette: Component<CommandPaletteProps> = (props) => {
       ? base.slice(0, 50)
       : base
           .filter((item) => {
-            const target = `${item.label} ${item.description || ""}`.toLowerCase();
+            const target = `${item.label} ${item.description || ""} ${item.shortcut || ""}`.toLowerCase();
             return q.split("").every((char) => target.includes(char));
           })
           .slice(0, 200);
@@ -438,6 +520,22 @@ export const CommandPalette: Component<CommandPaletteProps> = (props) => {
                     </div>
                   </Show>
                 </div>
+                <Show when={item.shortcut}>
+                  <span
+                    style={{
+                      "flex-shrink": "0",
+                      color: "var(--mz-text-muted)",
+                      "font-size": "var(--mz-font-size-xs)",
+                      border: "1px solid var(--mz-border)",
+                      "border-radius": "var(--mz-radius-sm)",
+                      padding: "2px 6px",
+                      background: "var(--mz-bg-primary)",
+                      "font-family": "var(--mz-font-sans)",
+                    }}
+                  >
+                    {item.shortcut}
+                  </span>
+                </Show>
               </div>
             )}
           </For>

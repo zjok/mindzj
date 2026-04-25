@@ -23,8 +23,12 @@ import {
     isolateHistory,
     cursorLineUp,
     cursorLineDown,
+    cursorLineBoundaryBackward,
+    cursorLineBoundaryForward,
     selectLineUp,
     selectLineDown,
+    selectLineBoundaryBackward,
+    selectLineBoundaryForward,
     undo,
     redo,
 } from "@codemirror/commands";
@@ -952,12 +956,12 @@ export const Editor: Component<EditorProps> = (props) => {
                 // user explicitly asked us to preserve.
                 ...(isLivePreview
                     ? [
-                        { key: "Home", run: (v: EditorView) => moveCursorToLogicalLineBoundary(v, "start", false) },
-                        { key: "End", run: (v: EditorView) => moveCursorToLogicalLineBoundary(v, "end", false) },
-                        { key: "Shift-Home", run: (v: EditorView) => moveCursorToLogicalLineBoundary(v, "start", true) },
-                        { key: "Shift-End", run: (v: EditorView) => moveCursorToLogicalLineBoundary(v, "end", true) },
-                        { key: "Mod-Shift-Home", run: (v: EditorView) => moveCursorToLogicalLineBoundary(v, "start", true) },
-                        { key: "Mod-Shift-End", run: (v: EditorView) => moveCursorToLogicalLineBoundary(v, "end", true) },
+                        { key: "Home", run: cursorLineBoundaryBackward },
+                        { key: "End", run: cursorLineBoundaryForward },
+                        { key: "Shift-Home", run: selectLineBoundaryBackward },
+                        { key: "Shift-End", run: selectLineBoundaryForward },
+                        { key: "Mod-Shift-Home", run: selectLineBoundaryBackward },
+                        { key: "Mod-Shift-End", run: selectLineBoundaryForward },
                         { key: "ArrowUp", run: cursorLineUp },
                         { key: "ArrowDown", run: cursorLineDown },
                         { key: "Shift-ArrowUp", run: selectLineUp },
@@ -1474,39 +1478,6 @@ export const Editor: Component<EditorProps> = (props) => {
         });
     }
 
-    function moveCursorToLogicalLineBoundary(
-        view: EditorView,
-        boundary: "start" | "end",
-        extend: boolean,
-    ): boolean {
-        const selection = view.state.selection.main;
-        const target = view.moveToLineBoundary(
-            selection,
-            boundary === "end",
-            true,
-        );
-        const targetPos = target.head;
-        const targetAssoc = boundary === "end" ? -1 : target.assoc;
-        view.dispatch({
-            selection: extend
-                ? EditorSelection.range(
-                    selection.anchor,
-                    targetPos,
-                    target.goalColumn,
-                    target.bidiLevel ?? undefined,
-                    targetAssoc,
-                )
-                : EditorSelection.cursor(
-                    targetPos,
-                    targetAssoc,
-                    target.bidiLevel ?? undefined,
-                    target.goalColumn,
-                ),
-            scrollIntoView: true,
-        });
-        return true;
-    }
-
     async function copySelection(view: EditorView) {
         const selection = view.state.selection.main;
         if (selection.empty) return;
@@ -1585,12 +1556,58 @@ export const Editor: Component<EditorProps> = (props) => {
                 action: () => { wrapSelection(view, "*"); },
             },
             {
+                label: t("toolbar.strikethrough"),
+                action: () => { wrapSelection(view, "~~"); },
+            },
+            {
+                label: t("toolbar.underline"),
+                action: () => { wrapSelection(view, "<u>", "</u>"); },
+            },
+            {
+                label: t("toolbar.highlight"),
+                action: () => { wrapSelection(view, "=="); },
+            },
+            {
                 label: t("toolbar.code"),
                 action: () => { wrapSelection(view, "`"); },
             },
             {
                 label: t("toolbar.link"),
                 action: () => { insertLink(view); },
+                separator: true,
+            },
+            {
+                label: t("toolbar.paragraph"),
+                action: () => { setHeading(view, 0); },
+            },
+            {
+                label: t("toolbar.heading", { level: "1" }),
+                action: () => { setHeading(view, 1); },
+            },
+            {
+                label: t("toolbar.heading", { level: "2" }),
+                action: () => { setHeading(view, 2); },
+            },
+            {
+                label: t("toolbar.heading", { level: "3" }),
+                action: () => { setHeading(view, 3); },
+                separator: true,
+            },
+            {
+                label: t("toolbar.codeBlock"),
+                action: () => { dispatchEditorCommand({ command: "codeblock" }); },
+            },
+            {
+                label: t("toolbar.table"),
+                action: () => { dispatchEditorCommand({ command: "table" }); },
+            },
+            {
+                label: t("toolbar.separator"),
+                action: () => { dispatchEditorCommand({ command: "horizontal-rule" }); },
+            },
+            {
+                label: t("toolbar.taskList"),
+                action: () => { dispatchEditorCommand({ command: "task-list" }); },
                 separator: true,
             },
             {
@@ -1604,6 +1621,43 @@ export const Editor: Component<EditorProps> = (props) => {
             {
                 label: t("toolbar.quote"),
                 action: () => { dispatchEditorCommand({ command: "quote" }); },
+                separator: true,
+            },
+            {
+                label: t("hotkeys.deleteLine"),
+                action: () => { dispatchEditorCommand({ command: "delete-line" }); },
+            },
+            {
+                label: t("hotkeys.duplicateLine"),
+                action: () => { dispatchEditorCommand({ command: "duplicate-line" }); },
+            },
+            {
+                label: t("hotkeys.moveLineUp"),
+                action: () => { dispatchEditorCommand({ command: "move-line-up" }); },
+            },
+            {
+                label: t("hotkeys.moveLineDown"),
+                action: () => { dispatchEditorCommand({ command: "move-line-down" }); },
+            },
+            {
+                label: t("hotkeys.indentMore"),
+                action: () => { dispatchEditorCommand({ command: "indent" }); },
+            },
+            {
+                label: t("hotkeys.indentLess"),
+                action: () => { dispatchEditorCommand({ command: "outdent" }); },
+            },
+            {
+                label: t("hotkeys.toggleComment"),
+                action: () => { dispatchEditorCommand({ command: "toggle-comment" }); },
+            },
+            {
+                label: t("hotkeys.toggleBlockquote"),
+                action: () => { dispatchEditorCommand({ command: "toggle-blockquote" }); },
+            },
+            {
+                label: t("context.clearFormatting"),
+                action: () => { dispatchEditorCommand({ command: "clear-formatting" }); },
                 separator: true,
             },
             {
@@ -2021,6 +2075,21 @@ export const Editor: Component<EditorProps> = (props) => {
             }
             case "toggle-comment":
                 toggleComment(view);
+                break;
+            case "toggle-blockquote":
+                toggleBlockquote(view);
+                break;
+            case "delete-line":
+                deleteLine(view);
+                break;
+            case "duplicate-line":
+                duplicateLine(view);
+                break;
+            case "indent":
+                indentLineFromStart(view, true);
+                break;
+            case "outdent":
+                indentLineFromStart(view, false);
                 break;
             case "tag":
                 wrapSelection(view, "#");

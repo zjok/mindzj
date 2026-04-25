@@ -1026,6 +1026,11 @@ function createAiStore() {
     await invoke("set_ai_api_key", { provider, apiKey });
   }
 
+  async function loadApiKey(config = configuredProvider()): Promise<string | null> {
+    if (!config) return null;
+    return getApiKey(config);
+  }
+
   function isConfigured(): boolean {
     const config = configuredProvider();
     if (!config?.model || !providerBaseUrl(config)) return false;
@@ -1131,6 +1136,7 @@ function createAiStore() {
     isConfigured,
     currentModelLabel,
     saveApiKey,
+    loadApiKey,
     testConnection,
     runInstruction,
   };

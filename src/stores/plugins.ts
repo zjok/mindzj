@@ -711,8 +711,16 @@ function getAllCommands(): CommandEntry[] {
     ];
 }
 
-export function listPluginCommands(): Array<{ id: string; name: string }> {
-    return getAllCommands().map((cmd) => ({ id: cmd.id, name: cmd.name }));
+export function listPluginCommands(): Array<{
+    id: string;
+    name: string;
+    hotkeys?: Array<{ modifiers?: string[]; key?: string }>;
+}> {
+    return getAllCommands().map((cmd) => ({
+        id: cmd.id,
+        name: cmd.name,
+        hotkeys: cmd.hotkeys,
+    }));
 }
 
 export async function runPluginCommand(commandId: string): Promise<boolean> {

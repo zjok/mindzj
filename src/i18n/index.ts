@@ -98,6 +98,7 @@ const MESSAGES: Record<string, TranslationMap> = {
   "context.cut": { "zh-CN": "剪切", en: "Cut", ja: "切り取り", fr: "Couper", de: "Ausschneiden", es: "Cortar" },
   "context.paste": { "zh-CN": "粘贴", en: "Paste", ja: "貼り付け", fr: "Coller", de: "Einfügen", es: "Pegar" },
   "context.selectAll": { "zh-CN": "全选", en: "Select all", ja: "すべて選択", fr: "Tout sélectionner", de: "Alles auswählen", es: "Seleccionar todo" },
+  "context.clearFormatting": { "zh-CN": "清除格式", en: "Clear formatting", ja: "書式をクリア", fr: "Effacer la mise en forme", de: "Formatierung löschen", es: "Borrar formato" },
   "context.rename": { "zh-CN": "重命名...", en: "Rename...", ja: "名前を変更...", fr: "Renommer...", de: "Umbenennen...", es: "Renombrar..." },
   "context.delete": { "zh-CN": "删除", en: "Delete", ja: "削除", fr: "Supprimer", de: "Löschen", es: "Eliminar" },
   "context.showInExplorer": { "zh-CN": "在文件管理器中显示", en: "Show in file manager", ja: "ファイルマネージャーで表示", fr: "Afficher dans le gestionnaire de fichiers", de: "Im Dateimanager anzeigen", es: "Mostrar en el gestor de archivos" },
