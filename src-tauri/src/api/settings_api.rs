@@ -31,10 +31,6 @@ fn sanitize_window_state(mut state: GlobalWindowState) -> GlobalWindowState {
     state
 }
 
-fn ai_keyring_account(provider: &str) -> String {
-    format!("provider:{}", provider.trim())
-}
-
 fn parse_ai_provider_type(provider: &str) -> Option<AiProviderType> {
     match provider.trim() {
         "Ollama" | "ollama" => Some(AiProviderType::Ollama),
@@ -46,6 +42,25 @@ fn parse_ai_provider_type(provider: &str) -> Option<AiProviderType> {
         "OpenAI" | "openai" => Some(AiProviderType::OpenAI),
         "Custom" | "custom" => Some(AiProviderType::Custom),
         _ => None,
+    }
+}
+
+fn ai_keyring_account(provider: &str) -> String {
+    format!("provider:{}", provider.trim())
+}
+
+fn provider_matches_config(
+    provider: &str,
+    config_id: Option<&str>,
+    provider_type: &AiProviderType,
+) -> bool {
+    let trimmed = provider.trim();
+    if let Some(id) = config_id {
+        return id == trimmed;
+    }
+    match parse_ai_provider_type(trimmed) {
+        Some(parsed) => &parsed == provider_type,
+        None => false,
     }
 }
 
@@ -168,21 +183,81 @@ pub async fn update_settings(
 }
 
 #[tauri::command]
-pub async fn get_ai_api_key(provider: String) -> Result<Option<String>, CommandError> {
-    let entry = Entry::new(AI_KEYRING_SERVICE, &ai_keyring_account(&provider)).map_err(|e| {
-        CommandError {
-            code: "KEYRING_ERROR".into(),
-            message: e.to_string(),
+pub async fn get_ai_api_key(
+    state: State<'_, AppState>,
+    window: tauri::WebviewWindow,
+    provider: String,
+) -> Result<Option<String>, CommandError> {
+    let ctx = state.get_vault_context(window.label())?;
+    {
+        let settings = ctx.settings.read().map_err(|_| CommandError {
+            code: "LOCK_ERROR".into(),
+            message: "Failed to acquire settings lock".into(),
+        })?;
+        let key = settings
+            .ai_provider
+            .as_ref()
+            .filter(|config| {
+                provider_matches_config(
+                    &provider,
+                    config.id.as_deref(),
+                    &config.provider_type,
+                )
+            })
+            .and_then(|config| config.api_key.clone())
+            .or_else(|| {
+                settings
+                    .ai_custom_providers
+                    .iter()
+                    .find(|config| {
+                        provider_matches_config(
+                            &provider,
+                            config.id.as_deref(),
+                            &config.provider_type,
+                        )
+                    })
+                    .and_then(|config| config.api_key.clone())
+            })
+            .filter(|value| !value.trim().is_empty());
+        if key.is_some() {
+            return Ok(key);
         }
-    })?;
-    match entry.get_password() {
-        Ok(value) => Ok(Some(value)),
-        Err(KeyringError::NoEntry) => Ok(None),
-        Err(e) => Err(CommandError {
-            code: "KEYRING_ERROR".into(),
-            message: e.to_string(),
-        }),
     }
+
+    let legacy_entry = Entry::new(AI_KEYRING_SERVICE, &ai_keyring_account(&provider)).ok();
+    let legacy_key = legacy_entry
+        .as_ref()
+        .and_then(|entry| match entry.get_password() {
+            Ok(value) if !value.trim().is_empty() => Some(value.trim().to_string()),
+            Ok(_) | Err(KeyringError::NoEntry) | Err(_) => None,
+        });
+    if let Some(key) = legacy_key {
+        {
+            let mut settings = ctx.settings.write().map_err(|_| CommandError {
+                code: "LOCK_ERROR".into(),
+                message: "Failed to acquire settings lock".into(),
+            })?;
+            if let Some(config) = settings.ai_provider.as_mut() {
+                if provider_matches_config(&provider, config.id.as_deref(), &config.provider_type) {
+                    config.api_key = Some(key.clone());
+                    config.has_api_key = true;
+                }
+            }
+            for config in settings.ai_custom_providers.iter_mut() {
+                if provider_matches_config(&provider, config.id.as_deref(), &config.provider_type) {
+                    config.api_key = Some(key.clone());
+                    config.has_api_key = true;
+                }
+            }
+        }
+        ctx.save_settings().map_err(CommandError::from)?;
+        if let Some(entry) = legacy_entry {
+            let _ = entry.delete_credential();
+        }
+        return Ok(Some(key));
+    }
+
+    Ok(None)
 }
 
 #[tauri::command]
@@ -192,48 +267,32 @@ pub async fn set_ai_api_key(
     provider: String,
     api_key: Option<String>,
 ) -> Result<(), CommandError> {
-    let trimmed = api_key.unwrap_or_default().trim().to_string();
-    let entry = Entry::new(AI_KEYRING_SERVICE, &ai_keyring_account(&provider)).map_err(|e| {
-        CommandError {
-            code: "KEYRING_ERROR".into(),
-            message: e.to_string(),
-        }
-    })?;
-
-    let has_api_key = !trimmed.is_empty();
-    if has_api_key {
-        entry.set_password(&trimmed).map_err(|e| CommandError {
-            code: "KEYRING_ERROR".into(),
-            message: e.to_string(),
+    let value = api_key
+        .unwrap_or_default()
+        .trim()
+        .to_string();
+    let stored = if value.is_empty() { None } else { Some(value) };
+    let has_api_key = stored.is_some();
+    let ctx = state.get_vault_context(window.label())?;
+    {
+        let mut settings = ctx.settings.write().map_err(|_| CommandError {
+            code: "LOCK_ERROR".into(),
+            message: "Failed to acquire settings lock".into(),
         })?;
-    } else {
-        match entry.delete_credential() {
-            Ok(()) | Err(KeyringError::NoEntry) => {}
-            Err(e) => {
-                return Err(CommandError {
-                    code: "KEYRING_ERROR".into(),
-                    message: e.to_string(),
-                });
+        if let Some(config) = settings.ai_provider.as_mut() {
+            if provider_matches_config(&provider, config.id.as_deref(), &config.provider_type) {
+                config.api_key = stored.clone();
+                config.has_api_key = has_api_key;
+            }
+        }
+        for config in settings.ai_custom_providers.iter_mut() {
+            if provider_matches_config(&provider, config.id.as_deref(), &config.provider_type) {
+                config.api_key = stored.clone();
+                config.has_api_key = has_api_key;
             }
         }
     }
-
-    if let Some(provider_type) = parse_ai_provider_type(&provider) {
-        let ctx = state.get_vault_context(window.label())?;
-        {
-            let mut settings = ctx.settings.write().map_err(|_| CommandError {
-                code: "LOCK_ERROR".into(),
-                message: "Failed to acquire settings lock".into(),
-            })?;
-            if let Some(config) = settings.ai_provider.as_mut() {
-                if config.provider_type == provider_type {
-                    config.has_api_key = has_api_key;
-                }
-            }
-        }
-        ctx.save_settings().map_err(CommandError::from)?;
-    }
-
+    ctx.save_settings().map_err(CommandError::from)?;
     Ok(())
 }
 

@@ -59,18 +59,21 @@ const PROVIDER_DEFAULTS: Record<"Ollama" | "LMStudio" | "ApiKeyLLM", AiProviderC
   Ollama: {
     provider_type: "Ollama",
     endpoint: "http://localhost:11434/v1",
+    api_key: null,
     has_api_key: false,
     model: "llama3.2",
   },
   LMStudio: {
     provider_type: "LMStudio",
     endpoint: "http://localhost:1234/v1",
+    api_key: null,
     has_api_key: false,
     model: "local-model",
   },
   ApiKeyLLM: {
     provider_type: "ApiKeyLLM",
     endpoint: null,
+    api_key: null,
     has_api_key: false,
     model: "",
   },
@@ -133,7 +136,13 @@ function providerNeedsRealKey(provider: AiProviderType): boolean {
   return normalizeProviderType(provider) === "ApiKeyLLM";
 }
 
-function keyringIdForConfig(config: AiProviderConfig): string {
+function configMatchesProvider(config: AiProviderConfig, provider: string): boolean {
+  const trimmed = provider.trim();
+  if (config.id) return config.id === trimmed;
+  return normalizeProviderType(config.provider_type) === trimmed;
+}
+
+function providerStorageId(config: AiProviderConfig): string {
   return config.id || normalizeProviderType(config.provider_type);
 }
 
@@ -1017,13 +1026,29 @@ async function runJsonFallback(content: string, context?: ToolExecutionContext):
 function createAiStore() {
   async function getApiKey(config: AiProviderConfig): Promise<string | null> {
     if (!providerNeedsRealKey(config.provider_type)) return null;
-    return invoke<string | null>("get_ai_api_key", {
-      provider: keyringIdForConfig(config),
-    }).catch(() => null);
+    const value = config.api_key?.trim();
+    if (value) return value;
+    const provider = providerStorageId(config);
+    const migrated = await invoke<string | null>("get_ai_api_key", { provider }).catch(() => null);
+    if (migrated?.trim()) {
+      await saveApiKey(provider, migrated);
+      return migrated.trim();
+    }
+    return null;
   }
 
   async function saveApiKey(provider: string, apiKey: string): Promise<void> {
-    await invoke("set_ai_api_key", { provider, apiKey });
+    const value = apiKey.trim();
+    const hasApiKey = value.length > 0;
+    const updateConfig = (config: AiProviderConfig): AiProviderConfig =>
+      configMatchesProvider(config, provider)
+        ? { ...config, api_key: value || null, has_api_key: hasApiKey }
+        : config;
+    const current = settingsStore.settings();
+    const nextProvider = current.ai_provider ? updateConfig(current.ai_provider) : current.ai_provider;
+    const nextCustomProviders = (current.ai_custom_providers ?? []).map(updateConfig);
+    await settingsStore.updateSetting("ai_custom_providers", nextCustomProviders);
+    await settingsStore.updateSetting("ai_provider", nextProvider);
   }
 
   async function loadApiKey(config = configuredProvider()): Promise<string | null> {

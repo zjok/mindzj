@@ -22,7 +22,13 @@ import {
     EditorView,
     WidgetType,
 } from "@codemirror/view";
-import { EditorSelection, Range, StateField, Transaction } from "@codemirror/state";
+import {
+    EditorSelection,
+    Range,
+    StateEffect,
+    StateField,
+    Transaction,
+} from "@codemirror/state";
 import katex from "katex";
 import { invoke } from "@tauri-apps/api/core";
 import { resolveImageAssetUrl } from "../../../utils/vaultPaths";
@@ -753,6 +759,54 @@ const codeContentDeco = Decoration.line({ class: "mz-lp-code-content-line" });
 const tableHeaderDeco = Decoration.line({ class: "mz-lp-table-header-line" });
 const tableSepDeco = Decoration.line({ class: "mz-lp-table-separator-line" });
 const tableRowDeco = Decoration.line({ class: "mz-lp-table-row-line" });
+const horizontalRuleHoverLineEffect = StateEffect.define<number | null>();
+const horizontalRuleHoverLineField = StateField.define<number | null>({
+    create() {
+        return null;
+    },
+    update(value, tr) {
+        for (const effect of tr.effects) {
+            if (effect.is(horizontalRuleHoverLineEffect)) {
+                return effect.value;
+            }
+        }
+        return tr.docChanged ? null : value;
+    },
+});
+
+function horizontalRuleActiveLine(state: import("@codemirror/state").EditorState) {
+    return {
+        cursor: state.doc.lineAt(state.selection.main.head).number,
+        hover: state.field(horizontalRuleHoverLineField, false) ?? null,
+    };
+}
+
+function transactionHasHorizontalRuleHoverEffect(tr: Transaction): boolean {
+    return tr.effects.some((effect) => effect.is(horizontalRuleHoverLineEffect));
+}
+
+const horizontalRuleHoverHandler = EditorView.domEventHandlers({
+    mousemove(event, view) {
+        const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
+        let nextLine: number | null = null;
+        if (pos !== null) {
+            const line = view.state.doc.lineAt(pos);
+            if (/^(-{3,}|\*{3,}|_{3,})\s*$/.test(line.text)) {
+                nextLine = line.number;
+            }
+        }
+        if ((view.state.field(horizontalRuleHoverLineField, false) ?? null) !== nextLine) {
+            view.dispatch({ effects: horizontalRuleHoverLineEffect.of(nextLine) });
+        }
+        return false;
+    },
+    mouseleave(_event, view) {
+        if (view.state.field(horizontalRuleHoverLineField, false) !== null) {
+            view.dispatch({ effects: horizontalRuleHoverLineEffect.of(null) });
+        }
+        return false;
+    },
+});
 const tagDeco = Decoration.mark({ class: "mz-lp-tag" });
 const footnoteDeco = Decoration.mark({ class: "mz-lp-footnote" });
 // Highlights the raw `[ ]` / `[x]` task brackets on the cursor line where the
@@ -791,7 +845,7 @@ function buildDecorationsImpl(
 ): DecorationSet {
     const decorations: Range<Decoration>[] = [];
     const doc = view.state.doc;
-    const cursorLine = doc.lineAt(view.state.selection.main.head).number;
+    const activeHorizontalRuleLine = horizontalRuleActiveLine(view.state);
     // No block widgets — line decorations in buildLineDecorations handle
     // the visual rendering of code fences and tables while keeping every
     // character cursor-addressable. Here we only need to skip inline
@@ -805,7 +859,7 @@ function buildDecorationsImpl(
     for (let i = 1; i <= doc.lines; i++) {
         const line = doc.line(i);
         const text = line.text;
-        const isCurrentLine = i === cursorLine;
+        const isCurrentLine = i === activeHorizontalRuleLine.cursor;
 
         // Skip empty lines
         if (!text.trim()) continue;
@@ -844,7 +898,7 @@ function buildDecorationsImpl(
         // Line class is supplied by lineDecorationField. Here we just
         // hide the raw marker on non-cursor lines.
         if (/^(-{3,}|\*{3,}|_{3,})\s*$/.test(text)) {
-            if (!isCurrentLine) {
+            if (!isCurrentLine && i !== activeHorizontalRuleLine.hover) {
                 decorations.push(hideMarker.range(line.from, line.to));
             }
             continue;
@@ -1325,7 +1379,17 @@ const livePreviewTheme = EditorView.baseTheme({
         paddingLeft: "12px",
     },
     ".cm-line.mz-lp-hr-line": {
+        position: "relative",
+    },
+    ".cm-line.mz-lp-hr-line::before": {
+        content: '""',
+        position: "absolute",
+        left: "0",
+        right: "0",
+        top: "50%",
         borderTop: "1px solid var(--mz-border)",
+        transform: "translateY(-50%)",
+        pointerEvents: "none",
     },
 
     // --- Fenced code block styling ---
@@ -1563,7 +1627,6 @@ function buildLineDecorations(
     state: import("@codemirror/state").EditorState,
 ): DecorationSet {
     const doc = state.doc;
-    const cursorLine = doc.lineAt(state.selection.main.head).number;
     const decos: Range<Decoration>[] = [];
     // No block-widget exclusion — every line is styled via line
     // decorations so raw source LOOKS like rendered blocks while
@@ -1618,9 +1681,7 @@ function buildLineDecorations(
 
         // --- Horizontal rule ---
         if (/^(-{3,}|\*{3,}|_{3,})\s*$/.test(text)) {
-            if (i !== cursorLine) {
-                decos.push(hrLineDeco.range(line.from));
-            }
+            decos.push(hrLineDeco.range(line.from));
             continue;
         }
 
@@ -1677,10 +1738,11 @@ const lineDecorationField = StateField.define<DecorationSet>({
         const afterLine = tr.state.doc.lineAt(
             tr.state.selection.main.head,
         ).number;
+        const hoverChanged = transactionHasHorizontalRuleHoverEffect(tr);
 
-        // Rebuild when the cursor crosses lines so horizontal-rule
-        // markers switch between rendered and editable states.
-        if (tr.docChanged || beforeLine !== afterLine) {
+        // Rebuild when the caret or mouse enters/leaves a horizontal
+        // rule line so the raw marker can appear only on that line.
+        if (tr.docChanged || beforeLine !== afterLine || hoverChanged) {
             return buildLineDecorations(tr.state);
         }
         return deco.map(tr.changes);
@@ -1702,6 +1764,10 @@ function createLivePreviewPlugin(vaultRoot: string, currentFilePath: string) {
         const before = update.startState.doc.lineAt(update.startState.selection.main.head).number;
         const after = update.state.doc.lineAt(update.state.selection.main.head).number;
         return before !== after;
+    }
+
+    function horizontalRuleHoverChanged(update: ViewUpdate): boolean {
+        return update.transactions.some(transactionHasHorizontalRuleHoverEffect);
     }
 
     return ViewPlugin.fromClass(
@@ -1726,11 +1792,16 @@ function createLivePreviewPlugin(vaultRoot: string, currentFilePath: string) {
                     syncListGuideMetrics(update.view);
                 }
                 // Rebuild inline decorations only when the document
-                // changes or the cursor head crosses into another line.
+                // changes, the cursor head crosses into another line,
+                // or the mouse enters/leaves a horizontal-rule line.
                 // Ctrl+F can trigger viewport/focus updates while opening
                 // its panel; those must not rescan every line in large
                 // split panes.
-                if (update.docChanged || cursorLineChanged(update)) {
+                if (
+                    update.docChanged ||
+                    cursorLineChanged(update) ||
+                    horizontalRuleHoverChanged(update)
+                ) {
                     this.decorations = buildDecorations(
                         update.view,
                         vaultRoot,
@@ -1770,6 +1841,8 @@ export function livePreviewExtension(vaultRoot: string, currentFilePath: string)
     return [
         livePreviewTheme,
         listLineBoundaryClickHandler,
+        horizontalRuleHoverLineField,
+        horizontalRuleHoverHandler,
         lineDecorationField,
         createLivePreviewPlugin(vaultRoot, currentFilePath),
     ];

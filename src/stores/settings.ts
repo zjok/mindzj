@@ -80,6 +80,7 @@ export interface AiProviderConfig {
   display_name?: string | null;
   provider_type: AiProviderType;
   endpoint: string | null;
+  api_key?: string | null;
   has_api_key: boolean;
   model: string;
 }
@@ -290,6 +291,10 @@ function normalizeAiConfig(config: unknown): AiProviderConfig | null {
   if (!config || typeof config !== "object") return null;
   const raw = config as Partial<AiProviderConfig>;
   const providerType = normalizeAiProviderType(raw.provider_type);
+  const apiKey =
+    typeof raw.api_key === "string" && raw.api_key.trim()
+      ? raw.api_key.trim()
+      : null;
   return {
     id: typeof raw.id === "string" && raw.id.trim() ? raw.id : null,
     display_name:
@@ -300,7 +305,8 @@ function normalizeAiConfig(config: unknown): AiProviderConfig | null {
     endpoint: typeof raw.endpoint === "string" && raw.endpoint.trim()
       ? raw.endpoint.trim()
       : null,
-    has_api_key: !!raw.has_api_key,
+    api_key: apiKey,
+    has_api_key: !!raw.has_api_key || !!apiKey,
     model: typeof raw.model === "string" ? raw.model : "",
   };
 }

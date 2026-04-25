@@ -223,8 +223,8 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
     const value = aiApiKeyDraft().trim();
     if (isApiKeyAiProvider(next)) {
       next.id = next.id || `api-key-llm-${Date.now()}`;
-      if (value) await aiStore.saveApiKey(next.id, value);
-      next.has_api_key = next.has_api_key || value.length > 0;
+      next.api_key = value || null;
+      next.has_api_key = value.length > 0;
       const providers = customAiProviders();
       const exists = providers.some((config) => config.id === next.id);
       const updated = exists
@@ -249,9 +249,9 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
       ...createApiKeyProviderConfig(),
       model,
       display_name: model,
+      api_key: apiKey || null,
       has_api_key: apiKey.length > 0,
     };
-    if (apiKey) await aiStore.saveApiKey(next.id!, apiKey);
     await set("ai_custom_providers", [...customAiProviders(), next]);
     await set("ai_provider", next);
     setAiAddModelDraft("");
@@ -270,7 +270,6 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
       { confirmLabel: t("common.delete"), variant: "danger" },
     );
     if (!confirmed) return;
-    await aiStore.saveApiKey(current.id, "");
     await set("ai_custom_providers", customAiProviders().filter((config) => config.id !== current.id));
     await set("ai_provider", defaultAiProviderConfig("Ollama"));
     setAiApiKeyDraft("");
@@ -281,7 +280,7 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
   async function testAiConfig() {
     setAiTestResult(t("settings.aiTesting"));
     try {
-      if (isApiKeyAiProvider() && aiApiKeyDraft().trim()) {
+      if (isApiKeyAiProvider()) {
         const saved = await saveAiProvider(false);
         if (!saved) {
           setAiTestResult(t("settings.aiModelRequired"));
@@ -724,27 +723,29 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
 
           {/* AI Settings */}
           <Show when={activeTab() === "ai"}>
-            <h2 style={titleStyle}>{t("settings.ai")}</h2>
+            <div style={titleActionRowStyle}>
+              <h2 style={{ ...titleStyle, "margin-bottom": "0" }}>{t("settings.ai")}</h2>
+              <Show when={!aiAddMode()}>
+                <button
+                  onClick={() => {
+                    setAiAddingModel(true);
+                    setAiAddModelDraft("");
+                    setAiApiKeyDraft("");
+                    setAiApiKeyVisible(true);
+                    setAiTestResult(null);
+                  }}
+                  style={settingsButtonStyle}
+                >
+                  {t("settings.aiAddNewModel")}
+                </button>
+              </Show>
+            </div>
 
             <SettingSection title={aiAddMode() ? t("settings.aiAddModelSection") : t("settings.aiProviderSection")}>
               <Show
                 when={aiAddMode()}
                 fallback={
                   <>
-                    <div style={{ display: "flex", "justify-content": "flex-end", "margin-bottom": "12px" }}>
-                      <button
-                        onClick={() => {
-                          setAiAddingModel(true);
-                          setAiAddModelDraft("");
-                          setAiApiKeyDraft("");
-                          setAiApiKeyVisible(true);
-                          setAiTestResult(null);
-                        }}
-                        style={settingsButtonStyle}
-                      >
-                        {t("settings.aiAddNewModel")}
-                      </button>
-                    </div>
                     <SettingSelect
                       label={aiProviderKindLabel()}
                       description={isLocalAiProvider() ? t("settings.aiLocalModelDescription") : t("settings.aiOnlineModelDescription")}
@@ -2136,6 +2137,14 @@ const titleStyle = {
   color: "var(--mz-text-primary)",
   "margin-bottom": "20px",
 };
+
+const titleActionRowStyle = {
+  display: "flex",
+  "align-items": "center",
+  "justify-content": "space-between",
+  gap: "12px",
+  "margin-bottom": "20px",
+} as const;
 
 const titleSelectStyle = {
   width: "180px",

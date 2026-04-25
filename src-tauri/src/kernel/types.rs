@@ -504,7 +504,10 @@ pub struct AiProviderConfig {
     pub provider_type: AiProviderType,
     /// API endpoint (for example a local service URL or a remote compatible URL)
     pub endpoint: Option<String>,
-    /// API key (stored encrypted in system keyring, not here)
+    /// API key stored in the current vault's `.mindzj/settings.json`.
+    #[serde(default)]
+    pub api_key: Option<String>,
+    /// Whether this provider currently has a non-empty API key.
     pub has_api_key: bool,
     /// Model name (e.g., "llama3.2", "claude-sonnet-4-20250514")
     pub model: String,
