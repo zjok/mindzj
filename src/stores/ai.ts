@@ -37,6 +37,18 @@ type ToolResult = {
   data?: unknown;
 };
 
+type AiProviderFamily = "openai-compatible" | "anthropic" | "gemini";
+
+interface RunInstructionOptions {
+  restrictToActiveFile?: boolean;
+}
+
+interface ToolExecutionContext {
+  restrictToActiveFile: boolean;
+  activePath: string | null;
+  hasExplicitPath: boolean;
+}
+
 const PROVIDER_DEFAULTS: Record<"Ollama" | "LMStudio" | "ApiKeyLLM", AiProviderConfig> = {
   Ollama: {
     provider_type: "Ollama",
@@ -75,8 +87,33 @@ function configuredProvider(): AiProviderConfig | null {
 }
 
 function providerBaseUrl(config: AiProviderConfig): string {
-  const fallback = PROVIDER_DEFAULTS[normalizeProviderType(config.provider_type)]?.endpoint ?? "";
+  const providerType = normalizeProviderType(config.provider_type);
+  const fallback = providerType === "ApiKeyLLM"
+    ? defaultApiKeyEndpoint(config)
+    : PROVIDER_DEFAULTS[providerType]?.endpoint ?? "";
   return (config.endpoint || fallback || "").replace(/\/+$/, "");
+}
+
+function modelHint(config: AiProviderConfig): string {
+  return `${config.display_name ?? ""} ${config.model ?? ""}`.toLowerCase();
+}
+
+function inferProviderFamily(config: AiProviderConfig): AiProviderFamily {
+  const endpoint = (config.endpoint ?? "").toLowerCase();
+  const hint = modelHint(config);
+  if (endpoint.includes("anthropic.com") || hint.includes("claude")) return "anthropic";
+  if (endpoint.includes("generativelanguage.googleapis.com") || hint.includes("gemini")) return "gemini";
+  return "openai-compatible";
+}
+
+function defaultApiKeyEndpoint(config: AiProviderConfig): string {
+  const family = inferProviderFamily(config);
+  if (family === "anthropic") return "https://api.anthropic.com/v1";
+  if (family === "gemini") return "https://generativelanguage.googleapis.com/v1beta";
+  if (modelHint(config).includes("grok") || modelHint(config).includes("xai")) {
+    return "https://api.x.ai/v1";
+  }
+  return "https://api.openai.com/v1";
 }
 
 function providerNeedsRealKey(provider: AiProviderType): boolean {
@@ -404,7 +441,64 @@ const TOOLS: ToolDefinition[] = [
   },
 ];
 
-async function executeTool(name: string, args: any): Promise<ToolResult> {
+function instructionMentionsExplicitPath(instruction: string): boolean {
+  const text = instruction.trim();
+  if (!text) return false;
+  return /\.md\b/i.test(text)
+    || /\[\[[^\]]+\]\]/.test(text)
+    || /(?:^|[\s"'`])[\w\u4e00-\u9fff ._-]+\/[\w\u4e00-\u9fff ./_-]+(?:$|[\s"'`])/u.test(text);
+}
+
+function buildToolContext(instruction: string, options?: RunInstructionOptions): ToolExecutionContext {
+  return {
+    restrictToActiveFile: !!options?.restrictToActiveFile,
+    activePath: vaultStore.activeFile()?.path ?? null,
+    hasExplicitPath: instructionMentionsExplicitPath(instruction),
+  };
+}
+
+function enforceCurrentFileContentScope(
+  toolName: string,
+  rawPath: string,
+  context?: ToolExecutionContext,
+): { ok: true; path: string } | { ok: false; result: ToolResult } {
+  const path = cleanPath(rawPath);
+  if (!context?.restrictToActiveFile || context.hasExplicitPath) return { ok: true, path };
+
+  if (toolName !== "update_note" && toolName !== "append_note") {
+    return {
+      ok: false,
+      result: {
+        ok: false,
+        message: "No explicit file path was provided. This AI panel may only change the current note content.",
+      },
+    };
+  }
+
+  if (!context.activePath) {
+    return {
+      ok: false,
+      result: {
+        ok: false,
+        message: "No active note is available to modify.",
+      },
+    };
+  }
+
+  if (!path) return { ok: true, path: context.activePath };
+  if (path !== context.activePath) {
+    return {
+      ok: false,
+      result: {
+        ok: false,
+        message: `No explicit file path was provided. Refusing to modify ${path}; only ${context.activePath} may be changed.`,
+      },
+    };
+  }
+  return { ok: true, path };
+}
+
+async function executeTool(name: string, args: any, context?: ToolExecutionContext): Promise<ToolResult> {
   try {
     switch (name) {
       case "list_notes": {
@@ -438,20 +532,26 @@ async function executeTool(name: string, args: any): Promise<ToolResult> {
         return { ok: true, data: { path: file.path, content: file.content } };
       }
       case "create_note": {
-        const path = cleanPath(String(args.path ?? ""));
+        const scoped = enforceCurrentFileContentScope(name, String(args.path ?? ""), context);
+        if (!scoped.ok) return scoped.result;
+        const path = scoped.path;
         const content = String(args.content ?? "");
         const file = await vaultStore.createFile(path, content);
         await vaultStore.openFile(file.path);
         return { ok: true, message: `Created ${file.path}`, data: file };
       }
       case "update_note": {
-        const path = cleanPath(String(args.path ?? ""));
+        const scoped = enforceCurrentFileContentScope(name, String(args.path ?? ""), context);
+        if (!scoped.ok) return scoped.result;
+        const path = scoped.path;
         const content = String(args.content ?? "");
         const file = await vaultStore.saveFile(path, content);
         return { ok: true, message: `Updated ${file.path}`, data: file };
       }
       case "append_note": {
-        const path = cleanPath(String(args.path ?? ""));
+        const scoped = enforceCurrentFileContentScope(name, String(args.path ?? ""), context);
+        if (!scoped.ok) return scoped.result;
+        const path = scoped.path;
         const content = String(args.content ?? "");
         const file = await invoke<FileContent>("read_file", { relativePath: path });
         const next = file.content.endsWith("\n") || content.startsWith("\n")
@@ -461,16 +561,26 @@ async function executeTool(name: string, args: any): Promise<ToolResult> {
         return { ok: true, message: `Appended to ${saved.path}`, data: saved };
       }
       case "delete_note": {
-        const path = cleanPath(String(args.path ?? ""));
+        const scoped = enforceCurrentFileContentScope(name, String(args.path ?? ""), context);
+        if (!scoped.ok) return scoped.result;
+        const path = scoped.path;
         await vaultStore.deleteFile(path);
         return { ok: true, message: `Deleted ${path}` };
       }
       case "delete_folder": {
-        const path = cleanPath(String(args.path ?? ""));
+        const scoped = enforceCurrentFileContentScope(name, String(args.path ?? ""), context);
+        if (!scoped.ok) return scoped.result;
+        const path = scoped.path;
         await vaultStore.deleteDir(path);
         return { ok: true, message: `Deleted folder ${path}` };
       }
       case "rename_note": {
+        if (context?.restrictToActiveFile && !context.hasExplicitPath) {
+          return {
+            ok: false,
+            message: "No explicit file path was provided. This AI panel may only change the current note content.",
+          };
+        }
         const from = cleanPath(String(args.from ?? ""));
         const to = cleanPath(String(args.to ?? ""));
         const file = await invoke<FileContent>("rename_file", { from, to });
@@ -508,7 +618,9 @@ async function executeTool(name: string, args: any): Promise<ToolResult> {
         return { ok: true, message: `Opened ${file.path}`, data: { path: file.path } };
       }
       case "create_folder": {
-        const path = cleanPath(String(args.path ?? ""));
+        const scoped = enforceCurrentFileContentScope(name, String(args.path ?? ""), context);
+        if (!scoped.ok) return scoped.result;
+        const path = scoped.path;
         await vaultStore.createDir(path);
         return { ok: true, message: `Created folder ${path}` };
       }
@@ -555,10 +667,10 @@ async function executeTool(name: string, args: any): Promise<ToolResult> {
   }
 }
 
-function buildSystemPrompt() {
+function buildSystemPrompt(context?: ToolExecutionContext) {
   const active = vaultStore.activeFile()?.path ?? "(none)";
   const commands = listPluginCommands().map((command) => command.id).slice(0, 80);
-  return [
+  const lines = [
     "You are MindZJ's local automation agent.",
     "Use tools to inspect and modify the user's current vault. Do not invent file contents or paths.",
     "For destructive changes, only perform the exact action requested by the user.",
@@ -566,7 +678,14 @@ function buildSystemPrompt() {
     `Active note: ${active}`,
     `Available plugin command ids: ${commands.join(", ") || "(none)"}`,
     "If tool calling is unavailable, respond with JSON like {\"tool\":\"read_note\",\"arguments\":{\"path\":\"note.md\"}} or {\"actions\":[...]} only.",
-  ].join("\n");
+  ];
+  if (context?.restrictToActiveFile && !context.hasExplicitPath) {
+    lines.push(
+      `The user did not name a specific file path. Any content-changing operation must target only the current active note: ${context.activePath ?? "(none)"}.`,
+      "Do not create, delete, rename, or modify another note unless the user explicitly names its vault-relative path.",
+    );
+  }
+  return lines.join("\n");
 }
 
 async function chatCompletionRequest(
@@ -574,38 +693,274 @@ async function chatCompletionRequest(
   messages: ChatMessage[],
   apiKey: string | null,
 ) {
-  const url = `${providerBaseUrl(config)}/chat/completions`;
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
-  if (apiKey) {
-    headers.Authorization = `Bearer ${apiKey}`;
-  }
-  const response = await fetch(url, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({
+  const family = inferProviderFamily(config);
+  if (family === "anthropic") return chatCompletionAnthropic(config, messages, apiKey);
+  if (family === "gemini") return chatCompletionGemini(config, messages, apiKey);
+  return chatCompletionOpenAiCompatible(config, messages, apiKey);
+}
+
+function authHeader(apiKey: string | null): Record<string, string> {
+  return apiKey ? { Authorization: `Bearer ${apiKey}` } : {};
+}
+
+async function postAiJson(url: string, headers: Record<string, string>, body: unknown) {
+  return invoke<any>("ai_chat_completion", {
+    request: { url, headers, body },
+  });
+}
+
+async function chatCompletionOpenAiCompatible(
+  config: AiProviderConfig,
+  messages: ChatMessage[],
+  apiKey: string | null,
+) {
+  return postAiJson(
+    `${providerBaseUrl(config)}/chat/completions`,
+    authHeader(apiKey),
+    {
       model: config.model,
       messages,
       tools: TOOLS,
       tool_choice: "auto",
-    }),
-  });
-  if (!response.ok) {
-    const text = await response.text().catch(() => "");
-    throw new Error(`${response.status} ${response.statusText}${text ? `: ${text}` : ""}`);
-  }
-  return response.json();
+    },
+  );
 }
 
-async function runJsonFallback(content: string): Promise<string | null> {
+function anthropicToolDefinitions() {
+  return TOOLS.map((tool) => ({
+    name: tool.function.name,
+    description: tool.function.description,
+    input_schema: tool.function.parameters,
+  }));
+}
+
+function anthropicMessages(messages: ChatMessage[]) {
+  const system: string[] = [];
+  const result: any[] = [];
+  const toolNames = new Map<string, string>();
+
+  for (const message of messages) {
+    if (message.role === "system") {
+      if (message.content) system.push(message.content);
+      continue;
+    }
+    if (message.role === "user") {
+      result.push({ role: "user", content: message.content ?? "" });
+      continue;
+    }
+    if (message.role === "assistant") {
+      const content: any[] = [];
+      if (message.content) content.push({ type: "text", text: message.content });
+      for (const call of message.tool_calls ?? []) {
+        toolNames.set(call.id, call.function.name);
+        content.push({
+          type: "tool_use",
+          id: call.id,
+          name: call.function.name,
+          input: parseJsonObject(call.function.arguments) ?? {},
+        });
+      }
+      result.push({ role: "assistant", content: content.length ? content : "" });
+      continue;
+    }
+    if (message.role === "tool" && message.tool_call_id) {
+      result.push({
+        role: "user",
+        content: [{
+          type: "tool_result",
+          tool_use_id: message.tool_call_id,
+          content: message.content ?? "",
+        }],
+      });
+    }
+  }
+
+  return { system: system.join("\n\n"), messages: result };
+}
+
+function normalizeAnthropicResponse(data: any) {
+  const parts = Array.isArray(data?.content) ? data.content : [];
+  const text = parts
+    .filter((part: any) => part?.type === "text" && typeof part.text === "string")
+    .map((part: any) => part.text)
+    .join("\n")
+    .trim();
+  const toolCalls = parts
+    .filter((part: any) => part?.type === "tool_use" && part.name)
+    .map((part: any, index: number) => ({
+      id: String(part.id ?? `anthropic-tool-${index}`),
+      type: "function" as const,
+      function: {
+        name: String(part.name),
+        arguments: JSON.stringify(part.input ?? {}),
+      },
+    }));
+  return {
+    choices: [{
+      message: {
+        content: text || null,
+        tool_calls: toolCalls.length ? toolCalls : undefined,
+      },
+    }],
+  };
+}
+
+async function chatCompletionAnthropic(
+  config: AiProviderConfig,
+  messages: ChatMessage[],
+  apiKey: string | null,
+) {
+  if (!apiKey) throw new Error("API key is required for this provider.");
+  const converted = anthropicMessages(messages);
+  const data = await postAiJson(
+    `${providerBaseUrl(config)}/messages`,
+    {
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+    },
+    {
+      model: config.model,
+      max_tokens: 4096,
+      system: converted.system,
+      messages: converted.messages,
+      tools: anthropicToolDefinitions(),
+    },
+  );
+  return normalizeAnthropicResponse(data);
+}
+
+function toGeminiSchema(value: any): any {
+  if (Array.isArray(value)) return value.map(toGeminiSchema);
+  if (!value || typeof value !== "object") return value;
+  const result: Record<string, unknown> = {};
+  for (const [key, entry] of Object.entries(value)) {
+    if (key === "additionalProperties") continue;
+    result[key] = key === "type" && typeof entry === "string"
+      ? entry.toUpperCase()
+      : toGeminiSchema(entry);
+  }
+  return result;
+}
+
+function geminiToolDefinitions() {
+  return [{
+    functionDeclarations: TOOLS.map((tool) => ({
+      name: tool.function.name,
+      description: tool.function.description,
+      parameters: toGeminiSchema(tool.function.parameters),
+    })),
+  }];
+}
+
+function geminiModelPath(model: string): string {
+  const trimmed = model.trim().replace(/^\/+/, "");
+  return trimmed.startsWith("models/") ? trimmed : `models/${trimmed}`;
+}
+
+function geminiMessages(messages: ChatMessage[]) {
+  const systemParts: Array<{ text: string }> = [];
+  const contents: any[] = [];
+  const toolNames = new Map<string, string>();
+
+  for (const message of messages) {
+    if (message.role === "system") {
+      if (message.content) systemParts.push({ text: message.content });
+      continue;
+    }
+    if (message.role === "user") {
+      contents.push({ role: "user", parts: [{ text: message.content ?? "" }] });
+      continue;
+    }
+    if (message.role === "assistant") {
+      const parts: any[] = [];
+      if (message.content) parts.push({ text: message.content });
+      for (const call of message.tool_calls ?? []) {
+        toolNames.set(call.id, call.function.name);
+        parts.push({
+          functionCall: {
+            name: call.function.name,
+            args: parseJsonObject(call.function.arguments) ?? {},
+          },
+        });
+      }
+      contents.push({ role: "model", parts: parts.length ? parts : [{ text: "" }] });
+      continue;
+    }
+    if (message.role === "tool" && message.tool_call_id) {
+      const toolName = toolNames.get(message.tool_call_id) ?? "tool_result";
+      const parsed = message.content ? parseJsonObject(message.content) : null;
+      contents.push({
+        role: "user",
+        parts: [{
+          functionResponse: {
+            name: toolName,
+            response: parsed ?? { content: message.content ?? "" },
+          },
+        }],
+      });
+    }
+  }
+
+  return {
+    systemInstruction: systemParts.length ? { parts: systemParts } : undefined,
+    contents,
+  };
+}
+
+function normalizeGeminiResponse(data: any) {
+  const parts = data?.candidates?.[0]?.content?.parts ?? [];
+  const text = parts
+    .filter((part: any) => typeof part?.text === "string")
+    .map((part: any) => part.text)
+    .join("\n")
+    .trim();
+  const toolCalls = parts
+    .filter((part: any) => part?.functionCall?.name)
+    .map((part: any, index: number) => ({
+      id: `gemini-tool-${index}`,
+      type: "function" as const,
+      function: {
+        name: String(part.functionCall.name),
+        arguments: JSON.stringify(part.functionCall.args ?? {}),
+      },
+    }));
+  return {
+    choices: [{
+      message: {
+        content: text || null,
+        tool_calls: toolCalls.length ? toolCalls : undefined,
+      },
+    }],
+  };
+}
+
+async function chatCompletionGemini(
+  config: AiProviderConfig,
+  messages: ChatMessage[],
+  apiKey: string | null,
+) {
+  if (!apiKey) throw new Error("API key is required for this provider.");
+  const converted = geminiMessages(messages);
+  const data = await postAiJson(
+    `${providerBaseUrl(config)}/${geminiModelPath(config.model)}:generateContent`,
+    { "x-goog-api-key": apiKey },
+    {
+      ...converted,
+      tools: geminiToolDefinitions(),
+      toolConfig: { functionCallingConfig: { mode: "AUTO" } },
+    },
+  );
+  return normalizeGeminiResponse(data);
+}
+
+async function runJsonFallback(content: string, context?: ToolExecutionContext): Promise<string | null> {
   const parsed = parseJsonObject(content);
   if (!parsed) return null;
   const actions = Array.isArray(parsed.actions) ? parsed.actions : [parsed];
   const results: ToolResult[] = [];
   for (const action of actions) {
     if (!action?.tool) continue;
-    results.push(await executeTool(action.tool, action.arguments ?? {}));
+    results.push(await executeTool(action.tool, action.arguments ?? {}, context));
   }
   if (!results.length) return null;
   return results.map((result) => result.message || JSON.stringify(result.data ?? result)).join("\n");
@@ -629,7 +984,7 @@ function createAiStore() {
     return !providerNeedsRealKey(config.provider_type) || config.has_api_key;
   }
 
-  async function runInstruction(instruction: string): Promise<string> {
+  async function runInstruction(instruction: string, options?: RunInstructionOptions): Promise<string> {
     const config = configuredProvider();
     if (!config) throw new Error("AI provider is not configured.");
     if (!config.model.trim()) throw new Error("AI model is empty.");
@@ -642,8 +997,9 @@ function createAiStore() {
     if (providerNeedsRealKey(config.provider_type) && !apiKey) {
       throw new Error("API key is required for this provider.");
     }
+    const toolContext = buildToolContext(instruction, options);
     const messages: ChatMessage[] = [
-      { role: "system", content: buildSystemPrompt() },
+      { role: "system", content: buildSystemPrompt(toolContext) },
       { role: "user", content: instruction },
     ];
     const executed: string[] = [];
@@ -662,7 +1018,7 @@ function createAiStore() {
       if (toolCalls.length > 0) {
         for (const call of toolCalls) {
           const args = parseJsonObject(call.function.arguments) ?? {};
-          const result = await executeTool(call.function.name, args);
+          const result = await executeTool(call.function.name, args, toolContext);
           if (result.message) executed.push(result.message);
           messages.push({
             role: "tool",
@@ -674,7 +1030,7 @@ function createAiStore() {
       }
 
       const content = String(message.content ?? "").trim();
-      const fallback = await runJsonFallback(content);
+      const fallback = await runJsonFallback(content, toolContext);
       if (fallback) return fallback;
       return content || executed.join("\n") || "Done.";
     }

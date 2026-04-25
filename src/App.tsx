@@ -5,6 +5,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { vaultStore, type FileContent } from "./stores/vault";
 import { editorStore, type ViewMode } from "./stores/editor";
 import { settingsStore } from "./stores/settings";
+import { aiStore } from "./stores/ai";
 import { workspaceStore, type WorkspaceState } from "./stores/workspace";
 import { pluginStore, hasPluginViewForExtension, mountPluginView, destroyPluginView, isPluginSaving } from "./stores/plugins";
 import {
@@ -101,6 +102,10 @@ const App: Component = () => {
     // flash in the shared `.mz-search-flash` colour).
     const [showGotoLine, setShowGotoLine] = createSignal(false);
     const [showSettings, setShowSettings] = createSignal(false);
+    const [showAiPanel, setShowAiPanel] = createSignal(false);
+    const [aiPanelInput, setAiPanelInput] = createSignal("");
+    const [aiPanelOutput, setAiPanelOutput] = createSignal("");
+    const [aiPanelBusy, setAiPanelBusy] = createSignal(false);
     const [sidebarTab, setSidebarTab] = createSignal<SidebarTab>("files");
     const [sidebarCollapsed, setSidebarCollapsed] = createSignal(false);
     const [showVaultMenu, setShowVaultMenu] = createSignal(false);
@@ -1576,6 +1581,24 @@ const App: Component = () => {
         });
     }
 
+    async function runAiPanelInstruction() {
+        const instruction = aiPanelInput().trim();
+        if (!instruction || aiPanelBusy()) return;
+        setAiPanelBusy(true);
+        setAiPanelOutput(t("aiPanel.working"));
+        try {
+            const result = await aiStore.runInstruction(instruction, {
+                restrictToActiveFile: true,
+            });
+            setAiPanelOutput(result || t("aiPanel.done"));
+            setAiPanelInput("");
+        } catch (err: any) {
+            setAiPanelOutput(err?.message || String(err));
+        } finally {
+            setAiPanelBusy(false);
+        }
+    }
+
     function handleGlobalKeydown(e: KeyboardEvent) {
         if (suppressWebViewAltMenu(e)) return;
         if (e.defaultPrevented) return;
@@ -1586,6 +1609,19 @@ const App: Component = () => {
 
         // If the settings hotkey capture is active, let the HotkeysPanel handle the event
         if ((window as any).__mindzj_hotkey_capturing) return;
+
+        if (
+            e.altKey &&
+            !e.ctrlKey &&
+            !e.shiftKey &&
+            !e.metaKey &&
+            (e.key === "`" || e.code === "Backquote")
+        ) {
+            e.preventDefault();
+            e.stopPropagation();
+            setShowAiPanel((value) => !value);
+            return;
+        }
 
         // Check if the editor (CodeMirror) is focused
         const editorFocused = !!(document.activeElement?.closest(".cm-editor"));
@@ -2694,6 +2730,17 @@ const App: Component = () => {
             <Show when={showSettings()}>
                 <SettingsModal onClose={() => setShowSettings(false)} />
             </Show>
+            <Show when={showAiPanel()}>
+                <AiBottomPanel
+                    input={aiPanelInput()}
+                    output={aiPanelOutput()}
+                    busy={aiPanelBusy()}
+                    activePath={activePanePath() ?? vaultStore.activeFile()?.path ?? null}
+                    onInput={setAiPanelInput}
+                    onRun={() => void runAiPanelInstruction()}
+                    onClose={() => setShowAiPanel(false)}
+                />
+            </Show>
             <Show when={screenshotData()}>
                 <ScreenshotOverlay
                     screenshotBase64={screenshotData()!}
@@ -2732,6 +2779,159 @@ const App: Component = () => {
                 </div>
             </Show>
             <ConfirmDialog />
+        </div>
+    );
+};
+
+const AiBottomPanel: Component<{
+    input: string;
+    output: string;
+    busy: boolean;
+    activePath: string | null;
+    onInput: (value: string) => void;
+    onRun: () => void;
+    onClose: () => void;
+}> = (props) => {
+    let textareaRef: HTMLTextAreaElement | undefined;
+
+    onMount(() => {
+        queueMicrotask(() => textareaRef?.focus());
+    });
+
+    return (
+        <div
+            style={{
+                position: "fixed",
+                left: "0",
+                right: "0",
+                bottom: "24px",
+                height: "min(34vh, 300px)",
+                "min-height": "220px",
+                "z-index": "9998",
+                display: "flex",
+                "flex-direction": "column",
+                background: "var(--mz-bg-secondary)",
+                border: "1px solid var(--mz-border)",
+                "border-left": "none",
+                "border-right": "none",
+                "box-shadow": "0 -8px 28px rgba(0,0,0,0.32)",
+                color: "var(--mz-text-primary)",
+            }}
+        >
+            <div
+                style={{
+                    display: "flex",
+                    "align-items": "center",
+                    "justify-content": "space-between",
+                    height: "36px",
+                    padding: "0 12px",
+                    "border-bottom": "1px solid var(--mz-border)",
+                    "font-size": "var(--mz-font-size-sm)",
+                    "font-family": "var(--mz-font-sans)",
+                }}
+            >
+                <div style={{ display: "flex", "align-items": "center", gap: "10px", "min-width": "0" }}>
+                    <strong>{t("aiPanel.title")}</strong>
+                    <span style={{ color: "var(--mz-text-muted)", overflow: "hidden", "text-overflow": "ellipsis", "white-space": "nowrap" }}>
+                        {props.activePath || t("aiPanel.noActiveFile")}
+                    </span>
+                </div>
+                <button
+                    onClick={props.onClose}
+                    title={t("common.close")}
+                    style={{
+                        width: "28px",
+                        height: "28px",
+                        border: "none",
+                        "border-radius": "var(--mz-radius-sm)",
+                        background: "transparent",
+                        color: "var(--mz-text-muted)",
+                        cursor: "pointer",
+                        "font-size": "18px",
+                        "line-height": "1",
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = "var(--mz-bg-hover)"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                >
+                    x
+                </button>
+            </div>
+            <div
+                style={{
+                    flex: "1",
+                    display: "grid",
+                    "grid-template-columns": "repeat(auto-fit, minmax(260px, 1fr))",
+                    gap: "12px",
+                    padding: "12px",
+                    "min-height": "0",
+                }}
+            >
+                <div style={{ display: "flex", "flex-direction": "column", gap: "8px", "min-width": "0", "min-height": "0" }}>
+                    <textarea
+                        ref={textareaRef}
+                        value={props.input}
+                        placeholder={t("aiPanel.placeholder")}
+                        disabled={props.busy}
+                        onInput={(e) => props.onInput(e.currentTarget.value)}
+                        onKeyDown={(e) => {
+                            if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+                                e.preventDefault();
+                                props.onRun();
+                            }
+                        }}
+                        style={{
+                            flex: "1",
+                            resize: "none",
+                            border: "1px solid var(--mz-border)",
+                            "border-radius": "var(--mz-radius-sm)",
+                            background: "var(--mz-bg-primary)",
+                            color: "var(--mz-text-primary)",
+                            padding: "10px",
+                            "font-family": "var(--mz-font-sans)",
+                            "font-size": "var(--mz-font-size-sm)",
+                            outline: "none",
+                            "min-height": "0",
+                        }}
+                    />
+                    <div style={{ display: "flex", "justify-content": "flex-end", gap: "8px" }}>
+                        <button
+                            onClick={props.onRun}
+                            disabled={props.busy || !props.input.trim()}
+                            style={{
+                                border: "1px solid var(--mz-accent)",
+                                background: "transparent",
+                                color: "var(--mz-accent)",
+                                "border-radius": "var(--mz-radius-sm)",
+                                padding: "6px 16px",
+                                cursor: props.busy || !props.input.trim() ? "default" : "pointer",
+                                opacity: props.busy || !props.input.trim() ? "0.55" : "1",
+                                "font-size": "var(--mz-font-size-sm)",
+                                "font-family": "var(--mz-font-sans)",
+                            }}
+                        >
+                            {props.busy ? t("aiPanel.working") : t("aiPanel.run")}
+                        </button>
+                    </div>
+                </div>
+                <pre
+                    style={{
+                        margin: "0",
+                        overflow: "auto",
+                        "white-space": "pre-wrap",
+                        "word-break": "break-word",
+                        border: "1px solid var(--mz-border)",
+                        "border-radius": "var(--mz-radius-sm)",
+                        background: "var(--mz-bg-primary)",
+                        color: props.output ? "var(--mz-text-secondary)" : "var(--mz-text-muted)",
+                        padding: "10px",
+                        "font-family": "var(--mz-font-mono, monospace)",
+                        "font-size": "var(--mz-font-size-xs)",
+                        "min-height": "0",
+                    }}
+                >
+                    {props.output || t("aiPanel.empty")}
+                </pre>
+            </div>
         </div>
     );
 };

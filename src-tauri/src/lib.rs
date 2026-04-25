@@ -753,6 +753,7 @@ pub fn run() {
             api::settings_api::set_view_mode,
             api::settings_api::get_ai_api_key,
             api::settings_api::set_ai_api_key,
+            api::settings_api::ai_chat_completion,
             // Workspace API
             api::settings_api::load_workspace,
             api::settings_api::save_workspace,

@@ -68,6 +68,8 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
   const [activePluginName, setActivePluginName] = createSignal<string>("");
   const [aiApiKeyDraft, setAiApiKeyDraft] = createSignal("");
   const [aiTestResult, setAiTestResult] = createSignal<string | null>(null);
+  const [aiAddingModel, setAiAddingModel] = createSignal(false);
+  const [aiAddModelDraft, setAiAddModelDraft] = createSignal("");
 
   function handleKeydown(e: KeyboardEvent) {
     if (e.key !== "Escape") return;
@@ -137,6 +139,11 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
     const id = aiConfig().id;
     return !!id && customAiProviders().some((config) => config.id === id);
   };
+  const isLocalAiProvider = (config = aiConfig()) =>
+    config.provider_type === "Ollama" || config.provider_type === "LMStudio";
+  const aiAddMode = () => aiAddingModel();
+  const aiProviderKindLabel = () =>
+    isLocalAiProvider() ? t("settings.aiLocalModel") : t("settings.aiOnlineModel");
   function createApiKeyProviderConfig(): AiProviderConfig {
     return {
       ...defaultAiProviderConfig("ApiKeyLLM"),
@@ -151,8 +158,13 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
     const current = aiConfig();
     const next: AiProviderConfig = {
       ...current,
+      endpoint: isApiKeyAiProvider(current) ? null : current.endpoint,
       display_name: current.model.trim() || current.display_name || null,
     };
+    if (!next.model.trim()) {
+      setAiTestResult(t("settings.aiModelRequired"));
+      return;
+    }
     const value = aiApiKeyDraft().trim();
     if (isApiKeyAiProvider(next)) {
       next.id = next.id || `api-key-llm-${Date.now()}`;
@@ -169,6 +181,27 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
     setAiApiKeyDraft("");
     setAiTestResult(t("settings.aiProviderSaved"));
   }
+  async function saveNewAiProvider() {
+    const model = aiAddModelDraft().trim();
+    if (!model) {
+      setAiTestResult(t("settings.aiModelRequired"));
+      return;
+    }
+    const apiKey = aiApiKeyDraft().trim();
+    const next: AiProviderConfig = {
+      ...createApiKeyProviderConfig(),
+      model,
+      display_name: model,
+      has_api_key: apiKey.length > 0,
+    };
+    if (apiKey) await aiStore.saveApiKey(next.id!, apiKey);
+    await set("ai_custom_providers", [...customAiProviders(), next]);
+    await set("ai_provider", next);
+    setAiAddModelDraft("");
+    setAiApiKeyDraft("");
+    setAiAddingModel(false);
+    setAiTestResult(t("settings.aiProviderSaved"));
+  }
   async function deleteAiProvider() {
     const current = aiConfig();
     if (!current.id) return;
@@ -183,15 +216,16 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
     await set("ai_custom_providers", customAiProviders().filter((config) => config.id !== current.id));
     await set("ai_provider", defaultAiProviderConfig("Ollama"));
     setAiApiKeyDraft("");
+    setAiAddingModel(false);
     setAiTestResult(t("settings.aiProviderDeleted"));
   }
   async function testAiConfig() {
-    setAiTestResult(t("settings.aiTesting"));
+    setAiTestResult(t("settings.aiConnecting"));
     try {
       const result = await aiStore.runInstruction("List the current vault notes count. Do not modify any file.");
-      setAiTestResult(result || t("settings.aiTestOk"));
+      setAiTestResult(result ? `${t("settings.aiConnected")}\n${result}` : t("settings.aiConnected"));
     } catch (e: any) {
-      setAiTestResult(e?.message || String(e));
+      setAiTestResult(`${t("settings.aiConnectionFailed")}: ${e?.message || String(e)}`);
     }
   }
   const fontFamilyOptions = createMemo(() => {
@@ -455,6 +489,16 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
           <Show when={activeTab() === "appearance"}>
             <h2 style={titleStyle}>{t("settings.appearance")}</h2>
 
+            <SettingSection title={t("common.interfaceLanguage")}>
+              <SettingSelect
+                label={t("common.interfaceLanguage")}
+                description={t("settings.interfaceLanguageDescription")}
+                value={s().locale}
+                options={getLanguageOptions()}
+                onChange={(v) => set("locale", v)}
+              />
+            </SettingSection>
+
             <SettingSection title={t("settings.themeSection")}>
               <SkinPickerPanel />
             </SettingSection>
@@ -520,13 +564,6 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
                 value={s().drag_indicator_color || "#1aad3f"}
                 onChange={(v) => set("drag_indicator_color", v)}
                 onClear={() => set("drag_indicator_color", null)}
-              />
-              <SettingSelect
-                label={t("common.interfaceLanguage")}
-                description={t("settings.interfaceLanguageDescription")}
-                value={s().locale}
-                options={getLanguageOptions()}
-                onChange={(v) => set("locale", v)}
               />
               <SettingToggle
                 label={t("settings.showMarkdownToolbar")}
@@ -618,78 +655,146 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
           <Show when={activeTab() === "ai"}>
             <h2 style={titleStyle}>{t("settings.ai")}</h2>
 
-            <SettingSection title={t("settings.aiProviderSection")}>
-              <SettingSelect
-                label={t("settings.aiProvider")}
-                description={t("settings.aiProviderDescription")}
-                value={aiProviderSelectValue()}
-                options={aiProviderOptions()}
-                width="180px"
-                onChange={(value) => {
-                  if (value === "add-api-key-llm") {
-                    set("ai_provider", createApiKeyProviderConfig());
-                  } else if (value.startsWith("custom:")) {
-                    const id = value.slice("custom:".length);
-                    const config = customAiProviders().find((item) => item.id === id);
-                    if (config) set("ai_provider", config);
-                  } else {
-                    set("ai_provider", defaultAiProviderConfig(value as AiProviderType));
-                  }
-                  setAiApiKeyDraft("");
-                  setAiTestResult(null);
-                }}
-              />
-              <SettingInput
-                label={t("settings.aiEndpoint")}
-                description={t("settings.aiEndpointDescription")}
-                value={aiConfig().endpoint ?? ""}
-                placeholder={defaultAiProviderConfig(aiConfig().provider_type).endpoint ?? ""}
-                width="280px"
-                onChange={(value) => updateAiConfig({ endpoint: value.trim() || null })}
-              />
-              <SettingInput
-                label={t("settings.aiModel")}
-                description={t("settings.aiModelDescription")}
-                value={aiConfig().model}
-                placeholder={defaultAiProviderConfig(aiConfig().provider_type).model}
-                width="220px"
-                onChange={(value) => updateAiConfig({ model: value.trim() })}
-              />
-              <Show when={isApiKeyAiProvider()}>
+            <SettingSection title={aiAddMode() ? t("settings.aiAddModelSection") : t("settings.aiProviderSection")}>
+              <Show
+                when={aiAddMode()}
+                fallback={
+                  <>
+                    <div style={{ display: "flex", "justify-content": "flex-end", "margin-bottom": "12px" }}>
+                      <button
+                        onClick={() => {
+                          setAiAddingModel(true);
+                          setAiAddModelDraft("");
+                          setAiApiKeyDraft("");
+                          setAiTestResult(null);
+                        }}
+                        style={settingsButtonStyle}
+                      >
+                        {t("settings.aiAddNewModel")}
+                      </button>
+                    </div>
+                    <SettingSelect
+                      label={aiProviderKindLabel()}
+                      description={isLocalAiProvider() ? t("settings.aiLocalModelDescription") : t("settings.aiOnlineModelDescription")}
+                      value={aiProviderSelectValue()}
+                      options={aiProviderOptions()}
+                      width="190px"
+                      onChange={(value) => {
+                        if (value === "add-api-key-llm") {
+                          setAiAddingModel(true);
+                          setAiAddModelDraft("");
+                        } else if (value.startsWith("custom:")) {
+                          const id = value.slice("custom:".length);
+                          const config = customAiProviders().find((item) => item.id === id);
+                          if (config) set("ai_provider", config);
+                          setAiAddingModel(false);
+                        } else {
+                          set("ai_provider", defaultAiProviderConfig(value as AiProviderType));
+                          setAiAddingModel(false);
+                        }
+                        setAiApiKeyDraft("");
+                        setAiTestResult(null);
+                      }}
+                    />
+                    <Show when={isLocalAiProvider()}>
+                      <SettingInput
+                        label={t("settings.aiEndpoint")}
+                        description={t("settings.aiEndpointDescription")}
+                        value={aiConfig().endpoint ?? ""}
+                        placeholder={defaultAiProviderConfig(aiConfig().provider_type).endpoint ?? ""}
+                        width="290px"
+                        onChange={(value) => updateAiConfig({ endpoint: value.trim() || null })}
+                      />
+                    </Show>
+                    <SettingInput
+                      label={t("settings.aiModel")}
+                      description={t("settings.aiModelDescription")}
+                      value={aiConfig().model}
+                      placeholder={defaultAiProviderConfig(aiConfig().provider_type).model}
+                      width="220px"
+                      onChange={(value) => updateAiConfig({ model: value.trim() })}
+                    />
+                    <Show when={isApiKeyAiProvider()}>
+                      <SettingInput
+                        label={t("settings.aiApiKey")}
+                        description={aiConfig().has_api_key ? t("settings.aiApiKeyStored") : t("settings.aiApiKeyDescription")}
+                        value={aiApiKeyDraft()}
+                        type="password"
+                        placeholder={t("settings.aiApiKeyPlaceholder")}
+                        width="220px"
+                        onChange={setAiApiKeyDraft}
+                      />
+                    </Show>
+                    <div style={{ display: "flex", gap: "12px", "justify-content": "flex-end", padding: "14px 0 4px" }}>
+                      <Show when={activeCustomProviderSaved()}>
+                        <button
+                          onClick={() => void deleteAiProvider()}
+                          style={settingsDangerButtonStyle}
+                        >
+                          {t("settings.aiDeleteProvider")}
+                        </button>
+                      </Show>
+                      <button
+                        onClick={() => void saveAiProvider()}
+                        style={settingsButtonStyle}
+                      >
+                        {t("common.save")}
+                      </button>
+                      <button
+                        onClick={() => void testAiConfig()}
+                        style={settingsButtonStyle}
+                      >
+                        {t("settings.aiConnect")}
+                      </button>
+                      <button
+                        onClick={() => setAiTestResult(null)}
+                        style={settingsDangerButtonStyle}
+                      >
+                        {t("settings.aiStopClose")}
+                      </button>
+                    </div>
+                  </>
+                }
+              >
+                <SettingInput
+                  label={t("settings.aiModel")}
+                  description={t("settings.aiModelDescription")}
+                  value={aiAddModelDraft()}
+                  placeholder={t("settings.aiModelPlaceholder")}
+                  width="360px"
+                  onChange={setAiAddModelDraft}
+                />
                 <SettingInput
                   label={t("settings.aiApiKey")}
-                  description={aiConfig().has_api_key ? t("settings.aiApiKeyStored") : t("settings.aiApiKeyDescription")}
+                  description={t("settings.aiApiKeyDescription")}
                   value={aiApiKeyDraft()}
                   type="password"
                   placeholder={t("settings.aiApiKeyPlaceholder")}
-                  width="220px"
+                  width="360px"
                   onChange={setAiApiKeyDraft}
                 />
-              </Show>
-              <div style={{ display: "flex", gap: "8px", "justify-content": "flex-end", padding: "8px 0" }}>
-                <Show when={activeCustomProviderSaved()}>
+                <div style={{ display: "flex", gap: "36px", "justify-content": "flex-end", padding: "48px 0 4px" }}>
                   <button
-                    onClick={() => void deleteAiProvider()}
-                    style={settingsDangerButtonStyle}
+                    onClick={() => {
+                      setAiAddingModel(false);
+                      setAiAddModelDraft("");
+                      setAiApiKeyDraft("");
+                      setAiTestResult(null);
+                    }}
+                    style={{ ...settingsButtonStyle, width: "160px" }}
                   >
-                    {t("settings.aiDeleteProvider")}
+                    {t("common.cancel")}
                   </button>
-                </Show>
-                <button
-                  onClick={() => void saveAiProvider()}
-                  style={settingsButtonStyle}
-                >
-                  {t("settings.aiSaveProvider")}
-                </button>
-                <button
-                  onClick={() => void testAiConfig()}
-                  style={settingsButtonStyle}
-                >
-                  {t("settings.aiTest")}
-                </button>
-              </div>
+                  <button
+                    onClick={() => void saveNewAiProvider()}
+                    style={{ ...settingsButtonStyle, width: "160px", color: "var(--mz-accent)", border: "1px solid var(--mz-accent)" }}
+                  >
+                    {t("settings.aiSaveAdd")}
+                  </button>
+                </div>
+              </Show>
               <Show when={aiTestResult()}>
-                <div style={{ color: "var(--mz-text-muted)", "font-size": "var(--mz-font-size-xs)", "white-space": "pre-wrap", "padding-top": "4px" }}>
+                <div style={{ color: "var(--mz-text-muted)", "font-size": "var(--mz-font-size-xs)", "white-space": "pre-wrap", "padding-top": "8px" }}>
                   {aiTestResult()}
                 </div>
               </Show>

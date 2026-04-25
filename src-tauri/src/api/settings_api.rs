@@ -1,7 +1,13 @@
 use crate::kernel::error::CommandError;
-use crate::kernel::types::{AiProviderType, AppSettings, GlobalWindowState, HotkeyBinding, Theme, ViewMode, WorkspaceState};
+use crate::kernel::types::{
+    AiProviderType, AppSettings, GlobalWindowState, HotkeyBinding, Theme, ViewMode, WorkspaceState,
+};
 use crate::kernel::AppState;
 use keyring::{Entry, Error as KeyringError};
+use reqwest::header::{HeaderMap, HeaderName, HeaderValue, CONTENT_TYPE};
+use serde::Deserialize;
+use serde_json::Value;
+use std::collections::HashMap;
 use tauri::{LogicalPosition, LogicalSize, Manager, State};
 
 const MIN_RESTORED_WINDOW_WIDTH: u32 = 320;
@@ -33,12 +39,22 @@ fn parse_ai_provider_type(provider: &str) -> Option<AiProviderType> {
     match provider.trim() {
         "Ollama" | "ollama" => Some(AiProviderType::Ollama),
         "LMStudio" | "LM Studio" | "lmstudio" | "lm-studio" => Some(AiProviderType::LMStudio),
-        "ApiKeyLLM" | "API Key LLM" | "api-key-llm" | "apikeyllm" => Some(AiProviderType::ApiKeyLLM),
+        "ApiKeyLLM" | "API Key LLM" | "api-key-llm" | "apikeyllm" => {
+            Some(AiProviderType::ApiKeyLLM)
+        }
         "Claude" | "claude" => Some(AiProviderType::Claude),
         "OpenAI" | "openai" => Some(AiProviderType::OpenAI),
         "Custom" | "custom" => Some(AiProviderType::Custom),
         _ => None,
     }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiChatCompletionRequest {
+    url: String,
+    headers: Option<HashMap<String, String>>,
+    body: Value,
 }
 
 // ---------------------------------------------------------------------------
@@ -54,7 +70,9 @@ pub fn load_window_state_sync(app: &tauri::AppHandle) -> Option<GlobalWindowStat
         return None;
     }
     let content = std::fs::read_to_string(&state_path).ok()?;
-    serde_json::from_str::<GlobalWindowState>(&content).ok().map(sanitize_window_state)
+    serde_json::from_str::<GlobalWindowState>(&content)
+        .ok()
+        .map(sanitize_window_state)
 }
 
 /// Apply a window state to the given webview window. Called BEFORE the
@@ -175,6 +193,71 @@ pub async fn set_ai_api_key(
     }
 
     Ok(())
+}
+
+#[tauri::command]
+pub async fn ai_chat_completion(request: AiChatCompletionRequest) -> Result<Value, CommandError> {
+    let url = request.url.trim();
+    if !(url.starts_with("http://") || url.starts_with("https://")) {
+        return Err(CommandError {
+            code: "INVALID_AI_ENDPOINT".into(),
+            message: "AI endpoint must start with http:// or https://".into(),
+        });
+    }
+
+    let mut headers = HeaderMap::new();
+    headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+    if let Some(custom_headers) = request.headers {
+        for (name, value) in custom_headers {
+            let header_name =
+                HeaderName::from_bytes(name.as_bytes()).map_err(|e| CommandError {
+                    code: "INVALID_AI_HEADER".into(),
+                    message: e.to_string(),
+                })?;
+            let header_value = HeaderValue::from_str(&value).map_err(|e| CommandError {
+                code: "INVALID_AI_HEADER".into(),
+                message: e.to_string(),
+            })?;
+            headers.insert(header_name, header_value);
+        }
+    }
+
+    let response = reqwest::Client::new()
+        .post(url)
+        .headers(headers)
+        .json(&request.body)
+        .send()
+        .await
+        .map_err(|e| CommandError {
+            code: "AI_PROVIDER_ERROR".into(),
+            message: e.to_string(),
+        })?;
+
+    let status = response.status();
+    let text = response.text().await.map_err(|e| CommandError {
+        code: "AI_PROVIDER_ERROR".into(),
+        message: e.to_string(),
+    })?;
+
+    if !status.is_success() {
+        return Err(CommandError {
+            code: "AI_PROVIDER_ERROR".into(),
+            message: format!(
+                "{}{}",
+                status.as_u16(),
+                if text.is_empty() {
+                    String::new()
+                } else {
+                    format!(": {}", text)
+                }
+            ),
+        });
+    }
+
+    serde_json::from_str(&text).map_err(|e| CommandError {
+        code: "AI_PROVIDER_ERROR".into(),
+        message: format!("Invalid AI response JSON: {}", e),
+    })
 }
 
 /// Update the active skin. Accepts either the legacy `Light`/`Dark`/
@@ -348,11 +431,21 @@ pub async fn save_window_state(
         GlobalWindowState::default()
     };
     // Merge: only overwrite fields that are Some in the incoming state
-    if window_state.x.is_some() { merged.x = window_state.x; }
-    if window_state.y.is_some() { merged.y = window_state.y; }
-    if window_state.width.is_some() { merged.width = window_state.width; }
-    if window_state.height.is_some() { merged.height = window_state.height; }
-    if window_state.maximized.is_some() { merged.maximized = window_state.maximized; }
+    if window_state.x.is_some() {
+        merged.x = window_state.x;
+    }
+    if window_state.y.is_some() {
+        merged.y = window_state.y;
+    }
+    if window_state.width.is_some() {
+        merged.width = window_state.width;
+    }
+    if window_state.height.is_some() {
+        merged.height = window_state.height;
+    }
+    if window_state.maximized.is_some() {
+        merged.maximized = window_state.maximized;
+    }
     let merged = sanitize_window_state(merged);
     let json = serde_json::to_string_pretty(&merged).map_err(|e| CommandError {
         code: "SERIALIZE_ERROR".into(),

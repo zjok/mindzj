@@ -74,6 +74,11 @@ urlencoding = "2"
 # Keyring (system credential storage for API keys)
 keyring = "3"
 
+# HTTP client used by the AI provider proxy. Requests are issued from
+# the Tauri backend so local model servers do not receive browser CORS
+# preflight OPTIONS requests.
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+
 # Base64 encoding/decoding (for binary file writes from frontend)
 base64 = "0.22"
 
