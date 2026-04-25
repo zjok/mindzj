@@ -149,7 +149,7 @@ function createVaultStore() {
   async function saveFile(
     relativePath: string,
     content: string,
-    options?: { suppressSavedEvent?: boolean },
+    options?: { suppressSavedEvent?: boolean; updateState?: boolean },
   ): Promise<FileContent> {
     try {
       const raw = await invoke<FileContent>("write_file", {
@@ -157,16 +157,17 @@ function createVaultStore() {
         content,
       });
       const result: FileContent = { ...raw, kind: "text" };
-
       // Only promote the saved file to active if it already was — this
       // keeps the modified timestamp / hash in sync without clobbering
       // the user's current tab.
-      if (activeFile()?.path === result.path) {
-        setActiveFile(result);
+      if (options?.updateState !== false) {
+        if (activeFile()?.path === result.path) {
+          setActiveFile(result);
+        }
+        setOpenFiles((prev) =>
+          prev.map((f) => (f.path === result.path ? result : f))
+        );
       }
-      setOpenFiles((prev) =>
-        prev.map((f) => (f.path === result.path ? result : f))
-      );
 
       // Notify listeners (global search panel, etc.) that a file
       // was just persisted. The Rust backend has already re-indexed
@@ -189,6 +190,18 @@ function createVaultStore() {
       setError(e.message || "Failed to save file");
       throw e;
     }
+  }
+
+  function applySavedFileContent(content: FileContent): void {
+    const result: FileContent = { ...content, kind: content.kind ?? "text" };
+    if (activeFile()?.path === result.path) {
+      setActiveFile(result);
+    }
+    setOpenFiles((prev) =>
+      prev.some((f) => f.path === result.path)
+        ? prev.map((f) => (f.path === result.path ? result : f))
+        : prev,
+    );
   }
 
   // Create a new file
@@ -345,6 +358,7 @@ function createVaultStore() {
     openPreviewFile,
     reloadFile,
     saveFile,
+    applySavedFileContent,
     createFile,
     deleteFile,
     deleteDir,

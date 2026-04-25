@@ -1,11 +1,13 @@
 use crate::kernel::error::CommandError;
-use crate::kernel::types::{AppSettings, GlobalWindowState, HotkeyBinding, Theme, ViewMode, WorkspaceState};
+use crate::kernel::types::{AiProviderType, AppSettings, GlobalWindowState, HotkeyBinding, Theme, ViewMode, WorkspaceState};
 use crate::kernel::AppState;
+use keyring::{Entry, Error as KeyringError};
 use tauri::{LogicalPosition, LogicalSize, Manager, State};
 
 const MIN_RESTORED_WINDOW_WIDTH: u32 = 320;
 const MIN_RESTORED_WINDOW_HEIGHT: u32 = 240;
 const MAX_REASONABLE_WINDOW_COORD: i32 = 10000;
+const AI_KEYRING_SERVICE: &str = "MindZJ AI";
 
 fn sanitize_window_state(mut state: GlobalWindowState) -> GlobalWindowState {
     if matches!(state.width, Some(width) if width < MIN_RESTORED_WINDOW_WIDTH) {
@@ -21,6 +23,21 @@ fn sanitize_window_state(mut state: GlobalWindowState) -> GlobalWindowState {
         state.y = None;
     }
     state
+}
+
+fn ai_keyring_account(provider: &str) -> String {
+    format!("provider:{}", provider.trim())
+}
+
+fn parse_ai_provider_type(provider: &str) -> Option<AiProviderType> {
+    match provider.trim() {
+        "Ollama" | "ollama" => Some(AiProviderType::Ollama),
+        "LMStudio" | "LM Studio" | "lmstudio" | "lm-studio" => Some(AiProviderType::LMStudio),
+        "Claude" | "claude" => Some(AiProviderType::Claude),
+        "OpenAI" | "openai" => Some(AiProviderType::OpenAI),
+        "Custom" | "custom" => Some(AiProviderType::Custom),
+        _ => None,
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -86,6 +103,76 @@ pub async fn update_settings(
         *s = settings;
     }
     ctx.save_settings().map_err(CommandError::from)?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn get_ai_api_key(provider: String) -> Result<Option<String>, CommandError> {
+    let entry = Entry::new(AI_KEYRING_SERVICE, &ai_keyring_account(&provider)).map_err(|e| {
+        CommandError {
+            code: "KEYRING_ERROR".into(),
+            message: e.to_string(),
+        }
+    })?;
+    match entry.get_password() {
+        Ok(value) => Ok(Some(value)),
+        Err(KeyringError::NoEntry) => Ok(None),
+        Err(e) => Err(CommandError {
+            code: "KEYRING_ERROR".into(),
+            message: e.to_string(),
+        }),
+    }
+}
+
+#[tauri::command]
+pub async fn set_ai_api_key(
+    state: State<'_, AppState>,
+    window: tauri::WebviewWindow,
+    provider: String,
+    api_key: Option<String>,
+) -> Result<(), CommandError> {
+    let trimmed = api_key.unwrap_or_default().trim().to_string();
+    let entry = Entry::new(AI_KEYRING_SERVICE, &ai_keyring_account(&provider)).map_err(|e| {
+        CommandError {
+            code: "KEYRING_ERROR".into(),
+            message: e.to_string(),
+        }
+    })?;
+
+    let has_api_key = !trimmed.is_empty();
+    if has_api_key {
+        entry.set_password(&trimmed).map_err(|e| CommandError {
+            code: "KEYRING_ERROR".into(),
+            message: e.to_string(),
+        })?;
+    } else {
+        match entry.delete_credential() {
+            Ok(()) | Err(KeyringError::NoEntry) => {}
+            Err(e) => {
+                return Err(CommandError {
+                    code: "KEYRING_ERROR".into(),
+                    message: e.to_string(),
+                });
+            }
+        }
+    }
+
+    if let Some(provider_type) = parse_ai_provider_type(&provider) {
+        let ctx = state.get_vault_context(window.label())?;
+        {
+            let mut settings = ctx.settings.write().map_err(|_| CommandError {
+                code: "LOCK_ERROR".into(),
+                message: "Failed to acquire settings lock".into(),
+            })?;
+            if let Some(config) = settings.ai_provider.as_mut() {
+                if config.provider_type == provider_type {
+                    config.has_api_key = has_api_key;
+                }
+            }
+        }
+        ctx.save_settings().map_err(CommandError::from)?;
+    }
+
     Ok(())
 }
 

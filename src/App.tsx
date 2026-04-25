@@ -776,9 +776,11 @@ const App: Component = () => {
         // CodeMirror's own keydown handlers consume the event.
         window.addEventListener("keydown", handleTabSwitchKeydown, true);
         document.addEventListener("keydown", handleGlobalKeydown, true);
+        document.addEventListener("keyup", handleGlobalKeyup, true);
         onCleanup(() => {
             window.removeEventListener("keydown", handleTabSwitchKeydown, true);
             document.removeEventListener("keydown", handleGlobalKeydown, true);
+            document.removeEventListener("keyup", handleGlobalKeyup, true);
         });
 
         // Disable the native browser/webview context menu globally so that
@@ -789,8 +791,8 @@ const App: Component = () => {
         const suppressNativeContextMenu = (e: MouseEvent) => {
             e.preventDefault();
         };
-        document.addEventListener("contextmenu", suppressNativeContextMenu, false);
-        onCleanup(() => document.removeEventListener("contextmenu", suppressNativeContextMenu, false));
+        document.addEventListener("contextmenu", suppressNativeContextMenu, true);
+        onCleanup(() => document.removeEventListener("contextmenu", suppressNativeContextMenu, true));
         onCleanup(() => {
             if ((window as any).__mindzj_switch_open_tab === switchOpenTab) {
                 (window as any).__mindzj_switch_open_tab = null;
@@ -1348,6 +1350,68 @@ const App: Component = () => {
         return eventKey === comboKey;
     }
 
+    let webviewAltMenuSuppressUntil = 0;
+    function isArrowKeyEvent(e: KeyboardEvent): boolean {
+        const keyCode = e.keyCode || e.which;
+        return (
+            e.code === "ArrowUp" ||
+            e.code === "ArrowDown" ||
+            e.code === "ArrowLeft" ||
+            e.code === "ArrowRight" ||
+            e.key === "ArrowUp" ||
+            e.key === "ArrowDown" ||
+            e.key === "ArrowLeft" ||
+            e.key === "ArrowRight" ||
+            e.key === "Up" ||
+            e.key === "Down" ||
+            e.key === "Left" ||
+            e.key === "Right" ||
+            keyCode === 38 ||
+            keyCode === 40 ||
+            keyCode === 37 ||
+            keyCode === 39
+        );
+    }
+
+    function suppressWebViewAltMenu(e: KeyboardEvent): boolean {
+        const now = Date.now();
+        if (e.key === "Alt") {
+            webviewAltMenuSuppressUntil = now + 1500;
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            return true;
+        }
+        const isPlainAltArrow =
+            e.altKey &&
+            isArrowKeyEvent(e) &&
+            !e.ctrlKey &&
+            !e.metaKey &&
+            !e.shiftKey;
+        const isPostAltArrow =
+            now < webviewAltMenuSuppressUntil &&
+            isArrowKeyEvent(e) &&
+            !e.ctrlKey &&
+            !e.metaKey &&
+            !e.shiftKey;
+        if (isPlainAltArrow || isPostAltArrow) {
+            webviewAltMenuSuppressUntil = now + 1500;
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            return true;
+        }
+        return false;
+    }
+
+    function handleGlobalKeyup(e: KeyboardEvent) {
+        if (e.key !== "Alt") return;
+        webviewAltMenuSuppressUntil = Date.now() + 1500;
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+    }
+
     /** Get the effective hotkey combo for a command (override or default) */
     function getHotkey(command: string, defaultKeys: string): string {
         const overrides = settingsStore.settings().hotkey_overrides || {};
@@ -1524,21 +1588,12 @@ const App: Component = () => {
     }
 
     function handleGlobalKeydown(e: KeyboardEvent) {
+        if (suppressWebViewAltMenu(e)) return;
+        if (e.defaultPrevented) return;
         if (handleTabSwitchKeydown(e)) return;
 
-        // NOTE: the bare-Alt preventDefault guard that used to live
-        // here has been removed. It was originally needed to stop
-        // WebView2 from entering menu-activation mode on an isolated
-        // Alt press (which then caused the next letter, e.g. G, to
-        // fire the WebView's built-in find dialog instead of our
-        // Alt+G screenshot shortcut). Now that the Rust setup hook
-        // flips `AreBrowserAcceleratorKeysEnabled(false)` on every
-        // webview (see `disable_webview2_browser_accelerator_keys`),
-        // the menu-mode path is disabled at the webview layer and
-        // the JS guard is redundant. Keeping it was also suspected
-        // of swallowing the altKey modifier on the subsequent G
-        // keydown in some WebView2 builds, which made Alt+G feel
-        // broken — drop it here.
+        // Bare Alt and Alt+Arrow are suppressed above so WebView2 never
+        // enters its native menu mode after repeated Alt presses.
 
         // If the settings hotkey capture is active, let the HotkeysPanel handle the event
         if ((window as any).__mindzj_hotkey_capturing) return;

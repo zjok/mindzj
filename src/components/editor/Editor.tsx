@@ -1480,12 +1480,27 @@ export const Editor: Component<EditorProps> = (props) => {
         extend: boolean,
     ): boolean {
         const selection = view.state.selection.main;
-        const line = view.state.doc.lineAt(selection.head);
-        const targetPos = boundary === "start" ? line.from : line.to;
+        const target = view.moveToLineBoundary(
+            selection,
+            boundary === "end",
+            true,
+        );
+        const targetPos = target.head;
         view.dispatch({
             selection: extend
-                ? EditorSelection.range(selection.anchor, targetPos)
-                : EditorSelection.cursor(targetPos),
+                ? EditorSelection.range(
+                    selection.anchor,
+                    targetPos,
+                    target.goalColumn,
+                    target.bidiLevel ?? undefined,
+                    target.assoc,
+                )
+                : EditorSelection.cursor(
+                    targetPos,
+                    target.assoc,
+                    target.bidiLevel ?? undefined,
+                    target.goalColumn,
+                ),
             scrollIntoView: true,
         });
         return true;

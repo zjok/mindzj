@@ -6,7 +6,8 @@
 import { Component, Show, For, createSignal, createEffect, createMemo, onMount, onCleanup } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 import { open as dialogOpen } from "@tauri-apps/plugin-dialog";
-import { settingsStore, type AppSettings, reloadCssSnippets, DEFAULT_FONT_FAMILY } from "../../stores/settings";
+import { aiStore, defaultAiProviderConfig } from "../../stores/ai";
+import { settingsStore, type AiProviderConfig, type AiProviderType, type AppSettings, reloadCssSnippets, DEFAULT_FONT_FAMILY } from "../../stores/settings";
 import {
   BUILT_IN_SKINS,
   CUSTOM_SKIN_PREFIX,
@@ -28,6 +29,7 @@ type SettingsCategory =
   | "editor"
   | "appearance"
   | "images"
+  | "ai"
   | "files"
   | "hotkeys"
   | "plugins"
@@ -42,6 +44,7 @@ const CATEGORIES: { id: SettingsCategory; key: string; icon: string }[] = [
   { id: "editor", key: "settings.editor", icon: "M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" },
   { id: "appearance", key: "settings.appearance", icon: "M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" },
   { id: "images", key: "settings.images", icon: "M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z M8.5 10a1.5 1.5 0 100-3 1.5 1.5 0 000 3z M21 15l-5-5L5 21" },
+  { id: "ai", key: "settings.ai", icon: "M12 2a10 10 0 100 20 10 10 0 000-20z M8 12h8 M12 8v8 M7.5 7.5l9 9 M16.5 7.5l-9 9" },
   { id: "files", key: "settings.files", icon: "M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z M13 2v7h7" },
   { id: "hotkeys", key: "settings.hotkeys", icon: "M18 3a3 3 0 00-3 3v12a3 3 0 003 3 3 3 0 003-3 3 3 0 00-3-3H6a3 3 0 00-3 3 3 3 0 003 3 3 3 0 003-3V6a3 3 0 00-3-3 3 3 0 00-3 3 3 3 0 003 3h12a3 3 0 003-3 3 3 0 00-3-3z" },
   { id: "plugins", key: "settings.plugins", icon: "M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" },
@@ -63,6 +66,8 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
   const [activeTab, setActiveTab] = createSignal<SettingsCategory>("editor");
   const [activePluginId, setActivePluginId] = createSignal<string | null>(null);
   const [activePluginName, setActivePluginName] = createSignal<string>("");
+  const [aiApiKeyDraft, setAiApiKeyDraft] = createSignal("");
+  const [aiTestResult, setAiTestResult] = createSignal<string | null>(null);
 
   function handleKeydown(e: KeyboardEvent) {
     if (e.key !== "Escape") return;
@@ -103,6 +108,29 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
   const s = () => settingsStore.settings();
   const set = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) =>
     settingsStore.updateSetting(key, value);
+  const aiConfig = (): AiProviderConfig =>
+    s().ai_provider ?? defaultAiProviderConfig("Ollama");
+  function updateAiConfig(patch: Partial<AiProviderConfig>) {
+    set("ai_provider", { ...aiConfig(), ...patch });
+    setAiTestResult(null);
+  }
+  async function saveAiKey() {
+    const provider = aiConfig().provider_type;
+    const value = aiApiKeyDraft().trim();
+    await aiStore.saveApiKey(provider, value);
+    updateAiConfig({ has_api_key: value.length > 0 });
+    setAiApiKeyDraft("");
+    setAiTestResult(value ? t("settings.aiApiKeySaved") : t("settings.aiApiKeyCleared"));
+  }
+  async function testAiConfig() {
+    setAiTestResult(t("settings.aiTesting"));
+    try {
+      const result = await aiStore.runInstruction("List the current vault notes count. Do not modify any file.");
+      setAiTestResult(result || t("settings.aiTestOk"));
+    } catch (e: any) {
+      setAiTestResult(e?.message || String(e));
+    }
+  }
   const fontFamilyOptions = createMemo(() => {
     const current = s().font_family?.trim() || DEFAULT_FONT_FAMILY;
     return FONT_FAMILY_OPTIONS.some((option) => option.value === current)
@@ -519,6 +547,76 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
                   value={s().image_wheel_invert}
                   onChange={(v) => set("image_wheel_invert", v)}
                 />
+              </Show>
+            </SettingSection>
+          </Show>
+
+          {/* AI Settings */}
+          <Show when={activeTab() === "ai"}>
+            <h2 style={titleStyle}>{t("settings.ai")}</h2>
+
+            <SettingSection title={t("settings.aiProviderSection")}>
+              <SettingSelect
+                label={t("settings.aiProvider")}
+                description={t("settings.aiProviderDescription")}
+                value={aiConfig().provider_type}
+                options={[
+                  { value: "Ollama", label: "Ollama" },
+                  { value: "LMStudio", label: "LM Studio" },
+                  { value: "OpenAI", label: "ChatGPT / OpenAI" },
+                  { value: "Custom", label: t("settings.aiProviderCustom") },
+                ]}
+                width="180px"
+                onChange={(value) => {
+                  const provider = value as AiProviderType;
+                  set("ai_provider", defaultAiProviderConfig(provider));
+                  setAiApiKeyDraft("");
+                  setAiTestResult(null);
+                }}
+              />
+              <SettingInput
+                label={t("settings.aiEndpoint")}
+                description={t("settings.aiEndpointDescription")}
+                value={aiConfig().endpoint ?? ""}
+                placeholder={defaultAiProviderConfig(aiConfig().provider_type).endpoint ?? ""}
+                width="280px"
+                onChange={(value) => updateAiConfig({ endpoint: value.trim() || null })}
+              />
+              <SettingInput
+                label={t("settings.aiModel")}
+                description={t("settings.aiModelDescription")}
+                value={aiConfig().model}
+                placeholder={defaultAiProviderConfig(aiConfig().provider_type).model}
+                width="220px"
+                onChange={(value) => updateAiConfig({ model: value.trim() })}
+              />
+              <SettingInput
+                label={t("settings.aiApiKey")}
+                description={aiConfig().has_api_key ? t("settings.aiApiKeyStored") : t("settings.aiApiKeyDescription")}
+                value={aiApiKeyDraft()}
+                type="password"
+                placeholder={aiConfig().provider_type === "OpenAI" ? "sk-..." : t("settings.aiApiKeyOptional")}
+                width="220px"
+                onChange={setAiApiKeyDraft}
+              />
+              <div style={{ display: "flex", gap: "8px", "justify-content": "flex-end", padding: "8px 0" }}>
+                <button
+                  onClick={() => void saveAiKey()}
+                  style={settingsButtonStyle}
+                >
+                  {t("settings.aiSaveKey")}
+                </button>
+                <button
+                  onClick={() => void testAiConfig()}
+                  style={settingsButtonStyle}
+                >
+                  {t("settings.aiTest")}
+                </button>
+              </div>
+              <Show when={aiTestResult()}>
+                <div style={{ color: "var(--mz-text-muted)", "font-size": "var(--mz-font-size-xs)", "white-space": "pre-wrap", "padding-top": "4px" }}>
+                  {aiTestResult()}
+                </div>
               </Show>
             </SettingSection>
           </Show>
@@ -1749,6 +1847,17 @@ const aboutRow = {
   padding: "6px 0",
   "font-size": "var(--mz-font-size-sm)",
   color: "var(--mz-text-primary)",
+};
+
+const settingsButtonStyle = {
+  border: "1px solid var(--mz-border)",
+  background: "var(--mz-bg-primary)",
+  color: "var(--mz-text-primary)",
+  "border-radius": "var(--mz-radius-sm)",
+  padding: "5px 10px",
+  cursor: "pointer",
+  "font-size": "var(--mz-font-size-sm)",
+  "font-family": "var(--mz-font-sans)",
 };
 
 // ---------------------------------------------------------------------------

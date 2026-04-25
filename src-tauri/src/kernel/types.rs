@@ -505,6 +505,7 @@ pub struct AiProviderConfig {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum AiProviderType {
     Ollama,
+    LMStudio,
     Claude,
     OpenAI,
     Custom,

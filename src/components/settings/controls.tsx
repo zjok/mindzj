@@ -53,7 +53,7 @@ interface SettingInputProps {
   label: string;
   description?: string;
   value: string | number;
-  type?: "text" | "number";
+  type?: "text" | "number" | "password";
   placeholder?: string;
   min?: number;
   max?: number;

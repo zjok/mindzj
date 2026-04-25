@@ -66,6 +66,14 @@ export async function applyCssSnippets(enabled: string[]) {
  */
 export type Theme = string;
 type PersistedTheme = Theme | "Light" | "Dark" | "System";
+export type AiProviderType = "OpenAI" | "Ollama" | "LMStudio" | "Claude" | "Custom";
+
+export interface AiProviderConfig {
+  provider_type: AiProviderType;
+  endpoint: string | null;
+  has_api_key: boolean;
+  model: string;
+}
 
 interface PersistedSettings extends Omit<Partial<AppSettings>, "theme"> {
   theme?: PersistedTheme | null;
@@ -135,7 +143,7 @@ export interface AppSettings {
   auto_update_links: boolean;
   default_new_note_location: string;
   template_folder: string | null;
-  ai_provider: any | null;
+  ai_provider: AiProviderConfig | null;
   /** Custom hotkey overrides: command -> key combo string (e.g. "Ctrl+Shift+L") */
   hotkey_overrides: Record<string, string>;
 

@@ -281,12 +281,17 @@ function createEditorStore() {
       saveTimers.delete(relativePath);
       pendingSaveContent.delete(relativePath);
       try {
-        await vaultStore.saveFile(relativePath, content);
-        clearDirty(relativePath);
-
-        // After a successful save, check if any headings were renamed
-        // and update wiki-link references across the vault.
-        checkHeadingChanges(relativePath, content);
+        const saved = await vaultStore.saveFile(relativePath, content, {
+          updateState: false,
+        });
+        const newerPending = pendingSaveContent.get(relativePath);
+        if (newerPending == null || newerPending === content) {
+          vaultStore.applySavedFileContent(saved);
+          clearDirty(relativePath);
+          // After a successful save, check if any headings were renamed
+          // and update wiki-link references across the vault.
+          checkHeadingChanges(relativePath, content);
+        }
       } catch (e) {
         console.error("Auto-save failed:", e);
       }
