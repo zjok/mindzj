@@ -33,6 +33,7 @@ fn parse_ai_provider_type(provider: &str) -> Option<AiProviderType> {
     match provider.trim() {
         "Ollama" | "ollama" => Some(AiProviderType::Ollama),
         "LMStudio" | "LM Studio" | "lmstudio" | "lm-studio" => Some(AiProviderType::LMStudio),
+        "ApiKeyLLM" | "API Key LLM" | "api-key-llm" | "apikeyllm" => Some(AiProviderType::ApiKeyLLM),
         "Claude" | "claude" => Some(AiProviderType::Claude),
         "OpenAI" | "openai" => Some(AiProviderType::OpenAI),
         "Custom" | "custom" => Some(AiProviderType::Custom),

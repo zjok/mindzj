@@ -37,13 +37,7 @@ type ToolResult = {
   data?: unknown;
 };
 
-const PROVIDER_DEFAULTS: Record<AiProviderType, AiProviderConfig> = {
-  OpenAI: {
-    provider_type: "OpenAI",
-    endpoint: "https://api.openai.com/v1",
-    has_api_key: false,
-    model: "gpt-5-mini",
-  },
+const PROVIDER_DEFAULTS: Record<"Ollama" | "LMStudio" | "ApiKeyLLM", AiProviderConfig> = {
   Ollama: {
     provider_type: "Ollama",
     endpoint: "http://localhost:11434/v1",
@@ -56,17 +50,11 @@ const PROVIDER_DEFAULTS: Record<AiProviderType, AiProviderConfig> = {
     has_api_key: false,
     model: "local-model",
   },
-  Claude: {
-    provider_type: "Claude",
+  ApiKeyLLM: {
+    provider_type: "ApiKeyLLM",
     endpoint: null,
     has_api_key: false,
-    model: "claude-sonnet",
-  },
-  Custom: {
-    provider_type: "Custom",
-    endpoint: "http://localhost:1234/v1",
-    has_api_key: false,
-    model: "local-model",
+    model: "",
   },
 };
 
@@ -74,8 +62,12 @@ function cloneConfig(config: AiProviderConfig): AiProviderConfig {
   return { ...config };
 }
 
+function normalizeProviderType(provider: AiProviderType): "Ollama" | "LMStudio" | "ApiKeyLLM" {
+  return provider === "Ollama" || provider === "LMStudio" ? provider : "ApiKeyLLM";
+}
+
 export function defaultAiProviderConfig(provider: AiProviderType): AiProviderConfig {
-  return cloneConfig(PROVIDER_DEFAULTS[provider]);
+  return cloneConfig(PROVIDER_DEFAULTS[normalizeProviderType(provider)]);
 }
 
 function configuredProvider(): AiProviderConfig | null {
@@ -83,18 +75,16 @@ function configuredProvider(): AiProviderConfig | null {
 }
 
 function providerBaseUrl(config: AiProviderConfig): string {
-  const fallback = PROVIDER_DEFAULTS[config.provider_type]?.endpoint ?? "";
+  const fallback = PROVIDER_DEFAULTS[normalizeProviderType(config.provider_type)]?.endpoint ?? "";
   return (config.endpoint || fallback || "").replace(/\/+$/, "");
 }
 
 function providerNeedsRealKey(provider: AiProviderType): boolean {
-  return provider === "OpenAI" || provider === "Claude";
+  return normalizeProviderType(provider) === "ApiKeyLLM";
 }
 
-function placeholderApiKey(provider: AiProviderType): string {
-  if (provider === "Ollama") return "ollama";
-  if (provider === "LMStudio") return "lm-studio";
-  return "local";
+function keyringIdForConfig(config: AiProviderConfig): string {
+  return config.id || normalizeProviderType(config.provider_type);
 }
 
 function flattenEntries(entries: VaultEntry[], result: Array<{ path: string; name: string; is_dir: boolean }> = []) {
@@ -582,15 +572,18 @@ function buildSystemPrompt() {
 async function chatCompletionRequest(
   config: AiProviderConfig,
   messages: ChatMessage[],
-  apiKey: string,
+  apiKey: string | null,
 ) {
   const url = `${providerBaseUrl(config)}/chat/completions`;
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (apiKey) {
+    headers.Authorization = `Bearer ${apiKey}`;
+  }
   const response = await fetch(url, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
+    headers,
     body: JSON.stringify({
       model: config.model,
       messages,
@@ -619,13 +612,14 @@ async function runJsonFallback(content: string): Promise<string | null> {
 }
 
 function createAiStore() {
-  async function getApiKey(provider: AiProviderType): Promise<string> {
-    const stored = await invoke<string | null>("get_ai_api_key", { provider }).catch(() => null);
-    if (stored) return stored;
-    return placeholderApiKey(provider);
+  async function getApiKey(config: AiProviderConfig): Promise<string | null> {
+    if (!providerNeedsRealKey(config.provider_type)) return null;
+    return invoke<string | null>("get_ai_api_key", {
+      provider: keyringIdForConfig(config),
+    }).catch(() => null);
   }
 
-  async function saveApiKey(provider: AiProviderType, apiKey: string): Promise<void> {
+  async function saveApiKey(provider: string, apiKey: string): Promise<void> {
     await invoke("set_ai_api_key", { provider, apiKey });
   }
 
@@ -644,7 +638,10 @@ function createAiStore() {
       throw new Error("API key is required for this provider.");
     }
 
-    const apiKey = await getApiKey(config.provider_type);
+    const apiKey = await getApiKey(config);
+    if (providerNeedsRealKey(config.provider_type) && !apiKey) {
+      throw new Error("API key is required for this provider.");
+    }
     const messages: ChatMessage[] = [
       { role: "system", content: buildSystemPrompt() },
       { role: "user", content: instruction },

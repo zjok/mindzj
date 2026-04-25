@@ -251,7 +251,10 @@ pub struct AppSettings {
     #[serde(default)]
     pub template_folder: Option<String>,
     // AI
+    #[serde(default)]
     pub ai_provider: Option<AiProviderConfig>,
+    #[serde(default)]
+    pub ai_custom_providers: Vec<AiProviderConfig>,
     #[serde(default = "default_image_resize_options")]
     pub image_resize_options: String,
     #[serde(default = "default_image_ctrl_click")]
@@ -344,6 +347,7 @@ impl Default for AppSettings {
             default_new_note_location: NewNoteLocation::VaultRoot,
             template_folder: None,
             ai_provider: None,
+            ai_custom_providers: Vec::new(),
             image_resize_options: default_image_resize_options(),
             image_ctrl_click: default_image_ctrl_click(),
             image_wheel_zoom: true,
@@ -493,8 +497,12 @@ pub enum ViewMode {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AiProviderConfig {
+    #[serde(default)]
+    pub id: Option<String>,
+    #[serde(default)]
+    pub display_name: Option<String>,
     pub provider_type: AiProviderType,
-    /// API endpoint (e.g., "http://localhost:11434" for Ollama)
+    /// API endpoint (for example a local service URL or a remote compatible URL)
     pub endpoint: Option<String>,
     /// API key (stored encrypted in system keyring, not here)
     pub has_api_key: bool,
@@ -506,6 +514,7 @@ pub struct AiProviderConfig {
 pub enum AiProviderType {
     Ollama,
     LMStudio,
+    ApiKeyLLM,
     Claude,
     OpenAI,
     Custom,

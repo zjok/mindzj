@@ -1350,7 +1350,6 @@ const App: Component = () => {
         return eventKey === comboKey;
     }
 
-    let webviewAltMenuSuppressUntil = 0;
     function isArrowKeyEvent(e: KeyboardEvent): boolean {
         const keyCode = e.keyCode || e.which;
         return (
@@ -1374,9 +1373,7 @@ const App: Component = () => {
     }
 
     function suppressWebViewAltMenu(e: KeyboardEvent): boolean {
-        const now = Date.now();
         if (e.key === "Alt") {
-            webviewAltMenuSuppressUntil = now + 1500;
             e.preventDefault();
             e.stopPropagation();
             e.stopImmediatePropagation();
@@ -1388,14 +1385,7 @@ const App: Component = () => {
             !e.ctrlKey &&
             !e.metaKey &&
             !e.shiftKey;
-        const isPostAltArrow =
-            now < webviewAltMenuSuppressUntil &&
-            isArrowKeyEvent(e) &&
-            !e.ctrlKey &&
-            !e.metaKey &&
-            !e.shiftKey;
-        if (isPlainAltArrow || isPostAltArrow) {
-            webviewAltMenuSuppressUntil = now + 1500;
+        if (isPlainAltArrow) {
             e.preventDefault();
             e.stopPropagation();
             e.stopImmediatePropagation();
@@ -1406,7 +1396,6 @@ const App: Component = () => {
 
     function handleGlobalKeyup(e: KeyboardEvent) {
         if (e.key !== "Alt") return;
-        webviewAltMenuSuppressUntil = Date.now() + 1500;
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();

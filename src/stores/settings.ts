@@ -66,9 +66,17 @@ export async function applyCssSnippets(enabled: string[]) {
  */
 export type Theme = string;
 type PersistedTheme = Theme | "Light" | "Dark" | "System";
-export type AiProviderType = "OpenAI" | "Ollama" | "LMStudio" | "Claude" | "Custom";
+export type AiProviderType =
+  | "Ollama"
+  | "LMStudio"
+  | "ApiKeyLLM"
+  | "OpenAI"
+  | "Claude"
+  | "Custom";
 
 export interface AiProviderConfig {
+  id?: string | null;
+  display_name?: string | null;
   provider_type: AiProviderType;
   endpoint: string | null;
   has_api_key: boolean;
@@ -144,6 +152,7 @@ export interface AppSettings {
   default_new_note_location: string;
   template_folder: string | null;
   ai_provider: AiProviderConfig | null;
+  ai_custom_providers: AiProviderConfig[];
   /** Custom hotkey overrides: command -> key combo string (e.g. "Ctrl+Shift+L") */
   hotkey_overrides: Record<string, string>;
 
@@ -198,6 +207,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   default_new_note_location: "VaultRoot",
   template_folder: null,
   ai_provider: null,
+  ai_custom_providers: [],
   hotkey_overrides: {},
 
   // Image defaults
@@ -210,7 +220,11 @@ const DEFAULT_SETTINGS: AppSettings = {
 };
 
 function createDefaultSettings(): AppSettings {
-  return { ...DEFAULT_SETTINGS, hotkey_overrides: { ...DEFAULT_SETTINGS.hotkey_overrides } };
+  return {
+    ...DEFAULT_SETTINGS,
+    ai_custom_providers: [...DEFAULT_SETTINGS.ai_custom_providers],
+    hotkey_overrides: { ...DEFAULT_SETTINGS.hotkey_overrides },
+  };
 }
 
 function hotkeyOverridesToBindings(overrides: Record<string, string>): HotkeyBinding[] {
@@ -261,12 +275,49 @@ function serializeTheme(theme: Theme): string {
   }
 }
 
+function normalizeAiProviderType(type: unknown): AiProviderType {
+  if (type === "Ollama" || type === "LMStudio" || type === "ApiKeyLLM") {
+    return type;
+  }
+  if (type === "OpenAI" || type === "Claude" || type === "Custom") {
+    return "ApiKeyLLM";
+  }
+  return "Ollama";
+}
+
+function normalizeAiConfig(config: unknown): AiProviderConfig | null {
+  if (!config || typeof config !== "object") return null;
+  const raw = config as Partial<AiProviderConfig>;
+  const providerType = normalizeAiProviderType(raw.provider_type);
+  return {
+    id: typeof raw.id === "string" && raw.id.trim() ? raw.id : null,
+    display_name:
+      typeof raw.display_name === "string" && raw.display_name.trim()
+        ? raw.display_name.trim()
+        : null,
+    provider_type: providerType,
+    endpoint: typeof raw.endpoint === "string" && raw.endpoint.trim()
+      ? raw.endpoint.trim()
+      : null,
+    has_api_key: !!raw.has_api_key,
+    model: typeof raw.model === "string" ? raw.model : "",
+  };
+}
+
 function normalizeLoadedSettings(loaded?: PersistedSettings | null): AppSettings {
   const base = createDefaultSettings();
+  const aiProvider = normalizeAiConfig(loaded?.ai_provider);
+  const aiCustomProviders = Array.isArray(loaded?.ai_custom_providers)
+    ? loaded!.ai_custom_providers
+        .map((config) => normalizeAiConfig(config))
+        .filter((config): config is AiProviderConfig => !!config)
+    : base.ai_custom_providers;
   return {
     ...base,
     ...(loaded ?? {}),
     theme: normalizeTheme(loaded?.theme),
+    ai_provider: aiProvider,
+    ai_custom_providers: aiCustomProviders,
     font_family:
       typeof loaded?.font_family === "string" && loaded.font_family.trim()
         ? loaded.font_family

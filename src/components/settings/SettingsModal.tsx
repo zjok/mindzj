@@ -110,17 +110,80 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
     settingsStore.updateSetting(key, value);
   const aiConfig = (): AiProviderConfig =>
     s().ai_provider ?? defaultAiProviderConfig("Ollama");
+  const customAiProviders = () => s().ai_custom_providers ?? [];
+  const isApiKeyAiProvider = (config = aiConfig()) =>
+    config.provider_type !== "Ollama" && config.provider_type !== "LMStudio";
+  const aiProviderSelectValue = () => {
+    const config = aiConfig();
+    if (config.provider_type === "Ollama" || config.provider_type === "LMStudio") {
+      return config.provider_type;
+    }
+    return config.id && customAiProviders().some((item) => item.id === config.id)
+      ? `custom:${config.id}`
+      : "add-api-key-llm";
+  };
+  const aiProviderOptions = createMemo(() => [
+    { value: "LMStudio", label: "LM Studio" },
+    { value: "Ollama", label: "Ollama" },
+    { value: "add-api-key-llm", label: t("settings.aiProviderAddApiKey") },
+    ...customAiProviders()
+      .filter((config) => !!config.id)
+      .map((config) => ({
+        value: `custom:${config.id}`,
+        label: config.display_name || config.model || t("settings.aiProviderSavedFallback"),
+      })),
+  ]);
+  const activeCustomProviderSaved = () => {
+    const id = aiConfig().id;
+    return !!id && customAiProviders().some((config) => config.id === id);
+  };
+  function createApiKeyProviderConfig(): AiProviderConfig {
+    return {
+      ...defaultAiProviderConfig("ApiKeyLLM"),
+      id: `api-key-llm-${Date.now()}`,
+    };
+  }
   function updateAiConfig(patch: Partial<AiProviderConfig>) {
     set("ai_provider", { ...aiConfig(), ...patch });
     setAiTestResult(null);
   }
-  async function saveAiKey() {
-    const provider = aiConfig().provider_type;
+  async function saveAiProvider() {
+    const current = aiConfig();
+    const next: AiProviderConfig = {
+      ...current,
+      display_name: current.model.trim() || current.display_name || null,
+    };
     const value = aiApiKeyDraft().trim();
-    await aiStore.saveApiKey(provider, value);
-    updateAiConfig({ has_api_key: value.length > 0 });
+    if (isApiKeyAiProvider(next)) {
+      next.id = next.id || `api-key-llm-${Date.now()}`;
+      if (value) await aiStore.saveApiKey(next.id, value);
+      next.has_api_key = next.has_api_key || value.length > 0;
+      const providers = customAiProviders();
+      const exists = providers.some((config) => config.id === next.id);
+      const updated = exists
+        ? providers.map((config) => (config.id === next.id ? next : config))
+        : [...providers, next];
+      await set("ai_custom_providers", updated);
+    }
+    await set("ai_provider", next);
     setAiApiKeyDraft("");
-    setAiTestResult(value ? t("settings.aiApiKeySaved") : t("settings.aiApiKeyCleared"));
+    setAiTestResult(t("settings.aiProviderSaved"));
+  }
+  async function deleteAiProvider() {
+    const current = aiConfig();
+    if (!current.id) return;
+    const confirmed = await confirmDialog(
+      t("settings.aiDeleteProviderConfirm", {
+        name: current.display_name || current.model || t("settings.aiProviderSavedFallback"),
+      }),
+      { confirmLabel: t("common.delete"), variant: "danger" },
+    );
+    if (!confirmed) return;
+    await aiStore.saveApiKey(current.id, "");
+    await set("ai_custom_providers", customAiProviders().filter((config) => config.id !== current.id));
+    await set("ai_provider", defaultAiProviderConfig("Ollama"));
+    setAiApiKeyDraft("");
+    setAiTestResult(t("settings.aiProviderDeleted"));
   }
   async function testAiConfig() {
     setAiTestResult(t("settings.aiTesting"));
@@ -559,17 +622,19 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
               <SettingSelect
                 label={t("settings.aiProvider")}
                 description={t("settings.aiProviderDescription")}
-                value={aiConfig().provider_type}
-                options={[
-                  { value: "Ollama", label: "Ollama" },
-                  { value: "LMStudio", label: "LM Studio" },
-                  { value: "OpenAI", label: "ChatGPT / OpenAI" },
-                  { value: "Custom", label: t("settings.aiProviderCustom") },
-                ]}
+                value={aiProviderSelectValue()}
+                options={aiProviderOptions()}
                 width="180px"
                 onChange={(value) => {
-                  const provider = value as AiProviderType;
-                  set("ai_provider", defaultAiProviderConfig(provider));
+                  if (value === "add-api-key-llm") {
+                    set("ai_provider", createApiKeyProviderConfig());
+                  } else if (value.startsWith("custom:")) {
+                    const id = value.slice("custom:".length);
+                    const config = customAiProviders().find((item) => item.id === id);
+                    if (config) set("ai_provider", config);
+                  } else {
+                    set("ai_provider", defaultAiProviderConfig(value as AiProviderType));
+                  }
                   setAiApiKeyDraft("");
                   setAiTestResult(null);
                 }}
@@ -590,21 +655,31 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
                 width="220px"
                 onChange={(value) => updateAiConfig({ model: value.trim() })}
               />
-              <SettingInput
-                label={t("settings.aiApiKey")}
-                description={aiConfig().has_api_key ? t("settings.aiApiKeyStored") : t("settings.aiApiKeyDescription")}
-                value={aiApiKeyDraft()}
-                type="password"
-                placeholder={aiConfig().provider_type === "OpenAI" ? "sk-..." : t("settings.aiApiKeyOptional")}
-                width="220px"
-                onChange={setAiApiKeyDraft}
-              />
+              <Show when={isApiKeyAiProvider()}>
+                <SettingInput
+                  label={t("settings.aiApiKey")}
+                  description={aiConfig().has_api_key ? t("settings.aiApiKeyStored") : t("settings.aiApiKeyDescription")}
+                  value={aiApiKeyDraft()}
+                  type="password"
+                  placeholder={t("settings.aiApiKeyPlaceholder")}
+                  width="220px"
+                  onChange={setAiApiKeyDraft}
+                />
+              </Show>
               <div style={{ display: "flex", gap: "8px", "justify-content": "flex-end", padding: "8px 0" }}>
+                <Show when={activeCustomProviderSaved()}>
+                  <button
+                    onClick={() => void deleteAiProvider()}
+                    style={settingsDangerButtonStyle}
+                  >
+                    {t("settings.aiDeleteProvider")}
+                  </button>
+                </Show>
                 <button
-                  onClick={() => void saveAiKey()}
+                  onClick={() => void saveAiProvider()}
                   style={settingsButtonStyle}
                 >
-                  {t("settings.aiSaveKey")}
+                  {t("settings.aiSaveProvider")}
                 </button>
                 <button
                   onClick={() => void testAiConfig()}
@@ -1858,6 +1933,11 @@ const settingsButtonStyle = {
   cursor: "pointer",
   "font-size": "var(--mz-font-size-sm)",
   "font-family": "var(--mz-font-sans)",
+};
+
+const settingsDangerButtonStyle = {
+  ...settingsButtonStyle,
+  color: "var(--mz-error)",
 };
 
 // ---------------------------------------------------------------------------

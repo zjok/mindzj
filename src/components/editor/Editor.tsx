@@ -1486,6 +1486,7 @@ export const Editor: Component<EditorProps> = (props) => {
             true,
         );
         const targetPos = target.head;
+        const targetAssoc = boundary === "end" ? -1 : target.assoc;
         view.dispatch({
             selection: extend
                 ? EditorSelection.range(
@@ -1493,11 +1494,11 @@ export const Editor: Component<EditorProps> = (props) => {
                     targetPos,
                     target.goalColumn,
                     target.bidiLevel ?? undefined,
-                    target.assoc,
+                    targetAssoc,
                 )
                 : EditorSelection.cursor(
                     targetPos,
-                    target.assoc,
+                    targetAssoc,
                     target.bidiLevel ?? undefined,
                     target.goalColumn,
                 ),
