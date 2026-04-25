@@ -21,6 +21,10 @@ import {
     historyField,
     historyKeymap,
     isolateHistory,
+    cursorLineUp,
+    cursorLineDown,
+    selectLineUp,
+    selectLineDown,
     undo,
     redo,
 } from "@codemirror/commands";
@@ -954,10 +958,10 @@ export const Editor: Component<EditorProps> = (props) => {
                         { key: "Shift-End", run: (v: EditorView) => moveCursorToLogicalLineBoundary(v, "end", true) },
                         { key: "Mod-Shift-Home", run: (v: EditorView) => moveCursorToLogicalLineBoundary(v, "start", true) },
                         { key: "Mod-Shift-End", run: (v: EditorView) => moveCursorToLogicalLineBoundary(v, "end", true) },
-                        { key: "ArrowUp", run: (v: EditorView) => moveCursorByLogicalLine(v, -1, false) },
-                        { key: "ArrowDown", run: (v: EditorView) => moveCursorByLogicalLine(v, 1, false) },
-                        { key: "Shift-ArrowUp", run: (v: EditorView) => moveCursorByLogicalLine(v, -1, true) },
-                        { key: "Shift-ArrowDown", run: (v: EditorView) => moveCursorByLogicalLine(v, 1, true) },
+                        { key: "ArrowUp", run: cursorLineUp },
+                        { key: "ArrowDown", run: cursorLineDown },
+                        { key: "Shift-ArrowUp", run: selectLineUp },
+                        { key: "Shift-ArrowDown", run: selectLineDown },
                     ]
                     : []),
                 ...defaultKeymap,
@@ -1468,26 +1472,6 @@ export const Editor: Component<EditorProps> = (props) => {
             if (!editorView) return;
             editorView.requestMeasure();
         });
-    }
-
-    function moveCursorByLogicalLine(view: EditorView, direction: -1 | 1, extend: boolean): boolean {
-        const selection = view.state.selection.main;
-        const currentLine = view.state.doc.lineAt(selection.head);
-        const targetLineNumber = currentLine.number + direction;
-        if (targetLineNumber < 1 || targetLineNumber > view.state.doc.lines) {
-            return false;
-        }
-
-        const targetLine = view.state.doc.line(targetLineNumber);
-        const column = selection.head - currentLine.from;
-        const targetPos = Math.min(targetLine.from + column, targetLine.to);
-        view.dispatch({
-            selection: extend
-                ? EditorSelection.range(selection.anchor, targetPos)
-                : EditorSelection.cursor(targetPos),
-            effects: EditorView.scrollIntoView(targetPos),
-        });
-        return true;
     }
 
     function moveCursorToLogicalLineBoundary(

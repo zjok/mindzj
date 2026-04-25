@@ -3258,6 +3258,8 @@ var _MindMapView = class extends import_obsidian.TextFileView {
     this.mdSnapshot = null;
     this.zoomLabel = null;
     this.proxyTA = null;
+    this.proxyNodeId = null;
+    this.proxyComposing = false;
     this.mdOutlineTimer = null;
     this._kd = (e) => {
       var _a;
@@ -3800,7 +3802,7 @@ var _MindMapView = class extends import_obsidian.TextFileView {
   async onClose() {
     if (this.commitEdit)
       this.commitEdit();
-    this.clearProxy();
+    this.clearProxy(true);
     if (this.mdOutlineTimer)
       clearTimeout(this.mdOutlineTimer);
     this.clearOutlineHeadings();
@@ -5125,6 +5127,8 @@ var _MindMapView = class extends import_obsidian.TextFileView {
     const t2 = e.target;
     if (!t2)
       return false;
+    if (this.proxyComposing || t2 === this.proxyTA)
+      return true;
     const tag = t2.tagName.toLowerCase();
     if (tag === "input" || tag === "textarea" || tag === "select") {
       return !((_a = this.svgCt) == null ? void 0 : _a.contains(t2));
@@ -5135,34 +5139,59 @@ var _MindMapView = class extends import_obsidian.TextFileView {
   }
   // IME-compatible typeToEdit via proxy textarea positioned below selected node
   ensureProxy() {
-    this.clearProxy();
-    if (!this.plugin.settings.typeToEdit || !this.selId || this.isMulti() || this.editId || !this.svgCt || this.searchBar)
+    if (!this.plugin.settings.typeToEdit || !this.selId || this.isMulti() || this.editId || !this.svgCt || this.searchBar) {
+      this.clearProxy();
       return;
-    if (this.searchBar && this.searchBar.contains(document.activeElement))
+    }
+    if (this.searchBar && this.searchBar.contains(document.activeElement)) {
+      this.clearProxy();
       return;
+    }
     const nd = this.fAll(this.selId);
-    if (!nd)
+    if (!nd) {
+      this.clearProxy();
       return;
-    const p = document.createElement("textarea");
+    }
     const screenX = nd.x * this.zoom + this.panX;
     const screenY = (nd.y + nd.height / 2) * this.zoom + this.panY + 4;
+    const setProxyPosition = (el) => {
+      Object.entries({
+        "--mz-proxy-left": screenX + "px",
+        "--mz-proxy-top": screenY + "px"
+      }).forEach(([k, v]) => el.style.setProperty(k, v));
+    };
+    if (this.proxyTA && this.proxyNodeId === nd.id) {
+      setProxyPosition(this.proxyTA);
+      if (!this.proxyComposing && document.activeElement !== this.proxyTA) {
+        const existing = this.proxyTA;
+        setTimeout(() => {
+          if (this.proxyTA === existing && !this.proxyComposing)
+            existing.focus({ preventScroll: true });
+        }, 0);
+      }
+      return;
+    }
+    if (this.proxyComposing)
+      return;
+    this.clearProxy();
+    const p = document.createElement("textarea");
     p.addClass("mz-proxy-ta");
-    Object.entries({
-      "--mz-proxy-left": screenX + "px",
-      "--mz-proxy-top": screenY + "px"
-    }).forEach(([k, v]) => p.style.setProperty(k, v));
+    setProxyPosition(p);
     this.svgCt.appendChild(p);
     this.proxyTA = p;
-    let composing = false;
+    this.proxyNodeId = nd.id;
+    const targetId = nd.id;
     p.addEventListener("compositionstart", () => {
-      composing = true;
+      this.proxyComposing = true;
       p.addClass("mz-proxy-composing");
     });
     p.addEventListener("compositionend", () => {
-      composing = false;
+      this.proxyComposing = false;
+      p.classList.remove("mz-proxy-composing");
       const val = p.value;
-      if (val && this.selId && !this.editId) {
-        this.editId = this.selId;
+      if (val && !this.editId && this.fAll(targetId)) {
+        this.sel1(targetId);
+        this.editId = targetId;
         this.render();
         setTimeout(() => {
           if (this.liveTA) {
@@ -5180,11 +5209,12 @@ var _MindMapView = class extends import_obsidian.TextFileView {
       }
     });
     p.addEventListener("input", () => {
-      if (composing)
+      if (this.proxyComposing)
         return;
       const val = p.value;
-      if (val && this.selId && !this.editId) {
-        this.editId = this.selId;
+      if (val && !this.editId && this.fAll(targetId)) {
+        this.sel1(targetId);
+        this.editId = targetId;
         this.render();
         setTimeout(() => {
           if (this.liveTA) {
@@ -5201,12 +5231,19 @@ var _MindMapView = class extends import_obsidian.TextFileView {
         }, 0);
       }
     });
-    setTimeout(() => p.focus({ preventScroll: true }), 0);
+    setTimeout(() => {
+      if (this.proxyTA === p && !this.proxyComposing)
+        p.focus({ preventScroll: true });
+    }, 0);
   }
-  clearProxy() {
+  clearProxy(force = false) {
     if (this.proxyTA) {
+      if (this.proxyComposing && !force)
+        return;
       this.proxyTA.remove();
       this.proxyTA = null;
+      this.proxyNodeId = null;
+      this.proxyComposing = false;
     }
   }
   copyNode(cut) {
@@ -5658,7 +5695,7 @@ var _MindMapView = class extends import_obsidian.TextFileView {
       this.overlayG.appendChild(this.boxEl);
     this.updateDevPanel();
     if (this.editId)
-      this.clearProxy();
+      this.clearProxy(true);
     else
       this.ensureProxy();
   }
