@@ -68,7 +68,7 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
   const [activePluginId, setActivePluginId] = createSignal<string | null>(null);
   const [activePluginName, setActivePluginName] = createSignal<string>("");
   const [aiApiKeyDraft, setAiApiKeyDraft] = createSignal("");
-  const [aiApiKeyVisible, setAiApiKeyVisible] = createSignal(false);
+  const [aiApiKeyVisible, setAiApiKeyVisible] = createSignal(true);
   const [aiTestResult, setAiTestResult] = createSignal<string | null>(null);
   const [aiAddingModel, setAiAddingModel] = createSignal(false);
   const [aiAddModelDraft, setAiAddModelDraft] = createSignal("");
@@ -154,20 +154,51 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
   const aiAddMode = () => aiAddingModel();
   const aiProviderKindLabel = () =>
     isLocalAiProvider() ? t("settings.aiLocalModel") : t("settings.aiOnlineModel");
-  createEffect(() => {
-    const config = aiConfig();
+  function loadAiApiKeyIntoDraft(config: AiProviderConfig) {
     const token = ++aiApiKeyLoadToken;
-    if (aiAddMode() || !isApiKeyAiProvider(config)) {
-      setAiApiKeyVisible(false);
-      if (!aiAddMode()) setAiApiKeyDraft("");
+    if (aiAddMode()) {
+      setAiApiKeyVisible(true);
       return;
     }
-    setAiApiKeyVisible(false);
+    if (!isApiKeyAiProvider(config)) {
+      setAiApiKeyVisible(false);
+      setAiApiKeyDraft("");
+      return;
+    }
+    setAiApiKeyVisible(true);
     void aiStore.loadApiKey(config).then((key) => {
       if (token !== aiApiKeyLoadToken) return;
       setAiApiKeyDraft(key ?? "");
     });
+  }
+  createEffect(() => {
+    loadAiApiKeyIntoDraft(aiConfig());
   });
+  function selectAiProvider(value: string) {
+    setAiTestResult(null);
+    setAiApiKeyVisible(true);
+    if (value === "current-api-key-llm") {
+      setAiAddingModel(false);
+      loadAiApiKeyIntoDraft(aiConfig());
+      return;
+    }
+    if (value.startsWith("custom:")) {
+      const id = value.slice("custom:".length);
+      const config = customAiProviders().find((item) => item.id === id)
+        ?? (aiConfig().id === id ? aiConfig() : null);
+      if (!config) return;
+      setAiAddingModel(false);
+      setAiApiKeyDraft("");
+      set("ai_provider", { ...config });
+      loadAiApiKeyIntoDraft(config);
+      return;
+    }
+    const config = defaultAiProviderConfig(value as AiProviderType);
+    setAiAddingModel(false);
+    setAiApiKeyDraft("");
+    set("ai_provider", config);
+    loadAiApiKeyIntoDraft(config);
+  }
   function createApiKeyProviderConfig(): AiProviderConfig {
     return {
       ...defaultAiProviderConfig("ApiKeyLLM"),
@@ -203,7 +234,7 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
     }
     await set("ai_provider", next);
     setAiApiKeyDraft(value);
-    setAiApiKeyVisible(false);
+    setAiApiKeyVisible(true);
     if (showStatus) setAiTestResult(t("settings.aiProviderSaved"));
     return true;
   }
@@ -225,7 +256,7 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
     await set("ai_provider", next);
     setAiAddModelDraft("");
     setAiApiKeyDraft(apiKey);
-    setAiApiKeyVisible(false);
+    setAiApiKeyVisible(true);
     setAiAddingModel(false);
     setAiTestResult(t("settings.aiProviderSaved"));
   }
@@ -276,6 +307,72 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
       ? FONT_FAMILY_OPTIONS
       : [{ value: current, label: t("settings.fontFamilyCustomOption") }, ...FONT_FAMILY_OPTIONS];
   });
+
+  const renderCustomEditorSettings = () => (
+    <SettingSection title={t("settings.custom")}>
+      <SettingColor
+        label={t("settings.accentColor")}
+        description={t("settings.accentColorDescription")}
+        value={s().accent_color || "#1aad3f"}
+        onChange={(v) => set("accent_color", v)}
+        onClear={() => set("accent_color", "#1aad3f")}
+      />
+      <SettingColor
+        label={t("settings.headingColor")}
+        description={t("settings.headingColorDescription")}
+        value={s().heading_color || "#e5c07b"}
+        onChange={(v) => set("heading_color", v)}
+        onClear={() => set("heading_color", null)}
+      />
+      <SettingColor
+        label={t("settings.linkColor")}
+        description={t("settings.linkColorDescription")}
+        value={s().link_color || "#528bff"}
+        onChange={(v) => set("link_color", v)}
+        onClear={() => set("link_color", null)}
+      />
+      <SettingColor
+        label={t("settings.highlightColor")}
+        description={t("settings.highlightColorDescription")}
+        value={s().highlight_color || "#fff59d"}
+        onChange={(v) => set("highlight_color", v)}
+        onClear={() => set("highlight_color", null)}
+      />
+      <SettingColor
+        label={t("settings.boldColor")}
+        description={t("settings.boldColorDescription")}
+        value={s().bold_color || "#e06c75"}
+        onChange={(v) => set("bold_color", v)}
+        onClear={() => set("bold_color", null)}
+      />
+      <SettingColor
+        label={t("settings.selectionColor")}
+        description={t("settings.selectionColorDescription")}
+        value={s().selection_color || "#528bff"}
+        onChange={(v) => set("selection_color", v)}
+        onClear={() => set("selection_color", null)}
+      />
+      <SettingColor
+        label={t("settings.dragIndicatorColor")}
+        description={t("settings.dragIndicatorColorDescription")}
+        value={s().drag_indicator_color || "#1aad3f"}
+        onChange={(v) => set("drag_indicator_color", v)}
+        onClear={() => set("drag_indicator_color", null)}
+      />
+      <SettingToggle
+        label={t("settings.showMarkdownToolbar")}
+        description={t("settings.showMarkdownToolbarDescription")}
+        value={s().show_markdown_toolbar}
+        onChange={(v) => set("show_markdown_toolbar", v)}
+      />
+      <SettingToggle
+        label={t("settings.autoLinkUrls")}
+        description={t("settings.autoLinkUrlsDescription")}
+        value={s().auto_link_urls}
+        onChange={(v) => set("auto_link_urls", v)}
+      />
+    </SettingSection>
+  );
 
   return (
     <div
@@ -525,103 +622,32 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
                 onChange={(v) => set("default_view_mode", v)}
               />
             </SettingSection>
+
+            {renderCustomEditorSettings()}
           </Show>
 
           {/* Appearance Settings */}
           <Show when={activeTab() === "appearance"}>
-            <div style={titleRowStyle}>
-              <h2 style={{ ...titleStyle, "margin-bottom": "0" }}>{t("settings.appearance")}</h2>
-              <select
-                title={t("common.interfaceLanguage")}
-                aria-label={t("common.interfaceLanguage")}
-                value={s().locale}
-                onChange={(event) => set("locale", event.currentTarget.value as AppSettings["locale"])}
-                style={titleSelectStyle}
-              >
-                <For each={getLanguageOptions()}>
-                  {(option) => <option value={option.value}>{option.label}</option>}
-                </For>
-              </select>
-            </div>
+            <h2 style={titleStyle}>{t("settings.appearance")}</h2>
+
+            <SettingSection title={t("common.interfaceLanguage")}>
+              <div style={{ display: "flex", "justify-content": "flex-end", padding: "8px 0" }}>
+                <select
+                  title={t("common.interfaceLanguage")}
+                  aria-label={t("common.interfaceLanguage")}
+                  value={s().locale}
+                  onChange={(event) => set("locale", event.currentTarget.value as AppSettings["locale"])}
+                  style={titleSelectStyle}
+                >
+                  <For each={getLanguageOptions()}>
+                    {(option) => <option value={option.value}>{option.label}</option>}
+                  </For>
+                </select>
+              </div>
+            </SettingSection>
 
             <SettingSection title={t("settings.themeSection")}>
               <SkinPickerPanel />
-            </SettingSection>
-
-            <SettingSection title={t("settings.custom")}>
-              <SettingColor
-                label={t("settings.accentColor")}
-                description={t("settings.accentColorDescription")}
-                value={s().accent_color || "#1aad3f"}
-                onChange={(v) => set("accent_color", v)}
-                onClear={() => set("accent_color", "#1aad3f")}
-              />
-              {/*
-                Per-element color overrides. Each one has `onClear`
-                pointing to `null` which removes the override and
-                lets the theme default come through. `SettingColor`
-                already renders a "reset" button next to the input
-                whenever `onClear` is provided, so the UX "setting
-                前面显示一个恢复默认按钮" is satisfied by the existing
-                control. The `value` prop uses the theme's default
-                hex when the override is null, so the color picker
-                shows the "currently effective" color rather than an
-                empty box.
-              */}
-              <SettingColor
-                label={t("settings.headingColor")}
-                description={t("settings.headingColorDescription")}
-                value={s().heading_color || "#e5c07b"}
-                onChange={(v) => set("heading_color", v)}
-                onClear={() => set("heading_color", null)}
-              />
-              <SettingColor
-                label={t("settings.linkColor")}
-                description={t("settings.linkColorDescription")}
-                value={s().link_color || "#528bff"}
-                onChange={(v) => set("link_color", v)}
-                onClear={() => set("link_color", null)}
-              />
-              <SettingColor
-                label={t("settings.highlightColor")}
-                description={t("settings.highlightColorDescription")}
-                value={s().highlight_color || "#fff59d"}
-                onChange={(v) => set("highlight_color", v)}
-                onClear={() => set("highlight_color", null)}
-              />
-              <SettingColor
-                label={t("settings.boldColor")}
-                description={t("settings.boldColorDescription")}
-                value={s().bold_color || "#e06c75"}
-                onChange={(v) => set("bold_color", v)}
-                onClear={() => set("bold_color", null)}
-              />
-              <SettingColor
-                label={t("settings.selectionColor")}
-                description={t("settings.selectionColorDescription")}
-                value={s().selection_color || "#528bff"}
-                onChange={(v) => set("selection_color", v)}
-                onClear={() => set("selection_color", null)}
-              />
-              <SettingColor
-                label={t("settings.dragIndicatorColor")}
-                description={t("settings.dragIndicatorColorDescription")}
-                value={s().drag_indicator_color || "#1aad3f"}
-                onChange={(v) => set("drag_indicator_color", v)}
-                onClear={() => set("drag_indicator_color", null)}
-              />
-              <SettingToggle
-                label={t("settings.showMarkdownToolbar")}
-                description={t("settings.showMarkdownToolbarDescription")}
-                value={s().show_markdown_toolbar}
-                onChange={(v) => set("show_markdown_toolbar", v)}
-              />
-              <SettingToggle
-                label={t("settings.autoLinkUrls")}
-                description={t("settings.autoLinkUrlsDescription")}
-                value={s().auto_link_urls}
-                onChange={(v) => set("auto_link_urls", v)}
-              />
             </SettingSection>
 
             {/* CSS Snippets — Obsidian-style user stylesheet manager */}
@@ -711,7 +737,7 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
                           setAiAddingModel(true);
                           setAiAddModelDraft("");
                           setAiApiKeyDraft("");
-                          setAiApiKeyVisible(false);
+                          setAiApiKeyVisible(true);
                           setAiTestResult(null);
                         }}
                         style={settingsButtonStyle}
@@ -725,23 +751,7 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
                       value={aiProviderSelectValue()}
                       options={aiProviderOptions()}
                       width="190px"
-                      onChange={(value) => {
-                        if (value === "current-api-key-llm") {
-                          setAiAddingModel(false);
-                        } else if (value.startsWith("custom:")) {
-                          const id = value.slice("custom:".length);
-                          const config = customAiProviders().find((item) => item.id === id)
-                            ?? (aiConfig().id === id ? aiConfig() : null);
-                          if (config) set("ai_provider", config);
-                          setAiAddingModel(false);
-                        } else {
-                          set("ai_provider", defaultAiProviderConfig(value as AiProviderType));
-                          setAiAddingModel(false);
-                        }
-                        setAiApiKeyDraft("");
-                        setAiApiKeyVisible(false);
-                        setAiTestResult(null);
-                      }}
+                      onChange={selectAiProvider}
                     />
                     <Show when={isLocalAiProvider()}>
                       <SettingInput
@@ -2126,15 +2136,6 @@ const titleStyle = {
   color: "var(--mz-text-primary)",
   "margin-bottom": "20px",
 };
-
-const titleRowStyle = {
-  display: "flex",
-  "align-items": "center",
-  "justify-content": "space-between",
-  gap: "12px",
-  "flex-wrap": "wrap",
-  "margin-bottom": "20px",
-} as const;
 
 const titleSelectStyle = {
   width: "180px",

@@ -25,6 +25,7 @@ import {
     cursorLineDown,
     cursorLineBoundaryBackward,
     cursorLineBoundaryForward,
+    deleteCharForward,
     selectLineUp,
     selectLineDown,
     selectLineBoundaryBackward,
@@ -1142,6 +1143,14 @@ export const Editor: Component<EditorProps> = (props) => {
                 },
                 contextmenu(event, view) {
                     activatePane();
+                    const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
+                    const selection = view.state.selection.main;
+                    if (
+                        pos !== null &&
+                        (selection.empty || pos < selection.from || pos > selection.to)
+                    ) {
+                        view.dispatch({ selection: { anchor: pos } });
+                    }
                     event.preventDefault();
                     event.stopPropagation();
                     setContextMenu({
@@ -1480,17 +1489,24 @@ export const Editor: Component<EditorProps> = (props) => {
 
     async function copySelection(view: EditorView) {
         const selection = view.state.selection.main;
-        if (selection.empty) return;
-        const text = view.state.sliceDoc(selection.from, selection.to);
+        const text = selection.empty
+            ? view.state.doc.lineAt(selection.head).text
+            : view.state.sliceDoc(selection.from, selection.to);
         await navigator.clipboard.writeText(text).catch(() => {});
         view.focus();
     }
 
     async function cutSelection(view: EditorView) {
         const selection = view.state.selection.main;
-        if (selection.empty) return;
-        const text = view.state.sliceDoc(selection.from, selection.to);
+        const text = selection.empty
+            ? view.state.doc.lineAt(selection.head).text
+            : view.state.sliceDoc(selection.from, selection.to);
         await navigator.clipboard.writeText(text).catch(() => {});
+        if (selection.empty) {
+            deleteLine(view);
+            view.focus();
+            return;
+        }
         view.dispatch({
             changes: { from: selection.from, to: selection.to, insert: "" },
             selection: { anchor: selection.from },
@@ -1505,6 +1521,24 @@ export const Editor: Component<EditorProps> = (props) => {
         view.dispatch({
             changes: { from: selection.from, to: selection.to, insert: text },
             selection: { anchor: selection.from + text.length },
+        });
+        view.focus();
+    }
+
+    async function pastePlainTextFromClipboard(view: EditorView) {
+        await pasteFromClipboard(view);
+    }
+
+    function deleteSelectionOrForward(view: EditorView) {
+        const selection = view.state.selection.main;
+        if (selection.empty) {
+            deleteCharForward(view);
+            view.focus();
+            return;
+        }
+        view.dispatch({
+            changes: { from: selection.from, to: selection.to, insert: "" },
+            selection: { anchor: selection.from },
         });
         view.focus();
     }
@@ -1541,6 +1575,14 @@ export const Editor: Component<EditorProps> = (props) => {
             {
                 label: t("context.paste"),
                 action: () => { void pasteFromClipboard(view); },
+            },
+            {
+                label: t("context.pastePlainText"),
+                action: () => { void pastePlainTextFromClipboard(view); },
+            },
+            {
+                label: t("context.deleteSelection"),
+                action: () => { deleteSelectionOrForward(view); },
             },
             {
                 label: t("context.selectAll"),
@@ -1606,7 +1648,7 @@ export const Editor: Component<EditorProps> = (props) => {
                 action: () => { dispatchEditorCommand({ command: "horizontal-rule" }); },
             },
             {
-                label: t("toolbar.taskList"),
+                label: t("context.todo"),
                 action: () => { dispatchEditorCommand({ command: "task-list" }); },
                 separator: true,
             },
@@ -1659,6 +1701,13 @@ export const Editor: Component<EditorProps> = (props) => {
                 label: t("context.clearFormatting"),
                 action: () => { dispatchEditorCommand({ command: "clear-formatting" }); },
                 separator: true,
+            },
+            {
+                label: t("commandPalette.aiControl"),
+                action: () => {
+                    activatePane();
+                    document.dispatchEvent(new CustomEvent("mindzj:toggle-ai-panel"));
+                },
             },
             {
                 label: t("context.editMode"),

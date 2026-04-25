@@ -1607,15 +1607,31 @@ const App: Component = () => {
     }
 
     function handleGlobalKeydown(e: KeyboardEvent) {
+        // If the settings hotkey capture is active, let the HotkeysPanel handle the event.
+        if ((window as any).__mindzj_hotkey_capturing) return;
+
+        const moveLineCommand = matchesHotkey(e, getHotkey("move-line-up", "Alt+Up"))
+            ? "move-line-up"
+            : matchesHotkey(e, getHotkey("move-line-down", "Alt+Down"))
+                ? "move-line-down"
+                : null;
+        const focusedEditorContent = document.activeElement?.closest(".cm-content");
+        if (moveLineCommand && focusedEditorContent?.closest(".cm-editor")) {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            document.dispatchEvent(new CustomEvent("mindzj:editor-command", {
+                detail: { command: moveLineCommand },
+            }));
+            return;
+        }
+
         if (suppressWebViewAltMenu(e)) return;
         if (e.defaultPrevented) return;
         if (handleTabSwitchKeydown(e)) return;
 
         // Bare Alt and Alt+Arrow are suppressed above so WebView2 never
         // enters its native menu mode after repeated Alt presses.
-
-        // If the settings hotkey capture is active, let the HotkeysPanel handle the event
-        if ((window as any).__mindzj_hotkey_capturing) return;
 
         if (
             e.altKey &&

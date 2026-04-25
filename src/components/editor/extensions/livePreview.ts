@@ -1563,6 +1563,7 @@ function buildLineDecorations(
     state: import("@codemirror/state").EditorState,
 ): DecorationSet {
     const doc = state.doc;
+    const cursorLine = doc.lineAt(state.selection.main.head).number;
     const decos: Range<Decoration>[] = [];
     // No block-widget exclusion — every line is styled via line
     // decorations so raw source LOOKS like rendered blocks while
@@ -1617,7 +1618,9 @@ function buildLineDecorations(
 
         // --- Horizontal rule ---
         if (/^(-{3,}|\*{3,}|_{3,})\s*$/.test(text)) {
-            decos.push(hrLineDeco.range(line.from));
+            if (i !== cursorLine) {
+                decos.push(hrLineDeco.range(line.from));
+            }
             continue;
         }
 
@@ -1668,10 +1671,16 @@ const lineDecorationField = StateField.define<DecorationSet>({
         return buildLineDecorations(state);
     },
     update(deco, tr: Transaction) {
-        // Only rebuild when the document actually changed — line
-        // classification doesn't depend on selection/scroll, so panel
-        // toggles and cursor movement must not rescan every line.
-        if (tr.docChanged) {
+        const beforeLine = tr.startState.doc.lineAt(
+            tr.startState.selection.main.head,
+        ).number;
+        const afterLine = tr.state.doc.lineAt(
+            tr.state.selection.main.head,
+        ).number;
+
+        // Rebuild when the cursor crosses lines so horizontal-rule
+        // markers switch between rendered and editable states.
+        if (tr.docChanged || beforeLine !== afterLine) {
             return buildLineDecorations(tr.state);
         }
         return deco.map(tr.changes);
