@@ -479,6 +479,19 @@ function buildToolContext(instruction: string, options?: RunInstructionOptions):
   };
 }
 
+function looksLikeActiveNoteContentRequest(instruction: string): boolean {
+  const text = instruction.trim().toLowerCase();
+  if (!text) return false;
+
+  const explicitWrite = /(写入|录入|记入|记录|保存|加入|添加|追加|插入|放到|放入|粘贴|输出到|写进|写到|append|insert|add|write|save|paste)/iu;
+  const generatedContent = /(翻译|译成|总结|摘要|概括|改写|润色|扩写|缩写|整理|生成|起草|撰写|写一|写个|写成|列出|提取|转换为|转成|translate|summari[sz]e|rewrite|polish|draft|compose|generate|extract|convert)/iu;
+  const plainQuestion = /^(什么|为什么|怎么|如何|请问|能否|可以|是否|哪|who|what|why|how|can|could|should|is|are)\b/iu;
+
+  if (explicitWrite.test(text)) return true;
+  if (generatedContent.test(text) && !plainQuestion.test(text)) return true;
+  return false;
+}
+
 function enforceCurrentFileContentScope(
   toolName: string,
   rawPath: string,
@@ -689,12 +702,35 @@ async function executeTool(name: string, args: any, context?: ToolExecutionConte
   }
 }
 
+async function appendNaturalResponseToActiveNote(
+  instruction: string,
+  content: string,
+  context?: ToolExecutionContext,
+): Promise<string | null> {
+  const trimmed = content.trim();
+  if (!trimmed || !context?.restrictToActiveFile || context.hasExplicitPath || !context.activePath) {
+    return null;
+  }
+  if (!looksLikeActiveNoteContentRequest(instruction)) return null;
+
+  // Some local models ignore function calling for simple generation tasks.
+  // Treat their final text as the content to record in the active Markdown note.
+  const result = await executeTool("append_note", {
+    path: context.activePath,
+    content: trimmed,
+  }, context);
+  return result.message || (result.ok ? `Appended to ${context.activePath}` : null);
+}
+
 function buildSystemPrompt(context?: ToolExecutionContext) {
   const active = vaultStore.activeFile()?.path ?? "(none)";
   const commands = listPluginCommands().map((command) => command.id).slice(0, 80);
   const lines = [
     "You are MindZJ's local automation agent.",
     "Use tools to inspect and modify the user's current vault. Do not invent file contents or paths.",
+    "The bottom AI command panel is for executing note actions, not casual chat.",
+    "If the user asks you to translate, draft, summarize, rewrite, polish, generate, or record content, write the result into the target note with create_note, update_note, or append_note.",
+    "If the user did not name a target note, write content changes to the active note.",
     "For destructive changes, only perform the exact action requested by the user.",
     "When you finish, summarize what you changed in one concise sentence.",
     `Active note: ${active}`,
@@ -1115,6 +1151,7 @@ function createAiStore() {
     if (providerNeedsRealKey(config.provider_type) && !apiKey) {
       throw new Error("API key is required for this provider.");
     }
+    await editorStore.flushAllPendingSaves();
     const toolContext = buildToolContext(instruction, options);
     const messages: ChatMessage[] = [
       { role: "system", content: buildSystemPrompt(toolContext) },
@@ -1150,6 +1187,8 @@ function createAiStore() {
       const content = String(message.content ?? "").trim();
       const fallback = await runJsonFallback(content, toolContext);
       if (fallback) return fallback;
+      const naturalWriteFallback = await appendNaturalResponseToActiveNote(instruction, content, toolContext);
+      if (naturalWriteFallback) return naturalWriteFallback;
       return content || executed.join("\n") || "Done.";
     }
 
