@@ -43,6 +43,7 @@ import { ImageViewer } from "./components/common/ImageViewer";
 import { FilePreview } from "./components/common/FilePreview";
 import { createPersistableWindowState } from "./utils/windowState";
 import { register, unregister, isRegistered } from "@tauri-apps/plugin-global-shortcut";
+import { Copy, History, Trash2, X } from "lucide-solid";
 import { ScreenshotOverlay } from "./components/screenshot/ScreenshotOverlay";
 import { promptDialog } from "./components/common/ConfirmDialog";
 import { openFileRouted } from "./utils/openFileRouted";
@@ -68,10 +69,79 @@ type AiPanelModelOption = {
     label: string;
     config: AiProviderConfig;
 };
+type AiQuestionHistoryEntry = {
+    id: string;
+    text: string;
+    createdAt: string;
+};
+type AiHistoryDirection = "prev" | "next";
+
+const AI_QUESTION_HISTORY_LIMIT = 500;
 
 function normalizeVaultPath(path: string | null | undefined): string {
     if (!path) return "";
     return path.replace(/^\\\\\?\\/, "").replace(/\\/g, "/").toLowerCase();
+}
+
+function aiQuestionHistoryStorageKey(vaultPath: string | null | undefined): string {
+    return `mindzj-ai-question-history:${normalizeVaultPath(vaultPath) || "no-vault"}`;
+}
+
+function pad2(value: number): string {
+    return String(value).padStart(2, "0");
+}
+
+function aiHistoryDateKey(value: string): string {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value.slice(0, 10);
+    return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+}
+
+function formatAiHistoryDate(value: string): string {
+    const date = new Date(`${value}T00:00:00`);
+    if (Number.isNaN(date.getTime())) return value;
+    return date.toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+    });
+}
+
+function formatAiHistoryTimestamp(value: string): string {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return date.toLocaleString(undefined, {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+    });
+}
+
+function parseAiQuestionHistory(raw: string | null): AiQuestionHistoryEntry[] {
+    if (!raw) return [];
+    try {
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) return [];
+        return parsed
+            .map((entry, index): AiQuestionHistoryEntry | null => {
+                const text = String(entry?.text ?? "").trim();
+                const createdAt = String(entry?.createdAt ?? "");
+                if (!text || !createdAt) return null;
+                return {
+                    id: String(entry?.id ?? `${createdAt}-${index}`),
+                    text,
+                    createdAt,
+                };
+            })
+            .filter((entry): entry is AiQuestionHistoryEntry => !!entry)
+            .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+            .slice(-AI_QUESTION_HISTORY_LIMIT);
+    } catch {
+        return [];
+    }
 }
 
 function aiPanelModelOptionValue(config: AiProviderConfig): string {
@@ -128,6 +198,10 @@ const App: Component = () => {
     const [aiPanelInput, setAiPanelInput] = createSignal("");
     const [aiPanelOutput, setAiPanelOutput] = createSignal("");
     const [aiPanelBusy, setAiPanelBusy] = createSignal(false);
+    const [showAiHistory, setShowAiHistory] = createSignal(false);
+    const [aiQuestionHistory, setAiQuestionHistory] = createSignal<AiQuestionHistoryEntry[]>([]);
+    const [aiHistoryDate, setAiHistoryDate] = createSignal("");
+    const [aiHistoryCursor, setAiHistoryCursor] = createSignal<number | null>(null);
     const [sidebarTab, setSidebarTab] = createSignal<SidebarTab>("files");
     const [sidebarCollapsed, setSidebarCollapsed] = createSignal(false);
     const [showVaultMenu, setShowVaultMenu] = createSignal(false);
@@ -261,7 +335,48 @@ const App: Component = () => {
         const config = settingsStore.settings().ai_provider ?? defaultAiProviderConfig("Ollama");
         return aiPanelModelOptionValue(config);
     });
+    const aiQuestionHistoryKey = createMemo(() => aiQuestionHistoryStorageKey(vaultStore.vaultInfo()?.path));
+    const aiHistoryDates = createMemo(() => {
+        const dates = new Set<string>();
+        for (const entry of aiQuestionHistory()) {
+            const key = aiHistoryDateKey(entry.createdAt);
+            if (key) dates.add(key);
+        }
+        return Array.from(dates).sort().reverse();
+    });
+    const selectedAiHistoryEntries = createMemo(() => {
+        const date = aiHistoryDate();
+        return aiQuestionHistory()
+            .filter((entry) => aiHistoryDateKey(entry.createdAt) === date)
+            .slice()
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    });
     const splitPaneActive = createMemo(() => secondaryPanePath() !== null);
+
+    createEffect(on(aiQuestionHistoryKey, (key) => {
+        let entries: AiQuestionHistoryEntry[] = [];
+        try {
+            entries = parseAiQuestionHistory(localStorage.getItem(key));
+        } catch {
+            entries = [];
+        }
+        setAiQuestionHistory(entries);
+        setAiHistoryCursor(null);
+        const dates = Array.from(new Set(entries.map((entry) => aiHistoryDateKey(entry.createdAt)).filter(Boolean))).sort().reverse();
+        setAiHistoryDate(dates[0] ?? "");
+    }));
+
+    createEffect(() => {
+        const dates = aiHistoryDates();
+        const current = aiHistoryDate();
+        if (!dates.length) {
+            if (current) setAiHistoryDate("");
+            return;
+        }
+        if (!current || !dates.includes(current)) {
+            setAiHistoryDate(dates[0]);
+        }
+    });
 
     // Screenshot state
     const [screenshotData, setScreenshotData] = createSignal<string | null>(null);
@@ -1639,9 +1754,79 @@ const App: Component = () => {
         });
     }
 
+    function saveAiQuestionHistory(next: AiQuestionHistoryEntry[]) {
+        const trimmed = next.slice(-AI_QUESTION_HISTORY_LIMIT);
+        setAiQuestionHistory(trimmed);
+        setAiHistoryCursor(null);
+        try {
+            localStorage.setItem(aiQuestionHistoryKey(), JSON.stringify(trimmed));
+        } catch {
+            // History is a convenience feature; storage failures should not block AI runs.
+        }
+    }
+
+    function recordAiQuestion(text: string) {
+        const trimmed = text.trim();
+        if (!trimmed) return;
+        const createdAt = new Date().toISOString();
+        const entry: AiQuestionHistoryEntry = {
+            id: `${createdAt}-${Math.random().toString(36).slice(2, 8)}`,
+            text: trimmed,
+            createdAt,
+        };
+        saveAiQuestionHistory([...aiQuestionHistory(), entry]);
+        setAiHistoryDate(aiHistoryDateKey(createdAt));
+    }
+
+    function deleteAiHistoryEntry(id: string) {
+        saveAiQuestionHistory(aiQuestionHistory().filter((entry) => entry.id !== id));
+    }
+
+    function clearAiHistoryForSelectedDate() {
+        const date = aiHistoryDate();
+        if (!date) return;
+        saveAiQuestionHistory(aiQuestionHistory().filter((entry) => aiHistoryDateKey(entry.createdAt) !== date));
+    }
+
+    function clearAllAiHistory() {
+        saveAiQuestionHistory([]);
+    }
+
+    function handleAiPanelInput(value: string) {
+        setAiHistoryCursor(null);
+        setAiPanelInput(value);
+    }
+
+    function navigateAiQuestionHistory(direction: AiHistoryDirection) {
+        const history = aiQuestionHistory();
+        if (!history.length || aiPanelBusy()) return;
+        const current = aiHistoryCursor();
+        if (direction === "prev") {
+            const nextIndex = current === null ? history.length - 1 : Math.max(0, current - 1);
+            setAiHistoryCursor(nextIndex);
+            setAiPanelInput(history[nextIndex].text);
+            return;
+        }
+
+        if (current === null) return;
+        if (current >= history.length - 1) {
+            setAiHistoryCursor(null);
+            setAiPanelInput("");
+            return;
+        }
+        const nextIndex = current + 1;
+        setAiHistoryCursor(nextIndex);
+        setAiPanelInput(history[nextIndex].text);
+    }
+
+    function copyAiHistoryQuestion(text: string) {
+        void navigator.clipboard?.writeText(text).catch(() => {});
+    }
+
     async function runAiPanelInstruction() {
         const instruction = aiPanelInput().trim();
         if (!instruction || aiPanelBusy()) return;
+        recordAiQuestion(instruction);
         setAiPanelBusy(true);
         setAiPanelOutput(t("aiPanel.working"));
         try {
@@ -1650,6 +1835,7 @@ const App: Component = () => {
             });
             setAiPanelOutput(result || t("aiPanel.done"));
             setAiPanelInput("");
+            setAiHistoryCursor(null);
         } catch (err: any) {
             setAiPanelOutput(err?.message || String(err));
         } finally {
@@ -1680,6 +1866,15 @@ const App: Component = () => {
             document.dispatchEvent(new CustomEvent("mindzj:editor-command", {
                 detail: { command: moveLineCommand },
             }));
+            return;
+        }
+
+        const aiInputFocused = (document.activeElement as HTMLElement | null)?.dataset?.mzAiInput === "true";
+        if (aiInputFocused && e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            navigateAiQuestionHistory(e.key === "ArrowUp" ? "prev" : "next");
             return;
         }
 
@@ -2796,9 +2991,20 @@ const App: Component = () => {
                                 modelLabel={currentAiModelLabel()}
                                 modelOptions={aiPanelModelOptions()}
                                 activeModelValue={currentAiModelOptionValue()}
+                                historyOpen={showAiHistory()}
+                                historyDates={aiHistoryDates()}
+                                historyDate={aiHistoryDate()}
+                                historyEntries={selectedAiHistoryEntries()}
                                 onSelectModel={selectAiPanelModel}
-                                onInput={setAiPanelInput}
+                                onInput={handleAiPanelInput}
                                 onRun={() => void runAiPanelInstruction()}
+                                onToggleHistory={() => setShowAiHistory((value) => !value)}
+                                onSelectHistoryDate={setAiHistoryDate}
+                                onDeleteHistoryEntry={deleteAiHistoryEntry}
+                                onClearHistoryDate={clearAiHistoryForSelectedDate}
+                                onClearAllHistory={clearAllAiHistory}
+                                onCopyHistoryEntry={copyAiHistoryQuestion}
+                                onNavigateHistory={navigateAiQuestionHistory}
                                 onClose={() => setShowAiPanel(false)}
                             />
                         </Show>
@@ -2870,9 +3076,20 @@ const AiBottomPanel: Component<{
     modelLabel: string;
     modelOptions: AiPanelModelOption[];
     activeModelValue: string;
+    historyOpen: boolean;
+    historyDates: string[];
+    historyDate: string;
+    historyEntries: AiQuestionHistoryEntry[];
     onSelectModel: (value: string) => void;
     onInput: (value: string) => void;
     onRun: () => void;
+    onToggleHistory: () => void;
+    onSelectHistoryDate: (value: string) => void;
+    onDeleteHistoryEntry: (id: string) => void;
+    onClearHistoryDate: () => void;
+    onClearAllHistory: () => void;
+    onCopyHistoryEntry: (text: string) => void;
+    onNavigateHistory: (direction: AiHistoryDirection) => void;
     onClose: () => void;
 }> = (props) => {
     let textareaRef: HTMLTextAreaElement | undefined;
@@ -2911,7 +3128,215 @@ const AiBottomPanel: Component<{
                 }}
             >
                 <div style={{ display: "flex", "align-items": "center", gap: "10px", "min-width": "0" }}>
-                    <strong style={{ "flex-shrink": "0" }}>{t("aiPanel.title")}</strong>
+                    <div style={{ display: "flex", "align-items": "center", gap: "6px", position: "relative", "flex-shrink": "0" }}>
+                        <strong>{t("aiPanel.title")}</strong>
+                        <button
+                            type="button"
+                            onClick={props.onToggleHistory}
+                            title={t("aiPanel.history")}
+                            aria-label={t("aiPanel.history")}
+                            style={{
+                                width: "26px",
+                                height: "26px",
+                                display: "inline-flex",
+                                "align-items": "center",
+                                "justify-content": "center",
+                                border: "1px solid var(--mz-border)",
+                                "border-radius": "var(--mz-radius-sm)",
+                                background: props.historyOpen ? "var(--mz-bg-hover)" : "transparent",
+                                color: "var(--mz-text-muted)",
+                                cursor: "pointer",
+                                padding: "0",
+                            }}
+                        >
+                            <History size={15} strokeWidth={1.8} />
+                        </button>
+                        <Show when={props.historyOpen}>
+                            <div
+                                style={{
+                                    position: "absolute",
+                                    top: "30px",
+                                    left: "0",
+                                    width: "min(430px, calc(100vw - 32px))",
+                                    "max-height": "250px",
+                                    display: "flex",
+                                    "flex-direction": "column",
+                                    gap: "8px",
+                                    padding: "10px",
+                                    background: "var(--mz-bg-secondary)",
+                                    border: "1px solid var(--mz-border)",
+                                    "border-radius": "var(--mz-radius-sm)",
+                                    "box-shadow": "0 10px 28px rgba(0,0,0,0.32)",
+                                    "z-index": "1000",
+                                    color: "var(--mz-text-primary)",
+                                }}
+                            >
+                                <div style={{ display: "flex", "align-items": "center", gap: "6px", "min-width": "0" }}>
+                                    <select
+                                        aria-label={t("aiPanel.historyDate")}
+                                        value={props.historyDate}
+                                        disabled={props.historyDates.length === 0}
+                                        onChange={(event) => props.onSelectHistoryDate(event.currentTarget.value)}
+                                        style={{
+                                            flex: "1",
+                                            "min-width": "0",
+                                            height: "26px",
+                                            border: "1px solid var(--mz-border)",
+                                            "border-radius": "var(--mz-radius-sm)",
+                                            background: "var(--mz-bg-primary)",
+                                            color: "var(--mz-text-primary)",
+                                            "font-size": "var(--mz-font-size-xs)",
+                                            "font-family": "var(--mz-font-sans)",
+                                        }}
+                                    >
+                                        <Show
+                                            when={props.historyDates.length > 0}
+                                            fallback={<option value="">{t("aiPanel.historyNoDate")}</option>}
+                                        >
+                                            <For each={props.historyDates}>
+                                                {(date) => <option value={date}>{formatAiHistoryDate(date)}</option>}
+                                            </For>
+                                        </Show>
+                                    </select>
+                                    <button
+                                        type="button"
+                                        onClick={props.onClearHistoryDate}
+                                        disabled={!props.historyDate}
+                                        title={t("aiPanel.historyClearDate")}
+                                        style={{
+                                            border: "1px solid var(--mz-border)",
+                                            "border-radius": "var(--mz-radius-sm)",
+                                            background: "transparent",
+                                            color: "var(--mz-text-muted)",
+                                            cursor: props.historyDate ? "pointer" : "default",
+                                            opacity: props.historyDate ? "1" : "0.5",
+                                            padding: "4px 8px",
+                                            "font-size": "var(--mz-font-size-xs)",
+                                            "white-space": "nowrap",
+                                        }}
+                                    >
+                                        {t("aiPanel.historyClearDate")}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={props.onClearAllHistory}
+                                        disabled={props.historyDates.length === 0}
+                                        title={t("aiPanel.historyClearAll")}
+                                        style={{
+                                            border: "1px solid var(--mz-border)",
+                                            "border-radius": "var(--mz-radius-sm)",
+                                            background: "transparent",
+                                            color: "var(--mz-text-muted)",
+                                            cursor: props.historyDates.length ? "pointer" : "default",
+                                            opacity: props.historyDates.length ? "1" : "0.5",
+                                            padding: "4px 8px",
+                                            "font-size": "var(--mz-font-size-xs)",
+                                            "white-space": "nowrap",
+                                        }}
+                                    >
+                                        {t("aiPanel.historyClearAll")}
+                                    </button>
+                                </div>
+                                <Show
+                                    when={props.historyEntries.length > 0}
+                                    fallback={
+                                        <div style={{ color: "var(--mz-text-muted)", "font-size": "var(--mz-font-size-xs)", padding: "14px 2px" }}>
+                                            {t("aiPanel.historyEmpty")}
+                                        </div>
+                                    }
+                                >
+                                    <div
+                                        style={{
+                                            display: "flex",
+                                            "flex-direction": "column",
+                                            gap: "6px",
+                                            overflow: "auto",
+                                            "min-height": "0",
+                                            "max-height": "188px",
+                                        }}
+                                    >
+                                        <For each={props.historyEntries}>
+                                            {(entry) => (
+                                                <div
+                                                    style={{
+                                                        display: "grid",
+                                                        "grid-template-columns": "1fr auto auto",
+                                                        gap: "6px",
+                                                        "align-items": "center",
+                                                        padding: "7px",
+                                                        border: "1px solid var(--mz-border)",
+                                                        "border-radius": "var(--mz-radius-sm)",
+                                                        background: "var(--mz-bg-primary)",
+                                                    }}
+                                                >
+                                                    <div style={{ "min-width": "0" }}>
+                                                        <div style={{ color: "var(--mz-text-muted)", "font-size": "11px", "margin-bottom": "4px" }}>
+                                                            {formatAiHistoryTimestamp(entry.createdAt)}
+                                                        </div>
+                                                        <div
+                                                            style={{
+                                                                color: "var(--mz-text-secondary)",
+                                                                "font-size": "var(--mz-font-size-xs)",
+                                                                "line-height": "1.45",
+                                                                "white-space": "pre-wrap",
+                                                                "word-break": "break-word",
+                                                                "user-select": "text",
+                                                                "-webkit-user-select": "text",
+                                                            }}
+                                                        >
+                                                            {entry.text}
+                                                        </div>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => props.onCopyHistoryEntry(entry.text)}
+                                                        title={t("common.copy")}
+                                                        aria-label={t("common.copy")}
+                                                        style={{
+                                                            width: "26px",
+                                                            height: "26px",
+                                                            display: "inline-flex",
+                                                            "align-items": "center",
+                                                            "justify-content": "center",
+                                                            border: "1px solid var(--mz-border)",
+                                                            "border-radius": "var(--mz-radius-sm)",
+                                                            background: "transparent",
+                                                            color: "var(--mz-text-muted)",
+                                                            cursor: "pointer",
+                                                            padding: "0",
+                                                        }}
+                                                    >
+                                                        <Copy size={14} strokeWidth={1.8} />
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => props.onDeleteHistoryEntry(entry.id)}
+                                                        title={t("common.delete")}
+                                                        aria-label={t("common.delete")}
+                                                        style={{
+                                                            width: "26px",
+                                                            height: "26px",
+                                                            display: "inline-flex",
+                                                            "align-items": "center",
+                                                            "justify-content": "center",
+                                                            border: "1px solid var(--mz-border)",
+                                                            "border-radius": "var(--mz-radius-sm)",
+                                                            background: "transparent",
+                                                            color: "var(--mz-text-muted)",
+                                                            cursor: "pointer",
+                                                            padding: "0",
+                                                        }}
+                                                    >
+                                                        <Trash2 size={14} strokeWidth={1.8} />
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </For>
+                                    </div>
+                                </Show>
+                            </div>
+                        </Show>
+                    </div>
                     <Show
                         when={props.modelOptions.length > 0}
                         fallback={
@@ -2974,7 +3399,7 @@ const AiBottomPanel: Component<{
                     onMouseEnter={(e) => { e.currentTarget.style.background = "var(--mz-bg-hover)"; }}
                     onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                 >
-                    x
+                    <X size={16} strokeWidth={1.8} />
                 </button>
             </div>
             <div
@@ -2990,11 +3415,18 @@ const AiBottomPanel: Component<{
                 <div style={{ display: "flex", "flex-direction": "column", gap: "8px", "min-width": "0", "min-height": "0" }}>
                     <textarea
                         ref={textareaRef}
+                        data-mz-ai-input="true"
                         value={props.input}
                         placeholder={t("aiPanel.placeholder")}
                         disabled={props.busy}
                         onInput={(e) => props.onInput(e.currentTarget.value)}
                         onKeyDown={(e) => {
+                            if (e.altKey && !e.ctrlKey && !e.metaKey && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                props.onNavigateHistory(e.key === "ArrowUp" ? "prev" : "next");
+                                return;
+                            }
                             if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
                                 e.preventDefault();
                                 props.onRun();
@@ -3048,6 +3480,9 @@ const AiBottomPanel: Component<{
                         "font-family": "var(--mz-font-mono, monospace)",
                         "font-size": "var(--mz-font-size-xs)",
                         "min-height": "0",
+                        "user-select": "text",
+                        "-webkit-user-select": "text",
+                        cursor: "text",
                     }}
                 >
                     {props.output || t("aiPanel.empty")}

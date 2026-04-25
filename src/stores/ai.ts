@@ -492,6 +492,23 @@ function looksLikeActiveNoteContentRequest(instruction: string): boolean {
   return false;
 }
 
+function isFileAlreadyExistsError(error: any): boolean {
+  const text = [
+    error?.code,
+    error?.message,
+    String(error ?? ""),
+  ].filter(Boolean).join(" ");
+  return /FILE_ALREADY_EXISTS|File already exists/i.test(text);
+}
+
+function looksLikeToolFailureSummary(content: string): boolean {
+  const firstChunk = content.trim().slice(0, 1200).toLowerCase();
+  if (!firstChunk) return false;
+  const hasFailureLanguage = /(access denied|permission denied|file not found|failed|error|issue|cannot|can't|refusing|not something i can|权限|拒绝|失败|错误|无法|不能)/i.test(firstChunk);
+  const hasReportShape = /(summary|what i attempted|recommended solution|option a|option b|issue|problem|attempted)/i.test(firstChunk);
+  return hasFailureLanguage && hasReportShape;
+}
+
 function enforceCurrentFileContentScope(
   toolName: string,
   rawPath: string,
@@ -500,7 +517,7 @@ function enforceCurrentFileContentScope(
   const path = cleanPath(rawPath);
   if (!context?.restrictToActiveFile || context.hasExplicitPath) return { ok: true, path };
 
-  if (toolName !== "update_note" && toolName !== "append_note") {
+  if (toolName !== "create_note" && toolName !== "update_note" && toolName !== "append_note") {
     return {
       ok: false,
       result: {
@@ -571,9 +588,16 @@ async function executeTool(name: string, args: any, context?: ToolExecutionConte
         if (!scoped.ok) return scoped.result;
         const path = scoped.path;
         const content = String(args.content ?? "");
-        const file = await vaultStore.createFile(path, content);
-        await vaultStore.openFile(file.path);
-        return { ok: true, message: `Created ${file.path}`, data: file };
+        try {
+          const file = await vaultStore.createFile(path, content);
+          await vaultStore.openFile(file.path);
+          return { ok: true, message: `Created ${file.path}`, data: file };
+        } catch (error: any) {
+          if (!isFileAlreadyExistsError(error)) throw error;
+          const file = await vaultStore.saveFile(path, content);
+          await vaultStore.openFile(file.path);
+          return { ok: true, message: `Updated existing ${file.path}`, data: file };
+        }
       }
       case "update_note": {
         const scoped = enforceCurrentFileContentScope(name, String(args.path ?? ""), context);
@@ -712,6 +736,7 @@ async function appendNaturalResponseToActiveNote(
     return null;
   }
   if (!looksLikeActiveNoteContentRequest(instruction)) return null;
+  if (looksLikeToolFailureSummary(trimmed)) return null;
 
   // Some local models ignore function calling for simple generation tasks.
   // Treat their final text as the content to record in the active Markdown note.
@@ -743,6 +768,8 @@ function buildSystemPrompt(context?: ToolExecutionContext, config?: AiProviderCo
     "If the user asks you to translate, draft, summarize, rewrite, polish, generate, or record content, write the result into the target note with create_note, update_note, or append_note.",
     "If the user did not name a target note, write content changes to the active note.",
     "For destructive changes, only perform the exact action requested by the user.",
+    "If a note already exists, update it with the requested content instead of writing a troubleshooting report.",
+    "If a tool fails, report the exact failure in one short sentence. Do not produce long summaries or solution lists.",
     "When you finish, summarize what you changed in one concise sentence.",
     `Active note: ${active}`,
     `Available plugin command ids: ${commands.join(", ") || "(none)"}`,
@@ -1182,7 +1209,9 @@ function createAiStore() {
 
     for (let step = 0; step < 8; step++) {
       const data = await chatCompletionRequest(config, messages, apiKey);
-      const message = data?.choices?.[0]?.message;
+      const choice = data?.choices?.[0];
+      const message = choice?.message;
+      const finishReason = String(choice?.finish_reason ?? "");
       if (!message) throw new Error("AI provider returned an empty response.");
       messages.push({
         role: "assistant",
@@ -1208,8 +1237,14 @@ function createAiStore() {
       const content = String(message.content ?? "").trim();
       const fallback = await runJsonFallback(content, toolContext);
       if (fallback) return fallback;
+      if (finishReason === "length") {
+        return executed.join("\n") || "AI response was truncated before it produced a note action.";
+      }
       const naturalWriteFallback = await appendNaturalResponseToActiveNote(instruction, content, toolContext);
       if (naturalWriteFallback) return naturalWriteFallback;
+      if (looksLikeToolFailureSummary(content) && executed.length) {
+        return executed.join("\n");
+      }
       return content || executed.join("\n") || "Done.";
     }
 
