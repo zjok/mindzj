@@ -836,7 +836,6 @@ function buildDecorationsImpl(
             continue;
         }
         if (inFence) continue;
-        if (isTableRow(text) || tableSepRe.test(text)) continue;
 
         // --- Headings ---
         // NOTE: the line-level heading class (mz-lp-h{level}-line) is
@@ -855,6 +854,11 @@ function buildDecorationsImpl(
         }
 
         // --- Horizontal rule ---
+        //
+        // Must run before table separator detection. A bare `---`
+        // also matches the table separator regex, while `***` does
+        // not. Checking tables first is exactly what made dash rules
+        // leak their raw marker while asterisk rules looked correct.
         // Line class is supplied by lineDecorationField. Here we just
         // hide the raw marker on every non-cursor line. This keeps
         // `---` and `***` identical once the caret leaves the line.
@@ -864,6 +868,8 @@ function buildDecorationsImpl(
             }
             continue;
         }
+
+        if (isTableRow(text) || tableSepRe.test(text)) continue;
 
         // --- Blockquote ---
         // Line class is supplied by lineDecorationField. Here we just

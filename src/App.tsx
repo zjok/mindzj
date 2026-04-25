@@ -5,7 +5,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { vaultStore, type FileContent } from "./stores/vault";
 import { editorStore, type ViewMode } from "./stores/editor";
 import { settingsStore, type AiProviderConfig } from "./stores/settings";
-import { aiStore } from "./stores/ai";
+import { aiStore, defaultAiProviderConfig } from "./stores/ai";
 import { workspaceStore, type WorkspaceState } from "./stores/workspace";
 import { pluginStore, hasPluginViewForExtension, mountPluginView, destroyPluginView, isPluginSaving } from "./stores/plugins";
 import {
@@ -79,8 +79,16 @@ function aiPanelModelOptionValue(config: AiProviderConfig): string {
     return config.provider_type;
 }
 
+function aiPanelProviderLabel(config: AiProviderConfig): string {
+    if (config.provider_type === "LMStudio") return "LM Studio";
+    if (config.provider_type === "Ollama") return "Ollama";
+    return "Online LLM";
+}
+
 function aiPanelModelOptionLabel(config: AiProviderConfig): string {
-    return (config.display_name || config.model || "").trim() || config.provider_type;
+    const provider = aiPanelProviderLabel(config);
+    const model = (config.display_name || config.model || "").trim();
+    return model ? `${provider} · ${model}` : provider;
 }
 
 const App: Component = () => {
@@ -241,6 +249,8 @@ const App: Component = () => {
         };
 
         addOption(settings.ai_provider);
+        addOption(defaultAiProviderConfig("LMStudio"));
+        addOption(defaultAiProviderConfig("Ollama"));
         for (const config of settings.ai_custom_providers ?? []) {
             addOption(config);
         }
@@ -248,8 +258,8 @@ const App: Component = () => {
         return options;
     });
     const currentAiModelOptionValue = createMemo(() => {
-        const config = settingsStore.settings().ai_provider;
-        return config ? aiPanelModelOptionValue(config) : "";
+        const config = settingsStore.settings().ai_provider ?? defaultAiProviderConfig("Ollama");
+        return aiPanelModelOptionValue(config);
     });
     const splitPaneActive = createMemo(() => secondaryPanePath() !== null);
 
