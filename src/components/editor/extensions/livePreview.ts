@@ -25,7 +25,6 @@ import {
 import {
     EditorSelection,
     Range,
-    StateEffect,
     StateField,
     Transaction,
 } from "@codemirror/state";
@@ -639,6 +638,10 @@ function isFenceLine(text: string): boolean {
     return /^(`{3,}|~{3,})/.test(text);
 }
 
+function isHorizontalRuleLine(text: string): boolean {
+    return /^\s{0,3}(-{3,}|\*{3,}|_{3,})\s*$/.test(text);
+}
+
 function lineFromDomTarget(
     view: EditorView,
     target: EventTarget | null,
@@ -759,54 +762,11 @@ const codeContentDeco = Decoration.line({ class: "mz-lp-code-content-line" });
 const tableHeaderDeco = Decoration.line({ class: "mz-lp-table-header-line" });
 const tableSepDeco = Decoration.line({ class: "mz-lp-table-separator-line" });
 const tableRowDeco = Decoration.line({ class: "mz-lp-table-row-line" });
-const horizontalRuleHoverLineEffect = StateEffect.define<number | null>();
-const horizontalRuleHoverLineField = StateField.define<number | null>({
-    create() {
-        return null;
-    },
-    update(value, tr) {
-        for (const effect of tr.effects) {
-            if (effect.is(horizontalRuleHoverLineEffect)) {
-                return effect.value;
-            }
-        }
-        return tr.docChanged ? null : value;
-    },
-});
 
 function horizontalRuleActiveLine(state: import("@codemirror/state").EditorState) {
-    return {
-        cursor: state.doc.lineAt(state.selection.main.head).number,
-        hover: state.field(horizontalRuleHoverLineField, false) ?? null,
-    };
+    return state.doc.lineAt(state.selection.main.head).number;
 }
 
-function transactionHasHorizontalRuleHoverEffect(tr: Transaction): boolean {
-    return tr.effects.some((effect) => effect.is(horizontalRuleHoverLineEffect));
-}
-
-const horizontalRuleHoverHandler = EditorView.domEventHandlers({
-    mousemove(event, view) {
-        const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
-        let nextLine: number | null = null;
-        if (pos !== null) {
-            const line = view.state.doc.lineAt(pos);
-            if (/^(-{3,}|\*{3,}|_{3,})\s*$/.test(line.text)) {
-                nextLine = line.number;
-            }
-        }
-        if ((view.state.field(horizontalRuleHoverLineField, false) ?? null) !== nextLine) {
-            view.dispatch({ effects: horizontalRuleHoverLineEffect.of(nextLine) });
-        }
-        return false;
-    },
-    mouseleave(_event, view) {
-        if (view.state.field(horizontalRuleHoverLineField, false) !== null) {
-            view.dispatch({ effects: horizontalRuleHoverLineEffect.of(null) });
-        }
-        return false;
-    },
-});
 const tagDeco = Decoration.mark({ class: "mz-lp-tag" });
 const footnoteDeco = Decoration.mark({ class: "mz-lp-footnote" });
 // Highlights the raw `[ ]` / `[x]` task brackets on the cursor line where the
@@ -859,7 +819,7 @@ function buildDecorationsImpl(
     for (let i = 1; i <= doc.lines; i++) {
         const line = doc.line(i);
         const text = line.text;
-        const isCurrentLine = i === activeHorizontalRuleLine.cursor;
+        const isCurrentLine = i === activeHorizontalRuleLine;
 
         // Skip empty lines
         if (!text.trim()) continue;
@@ -896,9 +856,10 @@ function buildDecorationsImpl(
 
         // --- Horizontal rule ---
         // Line class is supplied by lineDecorationField. Here we just
-        // hide the raw marker on non-cursor lines.
-        if (/^(-{3,}|\*{3,}|_{3,})\s*$/.test(text)) {
-            if (!isCurrentLine && i !== activeHorizontalRuleLine.hover) {
+        // hide the raw marker on every non-cursor line. This keeps
+        // `---` and `***` identical once the caret leaves the line.
+        if (isHorizontalRuleLine(text)) {
+            if (!isCurrentLine) {
                 decorations.push(hideMarker.range(line.from, line.to));
             }
             continue;
@@ -1680,7 +1641,7 @@ function buildLineDecorations(
         }
 
         // --- Horizontal rule ---
-        if (/^(-{3,}|\*{3,}|_{3,})\s*$/.test(text)) {
+        if (isHorizontalRuleLine(text)) {
             decos.push(hrLineDeco.range(line.from));
             continue;
         }
@@ -1738,11 +1699,9 @@ const lineDecorationField = StateField.define<DecorationSet>({
         const afterLine = tr.state.doc.lineAt(
             tr.state.selection.main.head,
         ).number;
-        const hoverChanged = transactionHasHorizontalRuleHoverEffect(tr);
-
-        // Rebuild when the caret or mouse enters/leaves a horizontal
-        // rule line so the raw marker can appear only on that line.
-        if (tr.docChanged || beforeLine !== afterLine || hoverChanged) {
+        // Keep this mapped on cursor moves so CM6 refreshes the
+        // horizontal-rule line class together with inline marker hiding.
+        if (tr.docChanged || beforeLine !== afterLine) {
             return buildLineDecorations(tr.state);
         }
         return deco.map(tr.changes);
@@ -1764,10 +1723,6 @@ function createLivePreviewPlugin(vaultRoot: string, currentFilePath: string) {
         const before = update.startState.doc.lineAt(update.startState.selection.main.head).number;
         const after = update.state.doc.lineAt(update.state.selection.main.head).number;
         return before !== after;
-    }
-
-    function horizontalRuleHoverChanged(update: ViewUpdate): boolean {
-        return update.transactions.some(transactionHasHorizontalRuleHoverEffect);
     }
 
     return ViewPlugin.fromClass(
@@ -1792,16 +1747,11 @@ function createLivePreviewPlugin(vaultRoot: string, currentFilePath: string) {
                     syncListGuideMetrics(update.view);
                 }
                 // Rebuild inline decorations only when the document
-                // changes, the cursor head crosses into another line,
-                // or the mouse enters/leaves a horizontal-rule line.
+                // changes or the cursor head crosses into another line.
                 // Ctrl+F can trigger viewport/focus updates while opening
                 // its panel; those must not rescan every line in large
                 // split panes.
-                if (
-                    update.docChanged ||
-                    cursorLineChanged(update) ||
-                    horizontalRuleHoverChanged(update)
-                ) {
+                if (update.docChanged || cursorLineChanged(update)) {
                     this.decorations = buildDecorations(
                         update.view,
                         vaultRoot,
@@ -1841,8 +1791,6 @@ export function livePreviewExtension(vaultRoot: string, currentFilePath: string)
     return [
         livePreviewTheme,
         listLineBoundaryClickHandler,
-        horizontalRuleHoverLineField,
-        horizontalRuleHoverHandler,
         lineDecorationField,
         createLivePreviewPlugin(vaultRoot, currentFilePath),
     ];

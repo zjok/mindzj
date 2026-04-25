@@ -871,7 +871,10 @@ export const Editor: Component<EditorProps> = (props) => {
             // Selection highlighting is left to the native browser
             // `.cm-selectionBackground` style only.
             ...(showGutter ? [foldGutter(), lineNumbers()] : []),
-            markdown({ base: markdownLanguage }),
+            markdown({
+                base: markdownLanguage,
+                extensions: [{ remove: ["SetextHeading"] }],
+            }),
             // Custom highlight style MUST come first so it overrides the
             // default. `defaultHighlightStyle` from @codemirror/language
             // sets `textDecoration: "underline"` on `tags.heading`, which

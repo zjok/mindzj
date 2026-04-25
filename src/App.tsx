@@ -4,7 +4,7 @@ import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { vaultStore, type FileContent } from "./stores/vault";
 import { editorStore, type ViewMode } from "./stores/editor";
-import { settingsStore } from "./stores/settings";
+import { settingsStore, type AiProviderConfig } from "./stores/settings";
 import { aiStore } from "./stores/ai";
 import { workspaceStore, type WorkspaceState } from "./stores/workspace";
 import { pluginStore, hasPluginViewForExtension, mountPluginView, destroyPluginView, isPluginSaving } from "./stores/plugins";
@@ -63,10 +63,24 @@ import {
 type SidebarTab = "files" | "outline" | "search" | "calendar";
 type SplitDirection = "left" | "right" | "up" | "down";
 type PaneSlot = "primary" | "secondary";
+type AiPanelModelOption = {
+    value: string;
+    label: string;
+    config: AiProviderConfig;
+};
 
 function normalizeVaultPath(path: string | null | undefined): string {
     if (!path) return "";
     return path.replace(/^\\\\\?\\/, "").replace(/\\/g, "/").toLowerCase();
+}
+
+function aiPanelModelOptionValue(config: AiProviderConfig): string {
+    if (config.id) return `custom:${config.id}`;
+    return config.provider_type;
+}
+
+function aiPanelModelOptionLabel(config: AiProviderConfig): string {
+    return (config.display_name || config.model || "").trim() || config.provider_type;
 }
 
 const App: Component = () => {
@@ -210,6 +224,33 @@ const App: Component = () => {
             : primaryPanePath(),
     );
     const currentAiModelLabel = createMemo(() => aiStore.currentModelLabel());
+    const aiPanelModelOptions = createMemo<AiPanelModelOption[]>(() => {
+        const settings = settingsStore.settings();
+        const options: AiPanelModelOption[] = [];
+        const seen = new Set<string>();
+        const addOption = (config: AiProviderConfig | null | undefined) => {
+            if (!config?.model?.trim()) return;
+            const value = aiPanelModelOptionValue(config);
+            if (seen.has(value)) return;
+            seen.add(value);
+            options.push({
+                value,
+                label: aiPanelModelOptionLabel(config),
+                config,
+            });
+        };
+
+        addOption(settings.ai_provider);
+        for (const config of settings.ai_custom_providers ?? []) {
+            addOption(config);
+        }
+
+        return options;
+    });
+    const currentAiModelOptionValue = createMemo(() => {
+        const config = settingsStore.settings().ai_provider;
+        return config ? aiPanelModelOptionValue(config) : "";
+    });
     const splitPaneActive = createMemo(() => secondaryPanePath() !== null);
 
     // Screenshot state
@@ -1606,6 +1647,12 @@ const App: Component = () => {
         }
     }
 
+    function selectAiPanelModel(value: string) {
+        const option = aiPanelModelOptions().find((item) => item.value === value);
+        if (!option) return;
+        void settingsStore.updateSetting("ai_provider", { ...option.config });
+    }
+
     function handleGlobalKeydown(e: KeyboardEvent) {
         // If the settings hotkey capture is active, let the HotkeysPanel handle the event.
         if ((window as any).__mindzj_hotkey_capturing) return;
@@ -1633,15 +1680,10 @@ const App: Component = () => {
         // Bare Alt and Alt+Arrow are suppressed above so WebView2 never
         // enters its native menu mode after repeated Alt presses.
 
-        if (
-            e.altKey &&
-            !e.ctrlKey &&
-            !e.shiftKey &&
-            !e.metaKey &&
-            (e.key === "`" || e.code === "Backquote")
-        ) {
+        if (matchesHotkey(e, getHotkey("ai-control", "Alt+`"))) {
             e.preventDefault();
             e.stopPropagation();
+            e.stopImmediatePropagation();
             setShowAiPanel((value) => !value);
             return;
         }
@@ -2742,6 +2784,9 @@ const App: Component = () => {
                                 busy={aiPanelBusy()}
                                 activePath={activePanePath() ?? vaultStore.activeFile()?.path ?? null}
                                 modelLabel={currentAiModelLabel()}
+                                modelOptions={aiPanelModelOptions()}
+                                activeModelValue={currentAiModelOptionValue()}
+                                onSelectModel={selectAiPanelModel}
                                 onInput={setAiPanelInput}
                                 onRun={() => void runAiPanelInstruction()}
                                 onClose={() => setShowAiPanel(false)}
@@ -2813,6 +2858,9 @@ const AiBottomPanel: Component<{
     busy: boolean;
     activePath: string | null;
     modelLabel: string;
+    modelOptions: AiPanelModelOption[];
+    activeModelValue: string;
+    onSelectModel: (value: string) => void;
     onInput: (value: string) => void;
     onRun: () => void;
     onClose: () => void;
@@ -2854,9 +2902,47 @@ const AiBottomPanel: Component<{
             >
                 <div style={{ display: "flex", "align-items": "center", gap: "10px", "min-width": "0" }}>
                     <strong style={{ "flex-shrink": "0" }}>{t("aiPanel.title")}</strong>
-                    <span style={{ color: "var(--mz-accent)", overflow: "hidden", "text-overflow": "ellipsis", "white-space": "nowrap", "min-width": "0" }}>
-                        {props.modelLabel}
-                    </span>
+                    <Show
+                        when={props.modelOptions.length > 0}
+                        fallback={
+                            <span style={{ color: "var(--mz-accent)", overflow: "hidden", "text-overflow": "ellipsis", "white-space": "nowrap", "min-width": "0" }}>
+                                {props.modelLabel}
+                            </span>
+                        }
+                    >
+                        <select
+                            aria-label={t("settings.aiProviderSection")}
+                            value={props.activeModelValue}
+                            disabled={props.busy}
+                            onChange={(event) => props.onSelectModel(event.currentTarget.value)}
+                            style={{
+                                "max-width": "220px",
+                                "min-width": "120px",
+                                height: "26px",
+                                padding: "2px 26px 2px 8px",
+                                border: "1px solid var(--mz-border)",
+                                "border-radius": "var(--mz-radius-sm)",
+                                background: "var(--mz-bg-primary)",
+                                color: "var(--mz-accent)",
+                                cursor: props.busy ? "default" : "pointer",
+                                opacity: props.busy ? "0.7" : "1",
+                                overflow: "hidden",
+                                "text-overflow": "ellipsis",
+                                "white-space": "nowrap",
+                                "font-size": "var(--mz-font-size-xs)",
+                                "font-family": "var(--mz-font-sans)",
+                                "flex-shrink": "1",
+                            }}
+                        >
+                            <For each={props.modelOptions}>
+                                {(option) => (
+                                    <option value={option.value}>
+                                        {option.label}
+                                    </option>
+                                )}
+                            </For>
+                        </select>
+                    </Show>
                     <span style={{ color: "var(--mz-text-muted)", overflow: "hidden", "text-overflow": "ellipsis", "white-space": "nowrap" }}>
                         {props.activePath || t("aiPanel.noActiveFile")}
                     </span>

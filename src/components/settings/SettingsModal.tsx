@@ -68,8 +68,9 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
   const [activePluginId, setActivePluginId] = createSignal<string | null>(null);
   const [activePluginName, setActivePluginName] = createSignal<string>("");
   const [aiApiKeyDraft, setAiApiKeyDraft] = createSignal("");
-  const [aiApiKeyVisible, setAiApiKeyVisible] = createSignal(true);
+  const [aiApiKeyVisible, setAiApiKeyVisible] = createSignal(false);
   const [aiTestResult, setAiTestResult] = createSignal<string | null>(null);
+  const [aiProviderSelectDraft, setAiProviderSelectDraft] = createSignal<string | null>(null);
   const [aiAddingModel, setAiAddingModel] = createSignal(false);
   const [aiAddModelDraft, setAiAddModelDraft] = createSignal("");
   let aiApiKeyLoadToken = 0;
@@ -127,24 +128,41 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
       label: config.display_name || config.model || t("settings.aiProviderSavedFallback"),
     };
   };
-  const aiProviderSelectValue = () => {
-    const config = aiConfig();
+  const aiProviderValueForConfig = (config: AiProviderConfig) => {
     if (config.provider_type === "Ollama" || config.provider_type === "LMStudio") {
       return config.provider_type;
     }
     return config.id ? `custom:${config.id}` : "current-api-key-llm";
   };
-  const aiProviderOptions = createMemo(() => [
-    { value: "LMStudio", label: "LM Studio" },
-    { value: "Ollama", label: "Ollama" },
-    ...(aiCurrentApiProviderOption() ? [aiCurrentApiProviderOption()!] : []),
-    ...customAiProviders()
-      .filter((config) => !!config.id)
-      .map((config) => ({
-        value: `custom:${config.id}`,
+  const aiProviderSelectValue = () => aiProviderSelectDraft() ?? aiProviderValueForConfig(aiConfig());
+  const aiProviderOptions = createMemo(() => {
+    const options = [
+      { value: "LMStudio", label: "LM Studio" },
+      { value: "Ollama", label: "Ollama" },
+      ...(aiCurrentApiProviderOption() ? [aiCurrentApiProviderOption()!] : []),
+      ...customAiProviders()
+        .filter((config) => !!config.id)
+        .map((config) => ({
+          value: `custom:${config.id}`,
+          label: config.display_name || config.model || t("settings.aiProviderSavedFallback"),
+        })),
+    ];
+    const selected = aiProviderSelectValue();
+    if (!options.some((option) => option.value === selected)) {
+      const config = aiConfig();
+      options.push({
+        value: selected,
         label: config.display_name || config.model || t("settings.aiProviderSavedFallback"),
-      })),
-  ]);
+      });
+    }
+    return options;
+  });
+  createEffect(() => {
+    const draft = aiProviderSelectDraft();
+    if (draft && draft === aiProviderValueForConfig(aiConfig())) {
+      setAiProviderSelectDraft(null);
+    }
+  });
   const activeCustomProviderSaved = () => {
     const id = aiConfig().id;
     return !!id && customAiProviders().some((config) => config.id === id);
@@ -157,7 +175,7 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
   function loadAiApiKeyIntoDraft(config: AiProviderConfig) {
     const token = ++aiApiKeyLoadToken;
     if (aiAddMode()) {
-      setAiApiKeyVisible(true);
+      setAiApiKeyVisible(false);
       return;
     }
     if (!isApiKeyAiProvider(config)) {
@@ -165,7 +183,7 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
       setAiApiKeyDraft("");
       return;
     }
-    setAiApiKeyVisible(true);
+    setAiApiKeyVisible(false);
     void aiStore.loadApiKey(config).then((key) => {
       if (token !== aiApiKeyLoadToken) return;
       setAiApiKeyDraft(key ?? "");
@@ -176,8 +194,9 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
   });
   function selectAiProvider(value: string) {
     setAiTestResult(null);
-    setAiApiKeyVisible(true);
+    setAiApiKeyVisible(false);
     if (value === "current-api-key-llm") {
+      setAiProviderSelectDraft(value);
       setAiAddingModel(false);
       loadAiApiKeyIntoDraft(aiConfig());
       return;
@@ -186,7 +205,11 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
       const id = value.slice("custom:".length);
       const config = customAiProviders().find((item) => item.id === id)
         ?? (aiConfig().id === id ? aiConfig() : null);
-      if (!config) return;
+      if (!config) {
+        setAiProviderSelectDraft(null);
+        return;
+      }
+      setAiProviderSelectDraft(value);
       setAiAddingModel(false);
       setAiApiKeyDraft("");
       set("ai_provider", { ...config });
@@ -194,6 +217,7 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
       return;
     }
     const config = defaultAiProviderConfig(value as AiProviderType);
+    setAiProviderSelectDraft(value);
     setAiAddingModel(false);
     setAiApiKeyDraft("");
     set("ai_provider", config);
@@ -234,7 +258,7 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
     }
     await set("ai_provider", next);
     setAiApiKeyDraft(value);
-    setAiApiKeyVisible(true);
+    setAiApiKeyVisible(false);
     if (showStatus) setAiTestResult(t("settings.aiProviderSaved"));
     return true;
   }
@@ -256,7 +280,7 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
     await set("ai_provider", next);
     setAiAddModelDraft("");
     setAiApiKeyDraft(apiKey);
-    setAiApiKeyVisible(true);
+    setAiApiKeyVisible(false);
     setAiAddingModel(false);
     setAiTestResult(t("settings.aiProviderSaved"));
   }
@@ -731,7 +755,7 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
                     setAiAddingModel(true);
                     setAiAddModelDraft("");
                     setAiApiKeyDraft("");
-                    setAiApiKeyVisible(true);
+                    setAiApiKeyVisible(false);
                     setAiTestResult(null);
                   }}
                   style={settingsButtonStyle}
@@ -1381,6 +1405,7 @@ const DEFAULT_HOTKEYS: HotkeyDef[] = [
   { command: "new-note", labelKey: "hotkeys.newNote", defaultKeys: "Ctrl+N" },
   { command: "command-palette", labelKey: "hotkeys.commandPalette", defaultKeys: "Ctrl+P" },
   { command: "command-palette-alt", labelKey: "hotkeys.commandPaletteAlt", defaultKeys: "Ctrl+O" },
+  { command: "ai-control", labelKey: "hotkeys.aiPanel", defaultKeys: "Alt+`" },
   { command: "close-tab", labelKey: "hotkeys.closeTab", defaultKeys: "Ctrl+W" },
   { command: "reopen-tab", labelKey: "hotkeys.reopenTab", defaultKeys: "Ctrl+Shift+T" },
   { command: "tab-prev", labelKey: "hotkeys.tabPrev", defaultKeys: "Ctrl+Shift+Left" },

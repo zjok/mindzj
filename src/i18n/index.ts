@@ -441,6 +441,7 @@ const MESSAGES: Record<string, TranslationMap> = {
   "hotkeys.newNote": { "zh-CN": "新建笔记", en: "New note", ja: "新規ノート", fr: "Nouvelle note", de: "Neue Notiz", es: "Nueva nota" },
   "hotkeys.commandPalette": { "zh-CN": "命令面板", en: "Command palette", ja: "コマンドパレット", fr: "Palette de commandes", de: "Befehlspalette", es: "Paleta de comandos" },
   "hotkeys.commandPaletteAlt": { "zh-CN": "命令面板（备用键）", en: "Command palette (alt)", ja: "コマンドパレット（代替）", fr: "Palette de commandes (alt)", de: "Befehlspalette (alt)", es: "Paleta de comandos (alt)" },
+  "hotkeys.aiPanel": { "zh-CN": "AI 对话框", en: "AI panel", ja: "AI パネル", fr: "Panneau IA", de: "KI-Panel", es: "Panel de IA" },
   "hotkeys.closeTab": { "zh-CN": "关闭当前标签页", en: "Close current tab", ja: "現在のタブを閉じる", fr: "Fermer l’onglet actuel", de: "Aktuellen Tab schließen", es: "Cerrar pestaña actual" },
   "hotkeys.reopenTab": { "zh-CN": "重新打开已关闭的标签页", en: "Reopen closed tab", ja: "閉じたタブを再度開く", fr: "Rouvrir l’onglet fermé", de: "Geschlossenen Tab wieder öffnen", es: "Reabrir pestaña cerrada" },
   "hotkeys.tabPrev": { "zh-CN": "切换到左侧标签页", en: "Previous tab", ja: "前のタブ", fr: "Onglet précédent", de: "Vorheriger Tab", es: "Pestaña anterior" },

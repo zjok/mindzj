@@ -124,27 +124,46 @@ interface SettingSelectProps {
   onChange: (value: string) => void;
 }
 
-export const SettingSelect: Component<SettingSelectProps> = (props) => (
-  <div style={rowStyle}>
-    <div style={{ flex: "1" }}>
-      <div style={labelStyle}>{props.label}</div>
-      {props.description && <div style={descStyle}>{props.description}</div>}
+export const SettingSelect: Component<SettingSelectProps> = (props) => {
+  let selectRef: HTMLSelectElement | undefined;
+
+  createEffect(() => {
+    const value = props.value;
+    props.options;
+    queueMicrotask(() => {
+      if (selectRef && selectRef.value !== value) {
+        selectRef.value = value;
+      }
+    });
+  });
+
+  return (
+    <div style={rowStyle}>
+      <div style={{ flex: "1" }}>
+        <div style={labelStyle}>{props.label}</div>
+        {props.description && <div style={descStyle}>{props.description}</div>}
+      </div>
+      <select
+        ref={selectRef}
+        value={props.value}
+        onChange={(event) => props.onChange(event.currentTarget.value)}
+        style={{
+          ...inputStyle,
+          width: props.width || "160px",
+          cursor: "pointer",
+        }}
+      >
+        <For each={props.options}>
+          {(option) => (
+            <option value={option.value} selected={option.value === props.value}>
+              {option.label}
+            </option>
+          )}
+        </For>
+      </select>
     </div>
-    <select
-      value={props.value}
-      onChange={(event) => props.onChange(event.currentTarget.value)}
-      style={{
-        ...inputStyle,
-        width: props.width || "160px",
-        cursor: "pointer",
-      }}
-    >
-      <For each={props.options}>
-        {(option) => <option value={option.value}>{option.label}</option>}
-      </For>
-    </select>
-  </div>
-);
+  );
+};
 
 interface SettingColorProps {
   label: string;
