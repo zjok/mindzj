@@ -41,12 +41,18 @@ type AiProviderFamily = "openai-compatible" | "anthropic" | "gemini";
 
 interface RunInstructionOptions {
   restrictToActiveFile?: boolean;
+  onProgress?: (event: AiInstructionProgressEvent) => void;
 }
 
 interface AiConnectionTestResult {
   model?: string | null;
   content?: string | null;
   models?: string[];
+}
+
+interface AiInstructionProgressEvent {
+  phase: "request" | "tool-call" | "tool-result" | "message" | "done" | "error";
+  message: string;
 }
 
 interface ToolExecutionContext {
@@ -509,13 +515,39 @@ function looksLikeToolFailureSummary(content: string): boolean {
   return hasFailureLanguage && hasReportShape;
 }
 
+function pathRequiredResult(toolName: string): ToolResult {
+  return {
+    ok: false,
+    message: `${toolName} requires a vault-relative path.`,
+  };
+}
+
+function emitProgress(options: RunInstructionOptions | undefined, phase: AiInstructionProgressEvent["phase"], message: string) {
+  try {
+    options?.onProgress?.({ phase, message });
+  } catch {
+    // Progress rendering must never break the actual AI action.
+  }
+}
+
+function summarizeToolCall(name: string, args: any): string {
+  const path = cleanPath(String(args?.path ?? args?.from ?? args?.to ?? ""));
+  if (path) return `${name}(${path})`;
+  return name;
+}
+
 function enforceCurrentFileContentScope(
   toolName: string,
   rawPath: string,
   context?: ToolExecutionContext,
 ): { ok: true; path: string } | { ok: false; result: ToolResult } {
   const path = cleanPath(rawPath);
-  if (!context?.restrictToActiveFile || context.hasExplicitPath) return { ok: true, path };
+  if (!context?.restrictToActiveFile) {
+    return path ? { ok: true, path } : { ok: false, result: pathRequiredResult(toolName) };
+  }
+  if (context.hasExplicitPath) {
+    return path ? { ok: true, path } : { ok: false, result: pathRequiredResult(toolName) };
+  }
 
   if (toolName !== "create_note" && toolName !== "update_note" && toolName !== "append_note") {
     return {
@@ -580,6 +612,7 @@ async function executeTool(name: string, args: any, context?: ToolExecutionConte
       }
       case "read_note": {
         const path = cleanPath(String(args.path ?? ""));
+        if (!path) return pathRequiredResult(name);
         const file = await invoke<FileContent>("read_file", { relativePath: path });
         return { ok: true, data: { path: file.path, content: file.content } };
       }
@@ -659,11 +692,13 @@ async function executeTool(name: string, args: any, context?: ToolExecutionConte
       }
       case "get_backlinks": {
         const path = cleanPath(String(args.path ?? ""));
+        if (!path) return pathRequiredResult(name);
         const links = await invoke("get_backlinks", { relativePath: path });
         return { ok: true, data: links };
       }
       case "get_forward_links": {
         const path = cleanPath(String(args.path ?? ""));
+        if (!path) return pathRequiredResult(name);
         const links = await invoke("get_forward_links", { relativePath: path });
         return { ok: true, data: links };
       }
@@ -673,6 +708,7 @@ async function executeTool(name: string, args: any, context?: ToolExecutionConte
       }
       case "open_note": {
         const path = cleanPath(String(args.path ?? ""));
+        if (!path) return pathRequiredResult(name);
         const file = await vaultStore.openFile(path);
         return { ok: true, message: `Opened ${file.path}`, data: { path: file.path } };
       }
@@ -1208,6 +1244,7 @@ function createAiStore() {
     const executed: string[] = [];
 
     for (let step = 0; step < 8; step++) {
+      emitProgress(options, "request", step === 0 ? "Sending instruction to AI model." : "Sending tool results back to AI model.");
       const data = await chatCompletionRequest(config, messages, apiKey);
       const choice = data?.choices?.[0];
       const message = choice?.message;
@@ -1223,8 +1260,14 @@ function createAiStore() {
       if (toolCalls.length > 0) {
         for (const call of toolCalls) {
           const args = parseJsonObject(call.function.arguments) ?? {};
+          emitProgress(options, "tool-call", `Calling ${summarizeToolCall(call.function.name, args)}.`);
           const result = await executeTool(call.function.name, args, toolContext);
           if (result.message) executed.push(result.message);
+          emitProgress(
+            options,
+            result.ok ? "tool-result" : "error",
+            result.message || (result.ok ? `${call.function.name} completed.` : `${call.function.name} failed.`),
+          );
           messages.push({
             role: "tool",
             tool_call_id: call.id,
@@ -1236,19 +1279,33 @@ function createAiStore() {
 
       const content = String(message.content ?? "").trim();
       const fallback = await runJsonFallback(content, toolContext);
-      if (fallback) return fallback;
+      if (fallback) {
+        emitProgress(options, "done", fallback);
+        return fallback;
+      }
       if (finishReason === "length") {
-        return executed.join("\n") || "AI response was truncated before it produced a note action.";
+        const result = executed.join("\n") || "AI response was truncated before it produced a note action.";
+        emitProgress(options, "error", result);
+        return result;
       }
       const naturalWriteFallback = await appendNaturalResponseToActiveNote(instruction, content, toolContext);
-      if (naturalWriteFallback) return naturalWriteFallback;
-      if (looksLikeToolFailureSummary(content) && executed.length) {
-        return executed.join("\n");
+      if (naturalWriteFallback) {
+        emitProgress(options, "done", naturalWriteFallback);
+        return naturalWriteFallback;
       }
-      return content || executed.join("\n") || "Done.";
+      if (looksLikeToolFailureSummary(content) && executed.length) {
+        const result = executed.join("\n");
+        emitProgress(options, "error", result);
+        return result;
+      }
+      const result = content || executed.join("\n") || "Done.";
+      emitProgress(options, "done", result);
+      return result;
     }
 
-    return executed.join("\n") || "AI tool loop reached the step limit.";
+    const result = executed.join("\n") || "AI tool loop reached the step limit.";
+    emitProgress(options, "error", result);
+    return result;
   }
 
   return {

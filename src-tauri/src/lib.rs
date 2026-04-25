@@ -228,8 +228,10 @@ fn minimize_window(window: tauri::WebviewWindow) {
 /// runtime unregister its Chromium window class before the process
 /// tears down — otherwise Windows prints:
 ///
-///     [ERROR:ui\gfx\win\window_impl.cc:134] Failed to unregister
-///     class Chrome_WidgetWin_0. Error = 1412
+/// ```text
+/// [ERROR:ui\gfx\win\window_impl.cc:134] Failed to unregister
+/// class Chrome_WidgetWin_0. Error = 1412
+/// ```
 ///
 /// ...which is harmless but ugly in the PowerShell output.
 #[tauri::command]

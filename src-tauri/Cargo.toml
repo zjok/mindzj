@@ -141,3 +141,6 @@ windows-core = "0.61"
 [features]
 default = []
 custom-protocol = ["tauri/custom-protocol"]
+
+[dev-dependencies]
+tempfile = "3"

@@ -37,6 +37,24 @@ pub struct Vault {
 }
 
 impl Vault {
+    fn replace_with_temp(tmp_path: &Path, target_path: &Path) -> KernelResult<()> {
+        match fs::rename(tmp_path, target_path) {
+            Ok(()) => Ok(()),
+            Err(err)
+                if target_path.exists()
+                    && matches!(
+                        err.kind(),
+                        std::io::ErrorKind::AlreadyExists | std::io::ErrorKind::PermissionDenied
+                    ) =>
+            {
+                fs::remove_file(target_path)?;
+                fs::rename(tmp_path, target_path)?;
+                Ok(())
+            }
+            Err(err) => Err(KernelError::Io(err)),
+        }
+    }
+
     /// Open an existing vault or initialize a new one at the given path.
     ///
     /// Creates the `.mindzj/` config directory if it doesn't exist.
@@ -616,8 +634,10 @@ impl Vault {
         // Step 2: fsync to ensure data is on disk
         tmp_file.sync_all()?;
 
-        // Step 3: Atomic rename
-        fs::rename(&tmp_path, &abs_path)?;
+        // Step 3: Atomic rename. On Windows, renaming over an existing
+        // destination can fail with "Access is denied"; remove-and-rename
+        // keeps existing-note updates working after the snapshot above.
+        Self::replace_with_temp(&tmp_path, &abs_path)?;
 
         info!("File written atomically: {}", relative_path);
 
@@ -664,7 +684,7 @@ impl Vault {
         let mut tmp_file = fs::File::create(&tmp_path)?;
         tmp_file.write_all(data)?;
         tmp_file.sync_all()?;
-        fs::rename(&tmp_path, &abs_path)?;
+        Self::replace_with_temp(&tmp_path, &abs_path)?;
 
         info!("Binary file written: {}", relative_path);
         Ok(())

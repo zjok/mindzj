@@ -75,8 +75,14 @@ type AiQuestionHistoryEntry = {
     createdAt: string;
 };
 type AiHistoryDirection = "prev" | "next";
+type Point = {
+    x: number;
+    y: number;
+};
 
 const AI_QUESTION_HISTORY_LIMIT = 500;
+const AI_PANEL_MIN_HEIGHT = 220;
+const AI_PANEL_DEFAULT_HEIGHT = 300;
 
 function normalizeVaultPath(path: string | null | undefined): string {
     if (!path) return "";
@@ -202,6 +208,9 @@ const App: Component = () => {
     const [aiQuestionHistory, setAiQuestionHistory] = createSignal<AiQuestionHistoryEntry[]>([]);
     const [aiHistoryDate, setAiHistoryDate] = createSignal("");
     const [aiHistoryCursor, setAiHistoryCursor] = createSignal<number | null>(null);
+    const [aiPanelHeight, setAiPanelHeight] = createSignal(AI_PANEL_DEFAULT_HEIGHT);
+    const [aiHistoryPosition, setAiHistoryPosition] = createSignal<Point>({ x: 0, y: 0 });
+    const [aiHistoryPositionReady, setAiHistoryPositionReady] = createSignal(false);
     const [sidebarTab, setSidebarTab] = createSignal<SidebarTab>("files");
     const [sidebarCollapsed, setSidebarCollapsed] = createSignal(false);
     const [showVaultMenu, setShowVaultMenu] = createSignal(false);
@@ -1823,21 +1832,77 @@ const App: Component = () => {
         void navigator.clipboard?.writeText(text).catch(() => {});
     }
 
+    function clampAiPanelHeight(value: number): number {
+        const max = Math.max(AI_PANEL_MIN_HEIGHT, Math.min(Math.floor(window.innerHeight * 0.72), window.innerHeight - 96));
+        return Math.max(AI_PANEL_MIN_HEIGHT, Math.min(max, Math.round(value)));
+    }
+
+    function centerAiHistoryDialog(): Point {
+        const width = Math.min(520, Math.max(320, window.innerWidth - 32));
+        const height = Math.min(420, Math.max(280, window.innerHeight - 48));
+        return {
+            x: Math.max(12, Math.round((window.innerWidth - width) / 2)),
+            y: Math.max(12, Math.round((window.innerHeight - height) / 2)),
+        };
+    }
+
+    function toggleAiHistoryDialog() {
+        const next = !showAiHistory();
+        if (next && !aiHistoryPositionReady()) {
+            setAiHistoryPosition(centerAiHistoryDialog());
+            setAiHistoryPositionReady(true);
+        }
+        setShowAiHistory(next);
+    }
+
+    function closeAiHistoryDialog() {
+        setShowAiHistory(false);
+    }
+
+    function closeAiPanel() {
+        setShowAiPanel(false);
+        setShowAiHistory(false);
+    }
+
     async function runAiPanelInstruction() {
         const instruction = aiPanelInput().trim();
         if (!instruction || aiPanelBusy()) return;
         recordAiQuestion(instruction);
         setAiPanelBusy(true);
-        setAiPanelOutput(t("aiPanel.working"));
+        const progressLines: string[] = [];
+        let lastProgressMessage = "";
+        const pushProgress = (phase: string, message: string) => {
+            lastProgressMessage = message;
+            const stamp = new Date().toLocaleTimeString(undefined, {
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+            });
+            const labels: Record<string, string> = {
+                request: "请求",
+                "tool-call": "工具",
+                "tool-result": "结果",
+                message: "消息",
+                done: "完成",
+                error: "错误",
+            };
+            progressLines.push(`[${stamp}] ${labels[phase] ?? phase}: ${message}`);
+            setAiPanelOutput(progressLines.join("\n"));
+        };
+        pushProgress("message", t("aiPanel.working"));
         try {
             const result = await aiStore.runInstruction(instruction, {
                 restrictToActiveFile: true,
+                onProgress: (event) => pushProgress(event.phase, event.message),
             });
-            setAiPanelOutput(result || t("aiPanel.done"));
+            const finalText = result || t("aiPanel.done");
+            if (finalText && finalText !== lastProgressMessage) {
+                setAiPanelOutput([...progressLines, "", finalText].join("\n"));
+            }
             setAiPanelInput("");
             setAiHistoryCursor(null);
         } catch (err: any) {
-            setAiPanelOutput(err?.message || String(err));
+            pushProgress("error", err?.message || String(err));
         } finally {
             setAiPanelBusy(false);
         }
@@ -1852,6 +1917,14 @@ const App: Component = () => {
     function handleGlobalKeydown(e: KeyboardEvent) {
         // If the settings hotkey capture is active, let the HotkeysPanel handle the event.
         if ((window as any).__mindzj_hotkey_capturing) return;
+
+        if (showAiHistory() && e.key === "Escape") {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            closeAiHistoryDialog();
+            return;
+        }
 
         const moveLineCommand = matchesHotkey(e, getHotkey("move-line-up", "Alt+Up"))
             ? "move-line-up"
@@ -2987,25 +3060,30 @@ const App: Component = () => {
                                 input={aiPanelInput()}
                                 output={aiPanelOutput()}
                                 busy={aiPanelBusy()}
+                                height={aiPanelHeight()}
                                 activePath={activePanePath() ?? vaultStore.activeFile()?.path ?? null}
                                 modelLabel={currentAiModelLabel()}
                                 modelOptions={aiPanelModelOptions()}
                                 activeModelValue={currentAiModelOptionValue()}
                                 historyOpen={showAiHistory()}
+                                historyPosition={aiHistoryPosition()}
                                 historyDates={aiHistoryDates()}
                                 historyDate={aiHistoryDate()}
                                 historyEntries={selectedAiHistoryEntries()}
+                                onHeightChange={(height) => setAiPanelHeight(clampAiPanelHeight(height))}
                                 onSelectModel={selectAiPanelModel}
                                 onInput={handleAiPanelInput}
                                 onRun={() => void runAiPanelInstruction()}
-                                onToggleHistory={() => setShowAiHistory((value) => !value)}
+                                onToggleHistory={toggleAiHistoryDialog}
+                                onCloseHistory={closeAiHistoryDialog}
+                                onMoveHistory={setAiHistoryPosition}
                                 onSelectHistoryDate={setAiHistoryDate}
                                 onDeleteHistoryEntry={deleteAiHistoryEntry}
                                 onClearHistoryDate={clearAiHistoryForSelectedDate}
                                 onClearAllHistory={clearAllAiHistory}
                                 onCopyHistoryEntry={copyAiHistoryQuestion}
                                 onNavigateHistory={navigateAiQuestionHistory}
-                                onClose={() => setShowAiPanel(false)}
+                                onClose={closeAiPanel}
                             />
                         </Show>
                     </Show>
@@ -3072,18 +3150,23 @@ const AiBottomPanel: Component<{
     input: string;
     output: string;
     busy: boolean;
+    height: number;
     activePath: string | null;
     modelLabel: string;
     modelOptions: AiPanelModelOption[];
     activeModelValue: string;
     historyOpen: boolean;
+    historyPosition: Point;
     historyDates: string[];
     historyDate: string;
     historyEntries: AiQuestionHistoryEntry[];
+    onHeightChange: (height: number) => void;
     onSelectModel: (value: string) => void;
     onInput: (value: string) => void;
     onRun: () => void;
     onToggleHistory: () => void;
+    onCloseHistory: () => void;
+    onMoveHistory: (position: Point) => void;
     onSelectHistoryDate: (value: string) => void;
     onDeleteHistoryEntry: (id: string) => void;
     onClearHistoryDate: () => void;
@@ -3093,20 +3176,54 @@ const AiBottomPanel: Component<{
     onClose: () => void;
 }> = (props) => {
     let textareaRef: HTMLTextAreaElement | undefined;
+    let outputRef: HTMLPreElement | undefined;
 
     onMount(() => {
         queueMicrotask(() => textareaRef?.focus());
     });
 
+    createEffect(() => {
+        props.output;
+        if (!props.busy) return;
+        queueMicrotask(() => {
+            if (outputRef) outputRef.scrollTop = outputRef.scrollHeight;
+        });
+    });
+
+    function startPanelResize(event: MouseEvent) {
+        event.preventDefault();
+        const startY = event.clientY;
+        const startHeight = props.height;
+        const previousCursor = document.body.style.cursor;
+        const previousUserSelect = document.body.style.userSelect;
+        document.body.style.cursor = "ns-resize";
+        document.body.style.userSelect = "none";
+
+        const onMove = (moveEvent: MouseEvent) => {
+            props.onHeightChange(startHeight + startY - moveEvent.clientY);
+        };
+        const onUp = () => {
+            document.removeEventListener("mousemove", onMove);
+            document.removeEventListener("mouseup", onUp);
+            document.body.style.cursor = previousCursor;
+            document.body.style.userSelect = previousUserSelect;
+        };
+
+        document.addEventListener("mousemove", onMove);
+        document.addEventListener("mouseup", onUp);
+    }
+
     return (
+        <>
         <div
             style={{
-                height: "min(34vh, 300px)",
+                height: `${props.height}px`,
                 "min-height": "220px",
                 width: "100%",
                 "flex-shrink": "0",
                 display: "flex",
                 "flex-direction": "column",
+                position: "relative",
                 background: "var(--mz-bg-secondary)",
                 border: "1px solid var(--mz-border)",
                 "border-left": "none",
@@ -3115,6 +3232,18 @@ const AiBottomPanel: Component<{
                 color: "var(--mz-text-primary)",
             }}
         >
+            <div
+                onMouseDown={startPanelResize}
+                style={{
+                    position: "absolute",
+                    top: "-4px",
+                    left: "0",
+                    right: "0",
+                    height: "8px",
+                    cursor: "ns-resize",
+                    "z-index": "3",
+                }}
+            />
             <div
                 style={{
                     display: "flex",
@@ -3151,7 +3280,7 @@ const AiBottomPanel: Component<{
                         >
                             <History size={15} strokeWidth={1.8} />
                         </button>
-                        <Show when={props.historyOpen}>
+                        <Show when={false}>
                             <div
                                 style={{
                                     position: "absolute",
@@ -3467,6 +3596,7 @@ const AiBottomPanel: Component<{
                     </div>
                 </div>
                 <pre
+                    ref={outputRef}
                     style={{
                         margin: "0",
                         overflow: "auto",
@@ -3489,6 +3619,22 @@ const AiBottomPanel: Component<{
                 </pre>
             </div>
         </div>
+        <Show when={props.historyOpen}>
+            <AiHistoryDialog
+                position={props.historyPosition}
+                dates={props.historyDates}
+                selectedDate={props.historyDate}
+                entries={props.historyEntries}
+                onMove={props.onMoveHistory}
+                onClose={props.onCloseHistory}
+                onSelectDate={props.onSelectHistoryDate}
+                onDeleteEntry={props.onDeleteHistoryEntry}
+                onClearDate={props.onClearHistoryDate}
+                onClearAll={props.onClearAllHistory}
+                onCopyEntry={props.onCopyHistoryEntry}
+            />
+        </Show>
+        </>
     );
 };
 
@@ -3504,6 +3650,279 @@ const AiBottomPanel: Component<{
 // This component uses createMemo to derive stable values from the active file
 // signal, so child components are only recreated when the FILE PATH changes,
 // not when content changes.
+
+const AiHistoryDialog: Component<{
+    position: Point;
+    dates: string[];
+    selectedDate: string;
+    entries: AiQuestionHistoryEntry[];
+    onMove: (position: Point) => void;
+    onClose: () => void;
+    onSelectDate: (value: string) => void;
+    onDeleteEntry: (id: string) => void;
+    onClearDate: () => void;
+    onClearAll: () => void;
+    onCopyEntry: (text: string) => void;
+}> = (props) => {
+    let dialogRef: HTMLDivElement | undefined;
+
+    const clampPosition = (position: Point): Point => {
+        const width = dialogRef?.offsetWidth ?? 520;
+        const height = dialogRef?.offsetHeight ?? 420;
+        return {
+            x: Math.max(8, Math.min(window.innerWidth - width - 8, position.x)),
+            y: Math.max(8, Math.min(window.innerHeight - height - 8, position.y)),
+        };
+    };
+
+    onMount(() => {
+        queueMicrotask(() => props.onMove(clampPosition(props.position)));
+    });
+
+    function startDrag(event: MouseEvent) {
+        event.preventDefault();
+        const startX = event.clientX;
+        const startY = event.clientY;
+        const startPosition = props.position;
+        const previousCursor = document.body.style.cursor;
+        const previousUserSelect = document.body.style.userSelect;
+        document.body.style.cursor = "move";
+        document.body.style.userSelect = "none";
+
+        const onMove = (moveEvent: MouseEvent) => {
+            props.onMove(clampPosition({
+                x: startPosition.x + moveEvent.clientX - startX,
+                y: startPosition.y + moveEvent.clientY - startY,
+            }));
+        };
+        const onUp = () => {
+            document.removeEventListener("mousemove", onMove);
+            document.removeEventListener("mouseup", onUp);
+            document.body.style.cursor = previousCursor;
+            document.body.style.userSelect = previousUserSelect;
+        };
+
+        document.addEventListener("mousemove", onMove);
+        document.addEventListener("mouseup", onUp);
+    }
+
+    return (
+        <div
+            ref={dialogRef}
+            style={{
+                position: "fixed",
+                left: `${props.position.x}px`,
+                top: `${props.position.y}px`,
+                width: "min(520px, calc(100vw - 32px))",
+                height: "min(420px, calc(100vh - 48px))",
+                display: "flex",
+                "flex-direction": "column",
+                background: "var(--mz-bg-secondary)",
+                border: "1px solid var(--mz-border)",
+                "border-radius": "var(--mz-radius-sm)",
+                "box-shadow": "0 14px 40px rgba(0,0,0,0.42)",
+                "z-index": "100000",
+                color: "var(--mz-text-primary)",
+                overflow: "hidden",
+                "font-family": "var(--mz-font-sans)",
+            }}
+        >
+            <div
+                onMouseDown={startDrag}
+                style={{
+                    height: "38px",
+                    display: "flex",
+                    "align-items": "center",
+                    "justify-content": "space-between",
+                    gap: "8px",
+                    padding: "0 10px",
+                    border: "0 solid var(--mz-border)",
+                    "border-bottom-width": "1px",
+                    cursor: "move",
+                    "user-select": "none",
+                }}
+            >
+                <strong style={{ "font-size": "var(--mz-font-size-sm)" }}>{t("aiPanel.history")}</strong>
+                <button
+                    type="button"
+                    onMouseDown={(event) => event.stopPropagation()}
+                    onClick={props.onClose}
+                    title={t("common.close")}
+                    aria-label={t("common.close")}
+                    style={{
+                        width: "28px",
+                        height: "28px",
+                        display: "inline-flex",
+                        "align-items": "center",
+                        "justify-content": "center",
+                        border: "none",
+                        "border-radius": "var(--mz-radius-sm)",
+                        background: "transparent",
+                        color: "var(--mz-text-muted)",
+                        cursor: "pointer",
+                        padding: "0",
+                    }}
+                >
+                    <X size={16} strokeWidth={1.8} />
+                </button>
+            </div>
+            <div style={{ display: "flex", "align-items": "center", gap: "8px", padding: "10px", border: "0 solid var(--mz-border)", "border-bottom-width": "1px" }}>
+                <select
+                    aria-label={t("aiPanel.historyDate")}
+                    value={props.selectedDate}
+                    disabled={props.dates.length === 0}
+                    onChange={(event) => props.onSelectDate(event.currentTarget.value)}
+                    style={{
+                        flex: "1",
+                        "min-width": "0",
+                        height: "28px",
+                        border: "1px solid var(--mz-border)",
+                        "border-radius": "var(--mz-radius-sm)",
+                        background: "var(--mz-bg-primary)",
+                        color: "var(--mz-text-primary)",
+                        "font-size": "var(--mz-font-size-xs)",
+                    }}
+                >
+                    <Show
+                        when={props.dates.length > 0}
+                        fallback={<option value="">{t("aiPanel.historyNoDate")}</option>}
+                    >
+                        <For each={props.dates}>
+                            {(date) => <option value={date}>{formatAiHistoryDate(date)}</option>}
+                        </For>
+                    </Show>
+                </select>
+                <button
+                    type="button"
+                    onClick={props.onClearDate}
+                    disabled={!props.selectedDate}
+                    title={t("aiPanel.historyClearDate")}
+                    style={{
+                        border: "1px solid var(--mz-border)",
+                        "border-radius": "var(--mz-radius-sm)",
+                        background: "transparent",
+                        color: "var(--mz-text-muted)",
+                        cursor: props.selectedDate ? "pointer" : "default",
+                        opacity: props.selectedDate ? "1" : "0.5",
+                        padding: "5px 10px",
+                        "font-size": "var(--mz-font-size-xs)",
+                        "white-space": "nowrap",
+                    }}
+                >
+                    {t("aiPanel.historyClearDate")}
+                </button>
+                <button
+                    type="button"
+                    onClick={props.onClearAll}
+                    disabled={props.dates.length === 0}
+                    title={t("aiPanel.historyClearAll")}
+                    style={{
+                        border: "1px solid var(--mz-border)",
+                        "border-radius": "var(--mz-radius-sm)",
+                        background: "transparent",
+                        color: "var(--mz-text-muted)",
+                        cursor: props.dates.length ? "pointer" : "default",
+                        opacity: props.dates.length ? "1" : "0.5",
+                        padding: "5px 10px",
+                        "font-size": "var(--mz-font-size-xs)",
+                        "white-space": "nowrap",
+                    }}
+                >
+                    {t("aiPanel.historyClearAll")}
+                </button>
+            </div>
+            <Show
+                when={props.entries.length > 0}
+                fallback={
+                    <div style={{ color: "var(--mz-text-muted)", "font-size": "var(--mz-font-size-sm)", padding: "18px" }}>
+                        {t("aiPanel.historyEmpty")}
+                    </div>
+                }
+            >
+                <div style={{ flex: "1", overflow: "auto", padding: "10px", display: "flex", "flex-direction": "column", gap: "8px", "min-height": "0" }}>
+                    <For each={props.entries}>
+                        {(entry) => (
+                            <div
+                                style={{
+                                    display: "grid",
+                                    "grid-template-columns": "1fr auto auto",
+                                    gap: "8px",
+                                    "align-items": "center",
+                                    padding: "9px",
+                                    border: "1px solid var(--mz-border)",
+                                    "border-radius": "var(--mz-radius-sm)",
+                                    background: "var(--mz-bg-primary)",
+                                }}
+                            >
+                                <div style={{ "min-width": "0" }}>
+                                    <div style={{ color: "var(--mz-text-muted)", "font-size": "11px", "margin-bottom": "5px" }}>
+                                        {formatAiHistoryTimestamp(entry.createdAt)}
+                                    </div>
+                                    <div
+                                        style={{
+                                            color: "var(--mz-text-secondary)",
+                                            "font-size": "var(--mz-font-size-xs)",
+                                            "line-height": "1.5",
+                                            "white-space": "pre-wrap",
+                                            "word-break": "break-word",
+                                            "user-select": "text",
+                                            "-webkit-user-select": "text",
+                                            cursor: "text",
+                                        }}
+                                    >
+                                        {entry.text}
+                                    </div>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => props.onCopyEntry(entry.text)}
+                                    title={t("common.copy")}
+                                    aria-label={t("common.copy")}
+                                    style={{
+                                        width: "28px",
+                                        height: "28px",
+                                        display: "inline-flex",
+                                        "align-items": "center",
+                                        "justify-content": "center",
+                                        border: "1px solid var(--mz-border)",
+                                        "border-radius": "var(--mz-radius-sm)",
+                                        background: "transparent",
+                                        color: "var(--mz-text-muted)",
+                                        cursor: "pointer",
+                                        padding: "0",
+                                    }}
+                                >
+                                    <Copy size={14} strokeWidth={1.8} />
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => props.onDeleteEntry(entry.id)}
+                                    title={t("common.delete")}
+                                    aria-label={t("common.delete")}
+                                    style={{
+                                        width: "28px",
+                                        height: "28px",
+                                        display: "inline-flex",
+                                        "align-items": "center",
+                                        "justify-content": "center",
+                                        border: "1px solid var(--mz-border)",
+                                        "border-radius": "var(--mz-radius-sm)",
+                                        background: "transparent",
+                                        color: "var(--mz-text-muted)",
+                                        cursor: "pointer",
+                                        padding: "0",
+                                    }}
+                                >
+                                    <Trash2 size={14} strokeWidth={1.8} />
+                                </button>
+                            </div>
+                        )}
+                    </For>
+                </div>
+            </Show>
+        </div>
+    );
+};
 
 const SplitWorkspaceView: Component<{
     primaryPath: string | null;
