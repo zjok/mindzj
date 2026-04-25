@@ -85,6 +85,13 @@ export interface AiProviderConfig {
   model: string;
 }
 
+export interface AiSkill {
+  id: string;
+  name: string;
+  description?: string | null;
+  content: string;
+}
+
 interface PersistedSettings extends Omit<Partial<AppSettings>, "theme"> {
   theme?: PersistedTheme | null;
 }
@@ -155,6 +162,12 @@ export interface AppSettings {
   template_folder: string | null;
   ai_provider: AiProviderConfig | null;
   ai_custom_providers: AiProviderConfig[];
+  /** Per-model prompt overrides, keyed by aiModelSettingsKey(config). */
+  ai_model_prompts: Record<string, string>;
+  /** Per-vault reusable AI skills. */
+  ai_skills: AiSkill[];
+  /** Per-model selected skill ids, keyed by aiModelSettingsKey(config). */
+  ai_model_skill_ids: Record<string, string[]>;
   /** Custom hotkey overrides: command -> key combo string (e.g. "Ctrl+Shift+L") */
   hotkey_overrides: Record<string, string>;
 
@@ -210,6 +223,9 @@ const DEFAULT_SETTINGS: AppSettings = {
   template_folder: null,
   ai_provider: null,
   ai_custom_providers: [],
+  ai_model_prompts: {},
+  ai_skills: [],
+  ai_model_skill_ids: {},
   hotkey_overrides: {},
 
   // Image defaults
@@ -225,8 +241,21 @@ function createDefaultSettings(): AppSettings {
   return {
     ...DEFAULT_SETTINGS,
     ai_custom_providers: [...DEFAULT_SETTINGS.ai_custom_providers],
+    ai_model_prompts: { ...DEFAULT_SETTINGS.ai_model_prompts },
+    ai_skills: [...DEFAULT_SETTINGS.ai_skills],
+    ai_model_skill_ids: { ...DEFAULT_SETTINGS.ai_model_skill_ids },
     hotkey_overrides: { ...DEFAULT_SETTINGS.hotkey_overrides },
   };
+}
+
+export function aiModelSettingsKey(config: AiProviderConfig | null | undefined): string {
+  if (!config) return "provider:Ollama|endpoint:http://localhost:11434/v1|model:llama3.2";
+  const providerType = normalizeAiProviderType(config.provider_type);
+  const id = typeof config.id === "string" ? config.id.trim() : "";
+  if (id) return `id:${id}`;
+  const endpoint = (config.endpoint ?? "").trim().replace(/\/+$/, "");
+  const model = (config.model ?? "").trim();
+  return `provider:${providerType}|endpoint:${endpoint}|model:${model || "(default)"}`;
 }
 
 function hotkeyOverridesToBindings(overrides: Record<string, string>): HotkeyBinding[] {
@@ -311,6 +340,43 @@ function normalizeAiConfig(config: unknown): AiProviderConfig | null {
   };
 }
 
+function normalizeAiSkill(skill: unknown): AiSkill | null {
+  if (!skill || typeof skill !== "object") return null;
+  const raw = skill as Partial<AiSkill>;
+  const id = typeof raw.id === "string" && raw.id.trim() ? raw.id.trim() : "";
+  const name = typeof raw.name === "string" && raw.name.trim() ? raw.name.trim() : "";
+  const content = typeof raw.content === "string" ? raw.content : "";
+  if (!id || !name) return null;
+  return {
+    id,
+    name,
+    description:
+      typeof raw.description === "string" && raw.description.trim()
+        ? raw.description.trim()
+        : null,
+    content,
+  };
+}
+
+function normalizeStringRecord(value: unknown): Record<string, string> {
+  if (!value || typeof value !== "object") return {};
+  const result: Record<string, string> = {};
+  for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
+    if (typeof entry === "string") result[key] = entry;
+  }
+  return result;
+}
+
+function normalizeStringArrayRecord(value: unknown): Record<string, string[]> {
+  if (!value || typeof value !== "object") return {};
+  const result: Record<string, string[]> = {};
+  for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
+    if (!Array.isArray(entry)) continue;
+    result[key] = entry.filter((item): item is string => typeof item === "string");
+  }
+  return result;
+}
+
 function normalizeLoadedSettings(loaded?: PersistedSettings | null): AppSettings {
   const base = createDefaultSettings();
   const aiProvider = normalizeAiConfig(loaded?.ai_provider);
@@ -325,6 +391,19 @@ function normalizeLoadedSettings(loaded?: PersistedSettings | null): AppSettings
     theme: normalizeTheme(loaded?.theme),
     ai_provider: aiProvider,
     ai_custom_providers: aiCustomProviders,
+    ai_model_prompts: {
+      ...base.ai_model_prompts,
+      ...normalizeStringRecord(loaded?.ai_model_prompts),
+    },
+    ai_skills: Array.isArray(loaded?.ai_skills)
+      ? loaded!.ai_skills
+          .map((skill) => normalizeAiSkill(skill))
+          .filter((skill): skill is AiSkill => !!skill)
+      : base.ai_skills,
+    ai_model_skill_ids: {
+      ...base.ai_model_skill_ids,
+      ...normalizeStringArrayRecord(loaded?.ai_model_skill_ids),
+    },
     font_family:
       typeof loaded?.font_family === "string" && loaded.font_family.trim()
         ? loaded.font_family

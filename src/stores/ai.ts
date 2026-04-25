@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { editorStore, type ViewMode } from "./editor";
-import { settingsStore, type AiProviderConfig, type AiProviderType, type AppSettings } from "./settings";
+import { aiModelSettingsKey, settingsStore, type AiProviderConfig, type AiProviderType, type AiSkill, type AppSettings } from "./settings";
 import { vaultStore, type VaultEntry, type FileContent } from "./vault";
 import { listPluginCommands, runPluginCommand } from "./plugins";
 
@@ -722,9 +722,20 @@ async function appendNaturalResponseToActiveNote(
   return result.message || (result.ok ? `Appended to ${context.activePath}` : null);
 }
 
-function buildSystemPrompt(context?: ToolExecutionContext) {
+function configuredPromptAndSkills(config: AiProviderConfig): { prompt: string; skills: AiSkill[] } {
+  const settings = settingsStore.settings();
+  const key = aiModelSettingsKey(config);
+  const prompt = (settings.ai_model_prompts?.[key] ?? "").trim();
+  const selected = new Set(settings.ai_model_skill_ids?.[key] ?? []);
+  const skills = (settings.ai_skills ?? [])
+    .filter((skill) => selected.has(skill.id) && skill.content.trim());
+  return { prompt, skills };
+}
+
+function buildSystemPrompt(context?: ToolExecutionContext, config?: AiProviderConfig) {
   const active = vaultStore.activeFile()?.path ?? "(none)";
   const commands = listPluginCommands().map((command) => command.id).slice(0, 80);
+  const modelConfig = config ? configuredPromptAndSkills(config) : { prompt: "", skills: [] };
   const lines = [
     "You are MindZJ's local automation agent.",
     "Use tools to inspect and modify the user's current vault. Do not invent file contents or paths.",
@@ -737,6 +748,16 @@ function buildSystemPrompt(context?: ToolExecutionContext) {
     `Available plugin command ids: ${commands.join(", ") || "(none)"}`,
     "If tool calling is unavailable, respond with JSON like {\"tool\":\"read_note\",\"arguments\":{\"path\":\"note.md\"}} or {\"actions\":[...]} only.",
   ];
+  if (modelConfig.prompt) {
+    lines.push("User-configured prompt for this model:", modelConfig.prompt);
+  }
+  for (const skill of modelConfig.skills) {
+    lines.push(
+      `Skill: ${skill.name}`,
+      skill.description ? `Skill description: ${skill.description}` : "",
+      skill.content.trim(),
+    );
+  }
   if (context?.restrictToActiveFile && !context.hasExplicitPath) {
     lines.push(
       `The user did not name a specific file path. Any content-changing operation must target only the current active note: ${context.activePath ?? "(none)"}.`,
@@ -1154,7 +1175,7 @@ function createAiStore() {
     await editorStore.flushAllPendingSaves();
     const toolContext = buildToolContext(instruction, options);
     const messages: ChatMessage[] = [
-      { role: "system", content: buildSystemPrompt(toolContext) },
+      { role: "system", content: buildSystemPrompt(toolContext, config) },
       { role: "user", content: instruction },
     ];
     const executed: string[] = [];

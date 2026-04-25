@@ -8,7 +8,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { open as dialogOpen } from "@tauri-apps/plugin-dialog";
 import { Eye, EyeOff } from "lucide-solid";
 import { aiStore, defaultAiProviderConfig } from "../../stores/ai";
-import { settingsStore, type AiProviderConfig, type AiProviderType, type AppSettings, reloadCssSnippets, DEFAULT_FONT_FAMILY } from "../../stores/settings";
+import { aiModelSettingsKey, settingsStore, type AiProviderConfig, type AiProviderType, type AiSkill, type AppSettings, reloadCssSnippets, DEFAULT_FONT_FAMILY } from "../../stores/settings";
 import {
   BUILT_IN_SKINS,
   CUSTOM_SKIN_PREFIX,
@@ -73,6 +73,10 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
   const [aiProviderSelectDraft, setAiProviderSelectDraft] = createSignal<string | null>(null);
   const [aiAddingModel, setAiAddingModel] = createSignal(false);
   const [aiAddModelDraft, setAiAddModelDraft] = createSignal("");
+  const [aiSkillEditingId, setAiSkillEditingId] = createSignal<string | null>(null);
+  const [aiSkillNameDraft, setAiSkillNameDraft] = createSignal("");
+  const [aiSkillDescriptionDraft, setAiSkillDescriptionDraft] = createSignal("");
+  const [aiSkillContentDraft, setAiSkillContentDraft] = createSignal("");
   let aiApiKeyLoadToken = 0;
 
   function handleKeydown(e: KeyboardEvent) {
@@ -116,6 +120,7 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
     settingsStore.updateSetting(key, value);
   const aiConfig = (): AiProviderConfig =>
     s().ai_provider ?? defaultAiProviderConfig("Ollama");
+  const aiModelKey = () => aiModelSettingsKey(aiConfig());
   const customAiProviders = () => s().ai_custom_providers ?? [];
   const isApiKeyAiProvider = (config = aiConfig()) =>
     config.provider_type !== "Ollama" && config.provider_type !== "LMStudio";
@@ -232,6 +237,77 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
   function updateAiConfig(patch: Partial<AiProviderConfig>) {
     set("ai_provider", { ...aiConfig(), ...patch });
     setAiTestResult(null);
+  }
+  const aiModelPrompt = () => s().ai_model_prompts?.[aiModelKey()] ?? "";
+  const aiSkills = () => s().ai_skills ?? [];
+  const selectedAiSkillIds = () => new Set(s().ai_model_skill_ids?.[aiModelKey()] ?? []);
+  function updateAiModelPrompt(value: string) {
+    const key = aiModelKey();
+    void set("ai_model_prompts", {
+      ...(s().ai_model_prompts ?? {}),
+      [key]: value,
+    });
+  }
+  function updateAiModelSkillSelection(skillId: string, enabled: boolean) {
+    const key = aiModelKey();
+    const existing = s().ai_model_skill_ids?.[key] ?? [];
+    const next = enabled
+      ? Array.from(new Set([...existing, skillId]))
+      : existing.filter((id) => id !== skillId);
+    void set("ai_model_skill_ids", {
+      ...(s().ai_model_skill_ids ?? {}),
+      [key]: next,
+    });
+  }
+  function resetAiSkillDrafts() {
+    setAiSkillEditingId(null);
+    setAiSkillNameDraft("");
+    setAiSkillDescriptionDraft("");
+    setAiSkillContentDraft("");
+  }
+  function editAiSkill(skill: AiSkill) {
+    setAiSkillEditingId(skill.id);
+    setAiSkillNameDraft(skill.name);
+    setAiSkillDescriptionDraft(skill.description ?? "");
+    setAiSkillContentDraft(skill.content);
+  }
+  async function saveAiSkill() {
+    const name = aiSkillNameDraft().trim();
+    if (!name) {
+      setAiTestResult(t("settings.aiSkillNameRequired"));
+      return;
+    }
+    const nextSkill: AiSkill = {
+      id: aiSkillEditingId() || `skill-${Date.now()}`,
+      name,
+      description: aiSkillDescriptionDraft().trim() || null,
+      content: aiSkillContentDraft().trim(),
+    };
+    const existing = aiSkills();
+    const next = existing.some((skill) => skill.id === nextSkill.id)
+      ? existing.map((skill) => (skill.id === nextSkill.id ? nextSkill : skill))
+      : [...existing, nextSkill];
+    await set("ai_skills", next);
+    resetAiSkillDrafts();
+    setAiTestResult(t("settings.aiSkillSaved"));
+  }
+  async function deleteAiSkill(skill: AiSkill) {
+    const confirmed = await confirmDialog(
+      t("settings.aiSkillDeleteConfirm", { name: skill.name }),
+      { confirmLabel: t("common.delete"), variant: "danger" },
+    );
+    if (!confirmed) return;
+    const nextSkills = aiSkills().filter((item) => item.id !== skill.id);
+    const nextSelections = Object.fromEntries(
+      Object.entries(s().ai_model_skill_ids ?? {}).map(([key, ids]) => [
+        key,
+        ids.filter((id) => id !== skill.id),
+      ]),
+    );
+    await set("ai_skills", nextSkills);
+    await set("ai_model_skill_ids", nextSelections);
+    if (aiSkillEditingId() === skill.id) resetAiSkillDrafts();
+    setAiTestResult(t("settings.aiSkillDeleted"));
   }
   async function saveAiProvider(showStatus = true): Promise<boolean> {
     const current = aiConfig();
@@ -872,6 +948,108 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
                 </div>
               </Show>
             </SettingSection>
+
+            <Show when={!aiAddMode()}>
+              <SettingSection title={t("settings.aiPromptSection")}>
+                <div style={{ ...settingsRowStyle, "align-items": "flex-start", "flex-wrap": "wrap" }}>
+                  <div style={{ flex: "1", "min-width": "180px" }}>
+                    <div style={settingsLabelStyle}>{t("settings.aiModelPrompt")}</div>
+                    <div style={settingsDescStyle}>
+                      {t("settings.aiModelPromptDescription")}
+                    </div>
+                  </div>
+                  <textarea
+                    value={aiModelPrompt()}
+                    placeholder={t("settings.aiModelPromptPlaceholder")}
+                    onInput={(event) => updateAiModelPrompt(event.currentTarget.value)}
+                    style={aiPromptTextareaStyle}
+                  />
+                </div>
+              </SettingSection>
+
+              <SettingSection title={t("settings.aiSkillsSection")}>
+                <div style={{ ...settingsRowStyle, "align-items": "flex-start", "flex-wrap": "wrap" }}>
+                  <div style={{ flex: "1", "min-width": "180px" }}>
+                    <div style={settingsLabelStyle}>{t("settings.aiSkillEditor")}</div>
+                    <div style={settingsDescStyle}>{t("settings.aiSkillsDescription")}</div>
+                  </div>
+                  <div style={aiSkillEditorStyle}>
+                    <input
+                      value={aiSkillNameDraft()}
+                      placeholder={t("settings.aiSkillNamePlaceholder")}
+                      onInput={(event) => setAiSkillNameDraft(event.currentTarget.value)}
+                      style={{ ...settingsInputBareStyle, ...aiSkillInputStyle }}
+                    />
+                    <input
+                      value={aiSkillDescriptionDraft()}
+                      placeholder={t("settings.aiSkillDescriptionPlaceholder")}
+                      onInput={(event) => setAiSkillDescriptionDraft(event.currentTarget.value)}
+                      style={{ ...settingsInputBareStyle, ...aiSkillInputStyle }}
+                    />
+                    <textarea
+                      value={aiSkillContentDraft()}
+                      placeholder={t("settings.aiSkillContentPlaceholder")}
+                      onInput={(event) => setAiSkillContentDraft(event.currentTarget.value)}
+                      style={aiSkillTextareaStyle}
+                    />
+                    <div style={{ display: "flex", "justify-content": "flex-end", gap: "8px" }}>
+                      <Show when={aiSkillEditingId()}>
+                        <button onClick={resetAiSkillDrafts} style={settingsButtonStyle}>
+                          {t("common.cancel")}
+                        </button>
+                      </Show>
+                      <button onClick={() => void saveAiSkill()} style={settingsButtonStyle}>
+                        {aiSkillEditingId() ? t("settings.aiSkillUpdate") : t("settings.aiSkillAdd")}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={aiSkillListStyle}>
+                  <Show
+                    when={aiSkills().length > 0}
+                    fallback={
+                      <div style={{ color: "var(--mz-text-muted)", "font-size": "var(--mz-font-size-xs)", padding: "8px 0" }}>
+                        {t("settings.aiSkillsEmpty")}
+                      </div>
+                    }
+                  >
+                    <For each={aiSkills()}>
+                      {(skill) => {
+                        const selected = () => selectedAiSkillIds().has(skill.id);
+                        return (
+                          <div style={aiSkillRowStyle}>
+                            <label style={{ display: "flex", "align-items": "flex-start", gap: "10px", flex: "1", "min-width": "0", cursor: "pointer" }}>
+                              <input
+                                type="checkbox"
+                                checked={selected()}
+                                onChange={(event) => updateAiModelSkillSelection(skill.id, event.currentTarget.checked)}
+                                style={{ "margin-top": "3px", "flex-shrink": "0" }}
+                              />
+                              <div style={{ "min-width": "0" }}>
+                                <div style={settingsLabelStyle}>{skill.name}</div>
+                                <Show when={skill.description}>
+                                  <div style={settingsDescStyle}>{skill.description}</div>
+                                </Show>
+                                <div style={aiSkillPreviewStyle}>{skill.content || t("settings.aiSkillNoContent")}</div>
+                              </div>
+                            </label>
+                            <div style={{ display: "flex", gap: "8px", "flex-shrink": "0" }}>
+                              <button onClick={() => editAiSkill(skill)} style={settingsButtonStyle}>
+                                {t("settings.aiSkillEdit")}
+                              </button>
+                              <button onClick={() => void deleteAiSkill(skill)} style={settingsDangerButtonStyle}>
+                                {t("common.delete")}
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      }}
+                    </For>
+                  </Show>
+                </div>
+              </SettingSection>
+            </Show>
           </Show>
 
           {/* Files & Links Settings */}
@@ -2246,6 +2424,73 @@ const settingsInputBareStyle = {
   "font-family": "var(--mz-font-sans)",
   outline: "none",
 };
+
+const aiPromptTextareaStyle = {
+  width: "min(520px, 100%)",
+  "box-sizing": "border-box",
+  height: "120px",
+  resize: "vertical",
+  padding: "8px 10px",
+  border: "1px solid var(--mz-border)",
+  "border-radius": "var(--mz-radius-sm)",
+  background: "var(--mz-bg-primary)",
+  color: "var(--mz-text-primary)",
+  "font-size": "var(--mz-font-size-sm)",
+  "font-family": "var(--mz-font-sans)",
+  outline: "none",
+  "line-height": "1.5",
+  "flex-shrink": "0",
+} as const;
+
+const aiSkillEditorStyle = {
+  width: "min(520px, 100%)",
+  "box-sizing": "border-box",
+  display: "flex",
+  "flex-direction": "column",
+  gap: "8px",
+  "flex-shrink": "0",
+} as const;
+
+const aiSkillInputStyle = {
+  width: "100%",
+  "box-sizing": "border-box",
+  border: "1px solid var(--mz-border)",
+  "border-radius": "var(--mz-radius-sm)",
+  background: "var(--mz-bg-primary)",
+} as const;
+
+const aiSkillTextareaStyle = {
+  ...aiPromptTextareaStyle,
+  width: "100%",
+  height: "96px",
+} as const;
+
+const aiSkillListStyle = {
+  display: "flex",
+  "flex-direction": "column",
+  gap: "8px",
+  "margin-top": "12px",
+} as const;
+
+const aiSkillRowStyle = {
+  display: "flex",
+  "flex-wrap": "wrap",
+  "align-items": "flex-start",
+  "justify-content": "space-between",
+  gap: "12px",
+  padding: "10px 0",
+  "border-top": "1px solid var(--mz-border)",
+} as const;
+
+const aiSkillPreviewStyle = {
+  "font-size": "var(--mz-font-size-xs)",
+  color: "var(--mz-text-muted)",
+  "margin-top": "4px",
+  "white-space": "nowrap",
+  overflow: "hidden",
+  "text-overflow": "ellipsis",
+  "max-width": "52vw",
+} as const;
 
 // ---------------------------------------------------------------------------
 // Plugin Settings Panel — renders a plugin's PluginSettingTab

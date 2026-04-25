@@ -255,6 +255,12 @@ pub struct AppSettings {
     pub ai_provider: Option<AiProviderConfig>,
     #[serde(default)]
     pub ai_custom_providers: Vec<AiProviderConfig>,
+    #[serde(default)]
+    pub ai_model_prompts: HashMap<String, String>,
+    #[serde(default)]
+    pub ai_skills: Vec<AiSkill>,
+    #[serde(default)]
+    pub ai_model_skill_ids: HashMap<String, Vec<String>>,
     #[serde(default = "default_image_resize_options")]
     pub image_resize_options: String,
     #[serde(default = "default_image_ctrl_click")]
@@ -348,6 +354,9 @@ impl Default for AppSettings {
             template_folder: None,
             ai_provider: None,
             ai_custom_providers: Vec::new(),
+            ai_model_prompts: HashMap::new(),
+            ai_skills: Vec::new(),
+            ai_model_skill_ids: HashMap::new(),
             image_resize_options: default_image_resize_options(),
             image_ctrl_click: default_image_ctrl_click(),
             image_wheel_zoom: true,
@@ -511,6 +520,16 @@ pub struct AiProviderConfig {
     pub has_api_key: bool,
     /// Model name (e.g., "llama3.2", "claude-sonnet-4-20250514")
     pub model: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AiSkill {
+    pub id: String,
+    pub name: String,
+    #[serde(default)]
+    pub description: Option<String>,
+    #[serde(default)]
+    pub content: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
