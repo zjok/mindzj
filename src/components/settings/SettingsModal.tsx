@@ -1067,69 +1067,71 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
             </SettingSection>
 
             <Show when={!aiAddMode()}>
-              <SettingSection title={t("settings.aiVoiceSection")}>
-                <SettingSelect
-                  label={t("settings.aiVoiceProvider")}
-                  description={t("settings.aiVoiceProviderDescription")}
-                  value={s().ai_voice_provider}
-                  options={aiVoiceProviderOptions}
-                  width="190px"
-                  onChange={(value) => set("ai_voice_provider", value)}
-                />
-                <SettingSelect
-                  label={t("settings.aiSttModel")}
-                  description={t("settings.aiSttModelDescription")}
-                  value={s().ai_stt_model}
-                  options={aiSttModelOptions}
-                  width="190px"
-                  onChange={(value) => set("ai_stt_model", value)}
-                />
-                <SettingSelect
-                  label={t("settings.aiTtsVoice")}
-                  description={t("settings.aiTtsVoiceDescription")}
-                  value={s().ai_tts_voice}
-                  options={GROK_TTS_VOICES}
-                  width="190px"
-                  onChange={(value) => set("ai_tts_voice", value)}
-                />
-                <SettingSelect
-                  label={t("settings.aiTtsLanguage")}
-                  description={t("settings.aiTtsLanguageDescription")}
-                  value={s().ai_tts_language}
-                  options={GROK_TTS_LANGUAGE_OPTIONS}
-                  width="190px"
-                  onChange={(value) => set("ai_tts_language", value)}
-                />
-                <div style={{ ...settingsRowStyle, "align-items": "center", "flex-wrap": "wrap" }}>
-                  <div style={{ flex: "1", "min-width": "180px" }}>
-                    <div style={settingsLabelStyle}>{t("settings.aiVoiceExportFolder")}</div>
-                    <div style={settingsDescStyle}>{t("settings.aiVoiceExportFolderDescription")}</div>
+              <Show when={false}>
+                <SettingSection title={t("settings.aiVoiceSection")}>
+                  <SettingSelect
+                    label={t("settings.aiVoiceProvider")}
+                    description={t("settings.aiVoiceProviderDescription")}
+                    value={s().ai_voice_provider}
+                    options={aiVoiceProviderOptions}
+                    width="190px"
+                    onChange={(value) => set("ai_voice_provider", value)}
+                  />
+                  <SettingSelect
+                    label={t("settings.aiSttModel")}
+                    description={t("settings.aiSttModelDescription")}
+                    value={s().ai_stt_model}
+                    options={aiSttModelOptions}
+                    width="190px"
+                    onChange={(value) => set("ai_stt_model", value)}
+                  />
+                  <SettingSelect
+                    label={t("settings.aiTtsVoice")}
+                    description={t("settings.aiTtsVoiceDescription")}
+                    value={s().ai_tts_voice}
+                    options={GROK_TTS_VOICES}
+                    width="190px"
+                    onChange={(value) => set("ai_tts_voice", value)}
+                  />
+                  <SettingSelect
+                    label={t("settings.aiTtsLanguage")}
+                    description={t("settings.aiTtsLanguageDescription")}
+                    value={s().ai_tts_language}
+                    options={GROK_TTS_LANGUAGE_OPTIONS}
+                    width="190px"
+                    onChange={(value) => set("ai_tts_language", value)}
+                  />
+                  <div style={{ ...settingsRowStyle, "align-items": "center", "flex-wrap": "wrap" }}>
+                    <div style={{ flex: "1", "min-width": "180px" }}>
+                      <div style={settingsLabelStyle}>{t("settings.aiVoiceExportFolder")}</div>
+                      <div style={settingsDescStyle}>{t("settings.aiVoiceExportFolderDescription")}</div>
+                    </div>
+                    <div style={{ display: "flex", "align-items": "center", gap: "8px", "flex-shrink": "0", "max-width": "100%" }}>
+                      <input
+                        type="text"
+                        value={s().ai_voice_export_folder || ""}
+                        placeholder={t("settings.aiVoiceExportFolderPlaceholder")}
+                        onInput={(event) => set("ai_voice_export_folder", event.currentTarget.value.trim() || null)}
+                        style={{ ...settingsInputBareStyle, ...aiVoiceExportInputStyle }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => void selectAiVoiceExportFolder()}
+                        style={settingsButtonStyle}
+                      >
+                        {t("settings.aiVoiceExportFolderChoose")}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => set("ai_voice_export_folder", null)}
+                        style={settingsButtonStyle}
+                      >
+                        {t("common.reset")}
+                      </button>
+                    </div>
                   </div>
-                  <div style={{ display: "flex", "align-items": "center", gap: "8px", "flex-shrink": "0", "max-width": "100%" }}>
-                    <input
-                      type="text"
-                      value={s().ai_voice_export_folder || ""}
-                      placeholder={t("settings.aiVoiceExportFolderPlaceholder")}
-                      onInput={(event) => set("ai_voice_export_folder", event.currentTarget.value.trim() || null)}
-                      style={{ ...settingsInputBareStyle, ...aiVoiceExportInputStyle }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => void selectAiVoiceExportFolder()}
-                      style={settingsButtonStyle}
-                    >
-                      {t("settings.aiVoiceExportFolderChoose")}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => set("ai_voice_export_folder", null)}
-                      style={settingsButtonStyle}
-                    >
-                      {t("common.reset")}
-                    </button>
-                  </div>
-                </div>
-              </SettingSection>
+                </SettingSection>
+              </Show>
 
               <SettingSection title={t("settings.aiPromptSection")}>
                 <div style={{ ...settingsRowStyle, "align-items": "flex-start", "flex-wrap": "wrap" }}>

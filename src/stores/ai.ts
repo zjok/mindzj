@@ -216,7 +216,22 @@ function providerDisplayName(config: AiProviderConfig): string {
   if (providerType === "Grok") return "Grok";
   if (providerType === "Gemini") return "Gemini";
   if (providerType === "DeepSeek") return "DeepSeek";
-  return "Online LLM";
+  return (config.display_name || "Online LLM").trim();
+}
+
+function modelDisplayName(config: AiProviderConfig): string {
+  const model = config.model.trim();
+  if (!model) return "";
+  return builtInModelOptions(config.provider_type).find((option) => option.value === model)?.label ?? model;
+}
+
+export function aiProviderModelLabel(config: AiProviderConfig | null | undefined): string {
+  if (!config) return "Ollama";
+  const provider = providerDisplayName(config);
+  if (isLocalProviderType(config.provider_type)) return provider;
+  const model = modelDisplayName(config);
+  if (!model || model === provider) return provider;
+  return `${provider} · ${model}`;
 }
 
 export function defaultAiProviderConfig(provider: AiProviderType): AiProviderConfig {
@@ -1462,11 +1477,7 @@ function createAiStore() {
   }
 
   function currentModelLabel(): string {
-    const config = configuredProvider();
-    if (!config) return "Ollama";
-    const provider = providerDisplayName(config);
-    const model = (config.display_name || config.model || "").trim();
-    return model ? `${provider} · ${model}` : provider;
+    return aiProviderModelLabel(configuredProvider());
   }
 
   async function testConnection(config = configuredProvider()): Promise<AiConnectionTestResult> {

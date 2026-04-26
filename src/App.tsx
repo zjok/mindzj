@@ -5,7 +5,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { vaultStore, type FileContent } from "./stores/vault";
 import { editorStore, type ViewMode } from "./stores/editor";
 import { settingsStore, type AiProviderConfig } from "./stores/settings";
-import { BUILT_IN_ONLINE_PROVIDER_TYPES, aiStore, defaultAiProviderConfig } from "./stores/ai";
+import { BUILT_IN_ONLINE_PROVIDER_TYPES, aiProviderModelLabel, aiStore, defaultAiProviderConfig } from "./stores/ai";
 import { workspaceStore, type WorkspaceState } from "./stores/workspace";
 import { pluginStore, hasPluginViewForExtension, mountPluginView, destroyPluginView, isPluginSaving } from "./stores/plugins";
 import {
@@ -241,21 +241,8 @@ function aiPanelModelOptionValue(config: AiProviderConfig): string {
     return config.provider_type;
 }
 
-function aiPanelProviderLabel(config: AiProviderConfig): string {
-    if (config.provider_type === "LMStudio") return "LM Studio";
-    if (config.provider_type === "Ollama") return "Ollama";
-    if (config.provider_type === "OpenAI") return "OpenAI";
-    if (config.provider_type === "Claude") return "Claude";
-    if (config.provider_type === "Grok") return "Grok";
-    if (config.provider_type === "Gemini") return "Gemini";
-    if (config.provider_type === "DeepSeek") return "DeepSeek";
-    return "Online LLM";
-}
-
 function aiPanelModelOptionLabel(config: AiProviderConfig): string {
-    const provider = aiPanelProviderLabel(config);
-    const model = (config.display_name || config.model || "").trim();
-    return model ? `${provider} · ${model}` : provider;
+    return aiProviderModelLabel(config);
 }
 
 const App: Component = () => {
@@ -3510,54 +3497,56 @@ const AiBottomPanel: Component<{
                         >
                             <History size={15} strokeWidth={1.8} />
                         </button>
-                        <button
-                            type="button"
-                            onClick={props.onToggleVoiceInput}
-                            disabled={props.busy || props.voiceBusy}
-                            title={props.voiceRecording ? t("aiPanel.voiceStop") : t("aiPanel.voiceStart")}
-                            aria-label={props.voiceRecording ? t("aiPanel.voiceStop") : t("aiPanel.voiceStart")}
-                            style={{
-                                width: "26px",
-                                height: "26px",
-                                display: "inline-flex",
-                                "align-items": "center",
-                                "justify-content": "center",
-                                border: "1px solid var(--mz-border)",
-                                "border-radius": "var(--mz-radius-sm)",
-                                background: props.voiceRecording ? "var(--mz-bg-hover)" : "transparent",
-                                color: props.voiceRecording ? "var(--mz-accent)" : "var(--mz-text-muted)",
-                                cursor: props.busy || props.voiceBusy ? "default" : "pointer",
-                                opacity: props.busy || props.voiceBusy ? "0.55" : "1",
-                                padding: "0",
-                            }}
-                        >
-                            <Show when={props.voiceRecording} fallback={<Mic size={15} strokeWidth={1.8} />}>
-                                <MicOff size={15} strokeWidth={1.8} />
-                            </Show>
-                        </button>
-                        <button
-                            type="button"
-                            onClick={props.onSpeakInput}
-                            disabled={props.busy || props.voiceBusy || props.voiceRecording || !props.input.trim()}
-                            title={t("aiPanel.ttsInput")}
-                            aria-label={t("aiPanel.ttsInput")}
-                            style={{
-                                width: "26px",
-                                height: "26px",
-                                display: "inline-flex",
-                                "align-items": "center",
-                                "justify-content": "center",
-                                border: "1px solid var(--mz-border)",
-                                "border-radius": "var(--mz-radius-sm)",
-                                background: "transparent",
-                                color: "var(--mz-text-muted)",
-                                cursor: props.busy || props.voiceBusy || props.voiceRecording || !props.input.trim() ? "default" : "pointer",
-                                opacity: props.busy || props.voiceBusy || props.voiceRecording || !props.input.trim() ? "0.55" : "1",
-                                padding: "0",
-                            }}
-                        >
-                            <Volume2 size={15} strokeWidth={1.8} />
-                        </button>
+                        <Show when={false}>
+                            <button
+                                type="button"
+                                onClick={props.onToggleVoiceInput}
+                                disabled={props.busy || props.voiceBusy}
+                                title={props.voiceRecording ? t("aiPanel.voiceStop") : t("aiPanel.voiceStart")}
+                                aria-label={props.voiceRecording ? t("aiPanel.voiceStop") : t("aiPanel.voiceStart")}
+                                style={{
+                                    width: "26px",
+                                    height: "26px",
+                                    display: "inline-flex",
+                                    "align-items": "center",
+                                    "justify-content": "center",
+                                    border: "1px solid var(--mz-border)",
+                                    "border-radius": "var(--mz-radius-sm)",
+                                    background: props.voiceRecording ? "var(--mz-bg-hover)" : "transparent",
+                                    color: props.voiceRecording ? "var(--mz-accent)" : "var(--mz-text-muted)",
+                                    cursor: props.busy || props.voiceBusy ? "default" : "pointer",
+                                    opacity: props.busy || props.voiceBusy ? "0.55" : "1",
+                                    padding: "0",
+                                }}
+                            >
+                                <Show when={props.voiceRecording} fallback={<Mic size={15} strokeWidth={1.8} />}>
+                                    <MicOff size={15} strokeWidth={1.8} />
+                                </Show>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={props.onSpeakInput}
+                                disabled={props.busy || props.voiceBusy || props.voiceRecording || !props.input.trim()}
+                                title={t("aiPanel.ttsInput")}
+                                aria-label={t("aiPanel.ttsInput")}
+                                style={{
+                                    width: "26px",
+                                    height: "26px",
+                                    display: "inline-flex",
+                                    "align-items": "center",
+                                    "justify-content": "center",
+                                    border: "1px solid var(--mz-border)",
+                                    "border-radius": "var(--mz-radius-sm)",
+                                    background: "transparent",
+                                    color: "var(--mz-text-muted)",
+                                    cursor: props.busy || props.voiceBusy || props.voiceRecording || !props.input.trim() ? "default" : "pointer",
+                                    opacity: props.busy || props.voiceBusy || props.voiceRecording || !props.input.trim() ? "0.55" : "1",
+                                    padding: "0",
+                                }}
+                            >
+                                <Volume2 size={15} strokeWidth={1.8} />
+                            </button>
+                        </Show>
                         <Show when={false}>
                             <div
                                 style={{
