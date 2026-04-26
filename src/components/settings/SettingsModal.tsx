@@ -1203,12 +1203,14 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
                         return (
                           <div style={aiSkillRowStyle}>
                             <label style={{ display: "flex", "align-items": "flex-start", gap: "10px", flex: "1", "min-width": "0", cursor: "pointer" }}>
-                              <input
-                                type="checkbox"
-                                checked={selected()}
-                                onChange={(event) => updateAiModelSkillSelection(skill.id, event.currentTarget.checked)}
-                                style={{ "margin-top": "3px", "flex-shrink": "0" }}
-                              />
+                              <span style={{ width: "16px", height: "20px", display: "inline-flex", "align-items": "center", "justify-content": "center", "flex-shrink": "0" }}>
+                                <input
+                                  type="checkbox"
+                                  checked={selected()}
+                                  onChange={(event) => updateAiModelSkillSelection(skill.id, event.currentTarget.checked)}
+                                  style={{ margin: "0", width: "14px", height: "14px" }}
+                                />
+                              </span>
                               <div style={{ "min-width": "0" }}>
                                 <div style={settingsLabelStyle}>{skill.name}</div>
                                 <Show when={skill.description}>

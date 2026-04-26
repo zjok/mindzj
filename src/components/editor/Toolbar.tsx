@@ -68,7 +68,7 @@ const TOOLBAR_ITEMS: ToolbarButton[] = [
   { icon: "☑", label: "toolbar.taskList", command: "task-list" },
   { icon: "•", label: "toolbar.bulletList", command: "bullet-list" },
   { icon: "1.", label: "toolbar.numberedList", command: "numbered-list" },
-  { icon: "❝", label: "toolbar.quote", command: "quote" },
+  { icon: "❝", label: "toolbar.quote", command: "quote", separator: true },
   { icon: "AI", label: "toolbar.ai", command: "ai-panel" },
 ];
 
