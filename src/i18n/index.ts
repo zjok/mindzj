@@ -221,6 +221,7 @@ const MESSAGES: Record<string, TranslationMap> = {
   "toolbar.bulletList": { "zh-CN": "无序列表", en: "Bullet list", ja: "箇条書き", fr: "Liste à puces", de: "Aufzählung", es: "Lista con viñetas" },
   "toolbar.numberedList": { "zh-CN": "有序列表", en: "Numbered list", ja: "番号付きリスト", fr: "Liste numérotée", de: "Nummerierte Liste", es: "Lista numerada" },
   "toolbar.quote": { "zh-CN": "引用", en: "Quote", ja: "引用", fr: "Citation", de: "Zitat", es: "Cita" },
+  "toolbar.ai": { "zh-CN": "AI 对话框", en: "AI panel", ja: "AI パネル", fr: "Panneau IA", de: "KI-Panel", es: "Panel de IA" },
   "toolbar.headingLevel": { "zh-CN": "标题级别", en: "Heading level", ja: "見出しレベル", fr: "Niveau de titre", de: "Überschriftenebene", es: "Nivel de encabezado" },
   "toolbar.moreTools": { "zh-CN": "更多工具", en: "More tools", ja: "その他のツール", fr: "Plus d’outils", de: "Mehr Werkzeuge", es: "Más herramientas" },
   "toolbar.toggleViewMode": { "zh-CN": "切换视图模式 (Ctrl+E)", en: "Toggle view mode (Ctrl+E)", ja: "表示モードを切り替え (Ctrl+E)", fr: "Changer le mode d’affichage (Ctrl+E)", de: "Ansichtsmodus wechseln (Ctrl+E)", es: "Cambiar modo de vista (Ctrl+E)" },

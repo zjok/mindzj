@@ -69,6 +69,7 @@ const TOOLBAR_ITEMS: ToolbarButton[] = [
   { icon: "•", label: "toolbar.bulletList", command: "bullet-list" },
   { icon: "1.", label: "toolbar.numberedList", command: "numbered-list" },
   { icon: "❝", label: "toolbar.quote", command: "quote" },
+  { icon: "AI", label: "toolbar.ai", command: "ai-panel" },
 ];
 
 export const Toolbar: Component = () => {
@@ -87,6 +88,11 @@ export const Toolbar: Component = () => {
       : t(item.label);
 
   const dispatchCommand = (item: ToolbarButton) => {
+    if (item.command === "ai-panel") {
+      document.dispatchEvent(new CustomEvent("mindzj:toggle-ai-panel"));
+      return;
+    }
+
     const detail: Record<string, any> = { command: item.command };
     if (item.command === "heading") detail.level = item.level ?? 2;
     document.dispatchEvent(new CustomEvent("mindzj:editor-command", { detail }));

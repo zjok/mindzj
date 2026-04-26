@@ -3487,13 +3487,17 @@ const AiBottomPanel: Component<{
                                 display: "inline-flex",
                                 "align-items": "center",
                                 "justify-content": "center",
-                                border: "1px solid var(--mz-border)",
+                                border: props.historyOpen ? "1px solid var(--mz-accent)" : "1px solid var(--mz-border)",
                                 "border-radius": "var(--mz-radius-sm)",
-                                background: props.historyOpen ? "var(--mz-bg-hover)" : "transparent",
-                                color: "var(--mz-text-muted)",
+                                background: props.historyOpen ? "var(--mz-accent-subtle)" : "transparent",
+                                color: props.historyOpen ? "var(--mz-accent)" : "var(--mz-text-muted)",
                                 cursor: "pointer",
                                 padding: "0",
                             }}
+                            onMouseEnter={hoverAiActionButton}
+                            onMouseDown={pressAiActionButton}
+                            onMouseUp={hoverAiActionButton}
+                            onMouseLeave={(event) => resetAiActionButton(event, props.historyOpen)}
                         >
                             <History size={15} strokeWidth={1.8} />
                         </button>
@@ -3774,7 +3778,17 @@ const AiBottomPanel: Component<{
                             </For>
                         </select>
                     </Show>
-                    <span style={{ color: "var(--mz-text-muted)", overflow: "hidden", "text-overflow": "ellipsis", "white-space": "nowrap" }}>
+                    <span
+                        style={{
+                            color: "var(--mz-text-muted)",
+                            overflow: "hidden",
+                            "text-overflow": "ellipsis",
+                            "white-space": "nowrap",
+                            "user-select": "text",
+                            "-webkit-user-select": "text",
+                            cursor: "text",
+                        }}
+                    >
                         {props.activePath || t("aiPanel.noActiveFile")}
                     </span>
                 </div>
@@ -3904,6 +3918,27 @@ const AiBottomPanel: Component<{
         </>
     );
 };
+
+function hoverAiActionButton(event: MouseEvent) {
+    const target = event.currentTarget as HTMLElement;
+    target.style.background = "var(--mz-bg-hover)";
+    target.style.borderColor = "var(--mz-accent)";
+    target.style.color = "var(--mz-accent)";
+}
+
+function pressAiActionButton(event: MouseEvent) {
+    const target = event.currentTarget as HTMLElement;
+    target.style.background = "var(--mz-accent-subtle)";
+    target.style.borderColor = "var(--mz-accent)";
+    target.style.color = "var(--mz-accent)";
+}
+
+function resetAiActionButton(event: MouseEvent, active = false) {
+    const target = event.currentTarget as HTMLElement;
+    target.style.background = active ? "var(--mz-accent-subtle)" : "transparent";
+    target.style.borderColor = active ? "var(--mz-accent)" : "var(--mz-border)";
+    target.style.color = active ? "var(--mz-accent)" : "var(--mz-text-muted)";
+}
 
 // ============================================================================
 // ActiveFileView — stable wrapper that prevents PluginViewHost re-creation
@@ -4064,6 +4099,10 @@ const AiHistoryDialog: Component<{
                     onClick={props.onClearDate}
                     disabled={!props.selectedDate}
                     title={t("aiPanel.historyClearDate")}
+                    onMouseEnter={hoverAiActionButton}
+                    onMouseDown={pressAiActionButton}
+                    onMouseUp={hoverAiActionButton}
+                    onMouseLeave={resetAiActionButton}
                     style={{
                         border: "1px solid var(--mz-border)",
                         "border-radius": "var(--mz-radius-sm)",
@@ -4083,6 +4122,10 @@ const AiHistoryDialog: Component<{
                     onClick={props.onClearAll}
                     disabled={props.dates.length === 0}
                     title={t("aiPanel.historyClearAll")}
+                    onMouseEnter={hoverAiActionButton}
+                    onMouseDown={pressAiActionButton}
+                    onMouseUp={hoverAiActionButton}
+                    onMouseLeave={resetAiActionButton}
                     style={{
                         border: "1px solid var(--mz-border)",
                         "border-radius": "var(--mz-radius-sm)",
@@ -4145,6 +4188,10 @@ const AiHistoryDialog: Component<{
                                     onClick={() => props.onCopyEntry(entry.text)}
                                     title={t("common.copy")}
                                     aria-label={t("common.copy")}
+                                    onMouseEnter={hoverAiActionButton}
+                                    onMouseDown={pressAiActionButton}
+                                    onMouseUp={hoverAiActionButton}
+                                    onMouseLeave={resetAiActionButton}
                                     style={{
                                         width: "28px",
                                         height: "28px",
@@ -4166,6 +4213,10 @@ const AiHistoryDialog: Component<{
                                     onClick={() => props.onDeleteEntry(entry.id)}
                                     title={t("common.delete")}
                                     aria-label={t("common.delete")}
+                                    onMouseEnter={hoverAiActionButton}
+                                    onMouseDown={pressAiActionButton}
+                                    onMouseUp={hoverAiActionButton}
+                                    onMouseLeave={resetAiActionButton}
                                     style={{
                                         width: "28px",
                                         height: "28px",
