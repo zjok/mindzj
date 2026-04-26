@@ -3764,9 +3764,9 @@ const AiBottomPanel: Component<{
                             onChange={(event) => props.onSelectModel(event.currentTarget.value)}
                             style={{
                                 "max-width": "220px",
-                                "min-width": "120px",
+                                "min-width": "60px",
                                 height: "26px",
-                                padding: "2px 26px 2px 8px",
+                                padding: "2px 16px 2px 8px",
                                 border: "1px solid var(--mz-border)",
                                 "border-radius": "var(--mz-radius-sm)",
                                 background: "var(--mz-bg-primary)",
