@@ -1,5 +1,6 @@
 import { createSignal, createRoot } from "solid-js";
 import { vaultStore } from "./vault";
+import { settingsStore } from "./settings";
 import {
   extractHeadings,
   findRenamedHeadings,
@@ -269,7 +270,13 @@ function createEditorStore() {
     _fileContent.set(path, content);
   }
 
-  // Schedule auto-save after edits (2 second debounce)
+  function autoSaveDelayMs(): number {
+    const value = Number(settingsStore.settings().auto_save_interval_ms);
+    if (!Number.isFinite(value)) return 2000;
+    return Math.max(500, Math.min(30000, Math.round(value)));
+  }
+
+  // Schedule auto-save after edits using the configured debounce interval.
   function scheduleAutoSave(relativePath: string, content: string) {
     markDirty(relativePath);
     pendingSaveContent.set(relativePath, content);
@@ -295,7 +302,7 @@ function createEditorStore() {
       } catch (e) {
         console.error("Auto-save failed:", e);
       }
-    }, 2000);
+    }, autoSaveDelayMs());
     saveTimers.set(relativePath, t);
   }
 

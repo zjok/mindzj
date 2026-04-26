@@ -392,8 +392,6 @@ const MESSAGES: Record<string, TranslationMap> = {
   "settings.readableLineLengthDescription": { "zh-CN": "限制编辑器最大行宽，提升阅读体验", en: "Limit editor line width for better readability", ja: "読みやすさのために最大行幅を制限", fr: "Limiter la largeur des lignes pour améliorer la lecture", de: "Maximale Zeilenbreite für bessere Lesbarkeit begrenzen", es: "Limitar el ancho de línea para mejorar la lectura" },
   "settings.spellCheck": { "zh-CN": "拼写检查", en: "Spell check", ja: "スペルチェック", fr: "Correction orthographique", de: "Rechtschreibprüfung", es: "Corrector ortográfico" },
   "settings.spellCheckDescription": { "zh-CN": "启用浏览器拼写检查", en: "Enable browser spell checking", ja: "ブラウザーのスペルチェックを有効化", fr: "Activer la correction orthographique du navigateur", de: "Browser-Rechtschreibprüfung aktivieren", es: "Activar la corrección ortográfica del navegador" },
-  "settings.vimMode": { "zh-CN": "Vim 模式", en: "Vim mode", ja: "Vim モード", fr: "Mode Vim", de: "Vim-Modus", es: "Modo Vim" },
-  "settings.vimModeDescription": { "zh-CN": "使用 Vim 键位绑定", en: "Use Vim key bindings", ja: "Vim キーバインドを使う", fr: "Utiliser les raccourcis Vim", de: "Vim-Tastenbelegung verwenden", es: "Usar atajos de Vim" },
   "settings.autoSaveInterval": { "zh-CN": "自动保存间隔 (ms)", en: "Auto-save interval (ms)", ja: "自動保存間隔 (ms)", fr: "Intervalle d’enregistrement auto (ms)", de: "Auto-Speicherintervall (ms)", es: "Intervalo de guardado automático (ms)" },
   "settings.autoSaveIntervalDescription": { "zh-CN": "编辑后自动保存的延迟时间", en: "Delay before auto-saving after edits", ja: "編集後に自動保存するまでの遅延", fr: "Délai avant l’enregistrement automatique après modification", de: "Verzögerung bis zum automatischen Speichern nach Änderungen", es: "Retraso antes de guardar automáticamente tras editar" },
   "settings.defaultViewMode": { "zh-CN": "默认视图模式", en: "Default view mode", ja: "既定の表示モード", fr: "Mode d’affichage par défaut", de: "Standard-Ansichtsmodus", es: "Modo de vista predeterminado" },
@@ -525,7 +523,7 @@ const MESSAGES: Record<string, TranslationMap> = {
   "hotkeys.indentLess": { "zh-CN": "减少缩进", en: "Indent less", ja: "インデントを減らす", fr: "Réduire le retrait", de: "Einzug verringern", es: "Reducir sangría" },
   "hotkeys.toggleComment": { "zh-CN": "切换注释", en: "Toggle comment", ja: "コメント切り替え", fr: "Activer/désactiver le commentaire", de: "Kommentar umschalten", es: "Alternar comentario" },
   "hotkeys.toggleBlockquote": { "zh-CN": "切换引用", en: "Toggle blockquote", ja: "引用を切り替え", fr: "Activer/désactiver la citation", de: "Blockzitat umschalten", es: "Alternar cita" },
-  "hotkeys.insertTimestamp": { "zh-CN": "插入时间戳 (H2)", en: "Insert timestamp (H2)", ja: "タイムスタンプを挿入 (H2)", fr: "Insérer un horodatage (H2)", de: "Zeitstempel einfügen (H2)", es: "Insertar marca temporal (H2)" },
+  "hotkeys.insertTimestamp": { "zh-CN": "插入时间戳", en: "Insert timestamp", ja: "タイムスタンプを挿入", fr: "Insérer un horodatage", de: "Zeitstempel einfügen", es: "Insertar marca temporal" },
   "hotkeys.insertSeparator": { "zh-CN": "插入分隔线 (***)", en: "Insert separator (***)", ja: "区切り線を挿入 (***)", fr: "Insérer un séparateur (***)", de: "Trennlinie einfügen (***)", es: "Insertar separador (***)" },
   "hotkeys.screenshot": { "zh-CN": "截图", en: "Screenshot", ja: "スクリーンショット", fr: "Capture d’écran", de: "Screenshot", es: "Captura de pantalla" },
   // --- Skin store / theme picker -------------------------------------------

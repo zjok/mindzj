@@ -59,6 +59,7 @@ interface SettingInputProps {
   max?: number;
   width?: string;
   commitOnBlur?: boolean;
+  inputMode?: JSX.InputHTMLAttributes<HTMLInputElement>["inputMode"];
   onChange: (value: string) => void;
 }
 
@@ -87,11 +88,13 @@ export const SettingInput: Component<SettingInputProps> = (props) => {
         {props.description && <div style={descStyle}>{props.description}</div>}
       </div>
       <input
+        class={`mz-setting-input${props.type === "number" ? " mz-setting-number-input" : ""}`}
         type={props.type || "text"}
         value={props.commitOnBlur ? draft() : props.value}
         placeholder={props.placeholder}
         min={props.min}
         max={props.max}
+        inputMode={props.inputMode}
         onInput={(event) => {
           const value = event.currentTarget.value;
           if (props.commitOnBlur) {

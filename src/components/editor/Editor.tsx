@@ -25,11 +25,15 @@ import {
     cursorLineDown,
     cursorLineBoundaryBackward,
     cursorLineBoundaryForward,
+    cursorGroupLeft,
+    cursorGroupRight,
     deleteCharForward,
     selectLineUp,
     selectLineDown,
     selectLineBoundaryBackward,
     selectLineBoundaryForward,
+    selectGroupLeft,
+    selectGroupRight,
     undo,
     redo,
 } from "@codemirror/commands";
@@ -263,6 +267,7 @@ export const Editor: Component<EditorProps> = (props) => {
 
     function activatePane() {
         props.onActivate?.();
+        if (editorView) syncPluginEditorBindings(editorView, true);
     }
 
     function setEditorSurfaceVisibility(visible: boolean) {
@@ -356,8 +361,8 @@ export const Editor: Component<EditorProps> = (props) => {
         });
     }
 
-    function syncPluginEditorBindings(view: EditorView | null) {
-        if (!isPaneActive()) return;
+    function syncPluginEditorBindings(view: EditorView | null, force = false) {
+        if (!force && !isPaneActive()) return;
         if (!view || !containerRef) {
             (window as any).__mindzj_plugin_editor_api = null;
             (window as any).__mindzj_markdown_view = null;
@@ -495,6 +500,12 @@ export const Editor: Component<EditorProps> = (props) => {
         markdownView.leaf.view = markdownView;
         (window as any).__mindzj_markdown_view = markdownView;
     }
+
+    createEffect(() => {
+        if (isPaneActive() && editorView) {
+            syncPluginEditorBindings(editorView);
+        }
+    });
 
     // Handle image deletion from the context menu dispatched by livePreview.ts
     function handleDeleteImage(e: Event) {
@@ -1013,6 +1024,9 @@ export const Editor: Component<EditorProps> = (props) => {
                 // Alt+Up/Down: move line up/down
                 { key: "Alt-ArrowUp", run: (v) => moveLine(v, -1) },
                 { key: "Alt-ArrowDown", run: (v) => moveLine(v, 1) },
+                // Alt+Left/Right: move by word; Alt+Shift extends selection by word.
+                { key: "Alt-ArrowLeft", run: cursorGroupLeft, shift: selectGroupLeft, preventDefault: true },
+                { key: "Alt-ArrowRight", run: cursorGroupRight, shift: selectGroupRight, preventDefault: true },
                 // Ctrl+Shift+D: duplicate line
                 { key: "Mod-Shift-d", run: (v) => duplicateLine(v) },
                 // Ctrl+/: toggle comment (HTML comment for markdown)

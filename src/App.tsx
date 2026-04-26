@@ -1662,6 +1662,18 @@ const App: Component = () => {
             !e.metaKey &&
             !e.shiftKey;
         if (isPlainAltArrow) {
+            const isHorizontalArrow =
+                e.code === "ArrowLeft" ||
+                e.code === "ArrowRight" ||
+                e.key === "ArrowLeft" ||
+                e.key === "ArrowRight" ||
+                e.key === "Left" ||
+                e.key === "Right" ||
+                (e.keyCode || e.which) === 37 ||
+                (e.keyCode || e.which) === 39;
+            if (isHorizontalArrow && document.activeElement?.closest(".cm-editor")) {
+                return false;
+            }
             e.preventDefault();
             e.stopPropagation();
             e.stopImmediatePropagation();
@@ -2164,8 +2176,8 @@ const App: Component = () => {
         if (e.defaultPrevented) return;
         if (handleTabSwitchKeydown(e)) return;
 
-        // Bare Alt and Alt+Arrow are suppressed above so WebView2 never
-        // enters its native menu mode after repeated Alt presses.
+        // Bare Alt and non-editor Alt+Arrow are suppressed above so WebView2
+        // never enters its native menu mode after repeated Alt presses.
 
         if (matchesHotkey(e, getHotkey("ai-control", "Alt+`"))) {
             e.preventDefault();

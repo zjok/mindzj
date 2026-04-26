@@ -203,7 +203,6 @@ pub struct AppSettings {
     pub show_markdown_toolbar: bool,
     pub editor_line_numbers: bool,
     pub editor_word_wrap: bool,
-    pub editor_vim_mode: bool,
     #[serde(default)]
     pub editor_spell_check: bool,
     #[serde(default = "default_true")]
@@ -344,7 +343,6 @@ impl Default for AppSettings {
             show_markdown_toolbar: default_show_markdown_toolbar(),
             editor_line_numbers: false,
             editor_word_wrap: true,
-            editor_vim_mode: false,
             editor_spell_check: false,
             editor_readable_line_length: true,
             auto_save_interval_ms: 2000,

@@ -753,12 +753,6 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
                 value={s().editor_spell_check}
                 onChange={(v) => set("editor_spell_check", v)}
               />
-              <SettingToggle
-                label={t("settings.vimMode")}
-                description={t("settings.vimModeDescription")}
-                value={s().editor_vim_mode}
-                onChange={(v) => set("editor_vim_mode", v)}
-              />
             </SettingSection>
 
             <SettingSection title={t("settings.saveSection")}>
@@ -766,10 +760,18 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
                 label={t("settings.autoSaveInterval")}
                 description={t("settings.autoSaveIntervalDescription")}
                 value={s().auto_save_interval_ms}
-                type="number"
+                type="text"
+                inputMode="numeric"
                 min={500}
                 max={30000}
-                onChange={(v) => set("auto_save_interval_ms", parseInt(v) || 2000)}
+                commitOnBlur
+                onChange={(v) => {
+                  const trimmed = v.trim();
+                  if (!trimmed) return;
+                  const parsed = Number.parseInt(trimmed, 10);
+                  if (!Number.isFinite(parsed)) return;
+                  set("auto_save_interval_ms", Math.max(500, Math.min(30000, parsed)));
+                }}
               />
               <SettingSelect
                 label={t("settings.defaultViewMode")}

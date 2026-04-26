@@ -115,7 +115,6 @@ export interface AppSettings {
   show_markdown_toolbar: boolean;
   editor_line_numbers: boolean;
   editor_word_wrap: boolean;
-  editor_vim_mode: boolean;
   editor_spell_check: boolean;
   editor_readable_line_length: boolean;
   auto_save_interval_ms: number;
@@ -211,7 +210,6 @@ const DEFAULT_SETTINGS: AppSettings = {
   show_markdown_toolbar: true,
   editor_line_numbers: false,
   editor_word_wrap: true,
-  editor_vim_mode: false,
   editor_spell_check: false,
   editor_readable_line_length: true,
   auto_save_interval_ms: 2000,
@@ -530,6 +528,7 @@ function createSettingsStore() {
   // single <style> tag at the end of <head>.
   createEffect(() => {
     const theme = settings().theme;
+    document.documentElement.setAttribute("data-theme-mode", skinMode(theme));
     if (isCustomSkin(theme)) {
       document.documentElement.setAttribute("data-theme", "custom");
       void applyCustomSkin(theme);

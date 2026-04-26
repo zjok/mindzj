@@ -441,8 +441,6 @@ class CheckboxWidget extends WidgetType {
         cb.type = "checkbox";
         cb.checked = this.checked;
         cb.className = "mz-lp-checkbox";
-        cb.style.cssText =
-            "cursor: pointer; margin-right: 6px; transform: scale(1.1); vertical-align: middle; accent-color: var(--mz-accent);";
 
         cb.addEventListener("click", (e) => {
             e.preventDefault();

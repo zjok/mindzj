@@ -1,44 +1,86 @@
-const { Plugin } = require('obsidian');
+const { Plugin, PluginSettingTab, Setting } = require('obsidian');
+
+const DEFAULT_SETTINGS = {
+	format: '## yymmdd hhmm',
+};
+
+function pad(value) {
+	return String(value).padStart(2, '0');
+}
+
+function formatTimestamp(format, date = new Date()) {
+	const values = {
+		yyyy: String(date.getFullYear()),
+		yy: String(date.getFullYear()).slice(-2),
+		month: pad(date.getMonth() + 1),
+		dd: pad(date.getDate()),
+		hh: pad(date.getHours()),
+		minute: pad(date.getMinutes()),
+		ss: pad(date.getSeconds()),
+	};
+
+	return String(format || DEFAULT_SETTINGS.format).replace(/yyyy|yy|MM|mm|dd|hh|ss/g, (token, offset, source) => {
+		if (token === 'MM') return values.month;
+		if (token === 'mm') {
+			const beforeTwo = source.slice(Math.max(0, offset - 2), offset).toLowerCase();
+			const beforeThree = source.slice(Math.max(0, offset - 3), offset).toLowerCase();
+			return beforeTwo === 'hh' || beforeThree === 'hh:' ? values.minute : values.month;
+		}
+		return values[token] || token;
+	});
+}
 
 module.exports = class TimestampPlugin extends Plugin {
 	async onload() {
+		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
 
-		// --- 功能 1: 插入时间戳 H2标签 例如 ## 260321 0121 ---
-		// 快捷键由 MindZJ 设置面板统一管理（默认 Alt+F）
-		// 触发路径：App.tsx 的全局 keydown -> pluginStore.executeCommandById
-		// 直接调用本插件的 editorCallback，不再走 `mindzj:plugin-command`
-		// CustomEvent — 之前那条路径在多次 vault reload 后会堆出重复的
-		// document 监听器，一次 Alt+F 会插入 4 份时间戳。
 		this.addCommand({
 			id: 'insert-custom-timestamp',
-			name: 'Insert H2 Timestamp',
-			editorCallback: (editor, view) => {
-				const now = new Date();
-				const datePart = now.getFullYear().toString().slice(-2) +
-					(now.getMonth() + 1).toString().padStart(2, '0') +
-					now.getDate().toString().padStart(2, '0');
-				const timePart = now.getHours().toString().padStart(2, '0') +
-					now.getMinutes().toString().padStart(2, '0');
-				// `## YYMMDD HHmm` + 单个换行 — 让后续输入默认落在下一行。
-				const timestamp = `## ${datePart} ${timePart}\n`;
-				editor.replaceSelection(timestamp);
-			}
+			name: 'Insert Timestamp',
+			editorCallback: (editor) => {
+				const timestamp = formatTimestamp(this.settings.format);
+				editor.replaceSelection(timestamp.endsWith('\n') ? timestamp : `${timestamp}\n`);
+			},
 		});
 
-		// --- 功能 2: 插入 *** 分隔行符号 ---
-		// 快捷键由 MindZJ 设置面板统一管理（默认 Alt+A）
-		// 只插入 3 个 `*` — Markdown 的水平分隔线要求至少 3 个。
 		this.addCommand({
 			id: 'insert-triple-asterisk',
 			name: 'Insert Triple Asterisk',
-			editorCallback: (editor, view) => {
-				editor.replaceSelection(`***`);
-			}
+			editorCallback: (editor) => {
+				editor.replaceSelection('***');
+			},
 		});
+
+		this.addSettingTab(new TimestampHeaderSettingTab(this.app, this));
 	}
 
-	onunload() {
-		// nothing to clean up — commands are removed automatically
-		// when pluginCommandRegistry entries are cleared by the host.
+	async saveSettings() {
+		await this.saveData(this.settings);
 	}
 };
+
+class TimestampHeaderSettingTab extends PluginSettingTab {
+	constructor(app, plugin) {
+		super(app, plugin);
+		this.plugin = plugin;
+	}
+
+	display() {
+		const { containerEl } = this;
+		containerEl.empty();
+
+		new Setting(containerEl)
+			.setName('Timestamp format')
+			.setDesc('Examples: ## yymmdd hhmm, ### yyyy-mm-dd hh:mm:ss. Tokens: yyyy, yy, mm, MM, dd, hh, ss. In date parts, mm is month; after hh, mm is minutes. MM is always month.')
+			.addText((text) => {
+				text
+					.setPlaceholder(DEFAULT_SETTINGS.format)
+					.setValue(this.plugin.settings.format || DEFAULT_SETTINGS.format)
+					.onChange(async (value) => {
+						this.plugin.settings.format = value.trim() || DEFAULT_SETTINGS.format;
+						await this.plugin.saveSettings();
+					});
+				text.inputEl.style.width = '260px';
+			});
+	}
+}
