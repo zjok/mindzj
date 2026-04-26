@@ -40,6 +40,9 @@ fn parse_ai_provider_type(provider: &str) -> Option<AiProviderType> {
         }
         "Claude" | "claude" => Some(AiProviderType::Claude),
         "OpenAI" | "openai" => Some(AiProviderType::OpenAI),
+        "Grok" | "grok" | "xAI" | "xai" => Some(AiProviderType::Grok),
+        "Gemini" | "gemini" => Some(AiProviderType::Gemini),
+        "DeepSeek" | "deepseek" => Some(AiProviderType::DeepSeek),
         "Custom" | "custom" => Some(AiProviderType::Custom),
         _ => None,
     }

@@ -38,6 +38,7 @@ type ToolResult = {
 };
 
 type AiProviderFamily = "openai-compatible" | "anthropic" | "gemini";
+type AiModelOption = { value: string; label: string };
 
 interface RunInstructionOptions {
   restrictToActiveFile?: boolean;
@@ -61,7 +62,9 @@ interface ToolExecutionContext {
   hasExplicitPath: boolean;
 }
 
-const PROVIDER_DEFAULTS: Record<"Ollama" | "LMStudio" | "ApiKeyLLM", AiProviderConfig> = {
+export const BUILT_IN_ONLINE_PROVIDER_TYPES = ["OpenAI", "Claude", "Grok", "Gemini", "DeepSeek"] as const;
+
+const PROVIDER_DEFAULTS: Record<AiProviderType, AiProviderConfig> = {
   Ollama: {
     provider_type: "Ollama",
     endpoint: "http://localhost:11434/v1",
@@ -83,20 +86,117 @@ const PROVIDER_DEFAULTS: Record<"Ollama" | "LMStudio" | "ApiKeyLLM", AiProviderC
     has_api_key: false,
     model: "",
   },
+  OpenAI: {
+    provider_type: "OpenAI",
+    display_name: "OpenAI",
+    endpoint: "https://api.openai.com/v1",
+    api_key: null,
+    has_api_key: false,
+    model: "gpt-5.5",
+  },
+  Claude: {
+    provider_type: "Claude",
+    display_name: "Claude",
+    endpoint: "https://api.anthropic.com/v1",
+    api_key: null,
+    has_api_key: false,
+    model: "claude-sonnet-4-6",
+  },
+  Grok: {
+    provider_type: "Grok",
+    display_name: "Grok",
+    endpoint: "https://api.x.ai/v1",
+    api_key: null,
+    has_api_key: false,
+    model: "grok-4.20",
+  },
+  Gemini: {
+    provider_type: "Gemini",
+    display_name: "Gemini",
+    endpoint: "https://generativelanguage.googleapis.com/v1beta",
+    api_key: null,
+    has_api_key: false,
+    model: "gemini-3-flash-preview",
+  },
+  DeepSeek: {
+    provider_type: "DeepSeek",
+    display_name: "DeepSeek",
+    endpoint: "https://api.deepseek.com",
+    api_key: null,
+    has_api_key: false,
+    model: "deepseek-v4-pro",
+  },
+  Custom: {
+    provider_type: "Custom",
+    display_name: "Custom",
+    endpoint: null,
+    api_key: null,
+    has_api_key: false,
+    model: "",
+  },
+};
+
+const BUILT_IN_MODEL_OPTIONS: Partial<Record<AiProviderType, AiModelOption[]>> = {
+  OpenAI: [
+    { value: "gpt-5.5", label: "GPT-5.5" },
+    { value: "gpt-5.4", label: "GPT-5.4" },
+    { value: "gpt-5.4-mini", label: "GPT-5.4 Mini" },
+    { value: "gpt-5.4-nano", label: "GPT-5.4 Nano" },
+  ],
+  Claude: [
+    { value: "claude-opus-4-7", label: "Claude Opus 4.7" },
+    { value: "claude-sonnet-4-6", label: "Claude Sonnet 4.6" },
+    { value: "claude-haiku-4-5", label: "Claude Haiku 4.5" },
+  ],
+  Grok: [
+    { value: "grok-4.20", label: "Grok 4.20" },
+    { value: "grok-4.20-reasoning", label: "Grok 4.20 Reasoning" },
+    { value: "grok-4", label: "Grok 4" },
+  ],
+  Gemini: [
+    { value: "gemini-3-flash-preview", label: "Gemini 3 Flash Preview" },
+    { value: "gemini-3-pro-preview", label: "Gemini 3 Pro Preview" },
+    { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
+    { value: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash-Lite" },
+    { value: "gemini-2.0-flash", label: "Gemini 2.0 Flash" },
+  ],
+  DeepSeek: [
+    { value: "deepseek-v4-pro", label: "DeepSeek V4 Pro" },
+    { value: "deepseek-v4-flash", label: "DeepSeek V4 Flash" },
+    { value: "deepseek-chat", label: "DeepSeek Chat" },
+    { value: "deepseek-reasoner", label: "DeepSeek Reasoner" },
+  ],
 };
 
 function cloneConfig(config: AiProviderConfig): AiProviderConfig {
   return { ...config };
 }
 
-function normalizeProviderType(provider: AiProviderType): "Ollama" | "LMStudio" | "ApiKeyLLM" {
-  return provider === "Ollama" || provider === "LMStudio" ? provider : "ApiKeyLLM";
+function normalizeProviderType(provider: AiProviderType): AiProviderType {
+  return provider in PROVIDER_DEFAULTS ? provider : "ApiKeyLLM";
+}
+
+export function isBuiltInOnlineProviderType(provider: AiProviderType): boolean {
+  return (BUILT_IN_ONLINE_PROVIDER_TYPES as readonly string[]).includes(provider);
+}
+
+export function builtInModelOptions(provider: AiProviderType): AiModelOption[] {
+  return BUILT_IN_MODEL_OPTIONS[normalizeProviderType(provider)] ?? [];
+}
+
+function isLocalProviderType(provider: AiProviderType): boolean {
+  return provider === "Ollama" || provider === "LMStudio";
 }
 
 function providerDisplayName(config: AiProviderConfig): string {
   const providerType = normalizeProviderType(config.provider_type);
   if (providerType === "LMStudio") return "LM Studio";
   if (providerType === "Ollama") return "Ollama";
+  if (providerType === "OpenAI") return "OpenAI";
+  if (providerType === "Claude") return "Claude";
+  if (providerType === "Grok") return "Grok";
+  if (providerType === "Gemini") return "Gemini";
+  if (providerType === "DeepSeek") return "DeepSeek";
   return "Online LLM";
 }
 
@@ -110,7 +210,7 @@ function configuredProvider(): AiProviderConfig | null {
 
 function providerBaseUrl(config: AiProviderConfig): string {
   const providerType = normalizeProviderType(config.provider_type);
-  const fallback = providerType === "ApiKeyLLM"
+  const fallback = !isLocalProviderType(providerType)
     ? defaultApiKeyEndpoint(config)
     : PROVIDER_DEFAULTS[providerType]?.endpoint ?? "";
   const base = (config.endpoint || fallback || "").replace(/\/+$/, "");
@@ -127,6 +227,9 @@ function modelHint(config: AiProviderConfig): string {
 }
 
 function inferProviderFamily(config: AiProviderConfig): AiProviderFamily {
+  const providerType = normalizeProviderType(config.provider_type);
+  if (providerType === "Claude") return "anthropic";
+  if (providerType === "Gemini") return "gemini";
   const endpoint = (config.endpoint ?? "").toLowerCase();
   const hint = modelHint(config);
   if (endpoint.includes("anthropic.com")) return "anthropic";
@@ -138,17 +241,23 @@ function inferProviderFamily(config: AiProviderConfig): AiProviderFamily {
 }
 
 function defaultApiKeyEndpoint(config: AiProviderConfig): string {
+  const providerType = normalizeProviderType(config.provider_type);
+  const providerDefault = !isLocalProviderType(providerType)
+    ? PROVIDER_DEFAULTS[providerType]?.endpoint
+    : null;
+  if (providerDefault) return providerDefault;
   const family = inferProviderFamily(config);
   if (family === "anthropic") return "https://api.anthropic.com/v1";
   if (family === "gemini") return "https://generativelanguage.googleapis.com/v1beta";
   if (modelHint(config).includes("grok") || modelHint(config).includes("xai")) {
     return "https://api.x.ai/v1";
   }
+  if (modelHint(config).includes("deepseek")) return "https://api.deepseek.com";
   return "https://api.openai.com/v1";
 }
 
 function providerNeedsRealKey(provider: AiProviderType): boolean {
-  return normalizeProviderType(provider) === "ApiKeyLLM";
+  return !isLocalProviderType(normalizeProviderType(provider));
 }
 
 function configMatchesProvider(config: AiProviderConfig, provider: string): boolean {

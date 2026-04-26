@@ -539,6 +539,9 @@ pub enum AiProviderType {
     ApiKeyLLM,
     Claude,
     OpenAI,
+    Grok,
+    Gemini,
+    DeepSeek,
     Custom,
 }
 

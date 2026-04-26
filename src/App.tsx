@@ -5,7 +5,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { vaultStore, type FileContent } from "./stores/vault";
 import { editorStore, type ViewMode } from "./stores/editor";
 import { settingsStore, type AiProviderConfig } from "./stores/settings";
-import { aiStore, defaultAiProviderConfig } from "./stores/ai";
+import { BUILT_IN_ONLINE_PROVIDER_TYPES, aiStore, defaultAiProviderConfig } from "./stores/ai";
 import { workspaceStore, type WorkspaceState } from "./stores/workspace";
 import { pluginStore, hasPluginViewForExtension, mountPluginView, destroyPluginView, isPluginSaving } from "./stores/plugins";
 import {
@@ -158,6 +158,11 @@ function aiPanelModelOptionValue(config: AiProviderConfig): string {
 function aiPanelProviderLabel(config: AiProviderConfig): string {
     if (config.provider_type === "LMStudio") return "LM Studio";
     if (config.provider_type === "Ollama") return "Ollama";
+    if (config.provider_type === "OpenAI") return "OpenAI";
+    if (config.provider_type === "Claude") return "Claude";
+    if (config.provider_type === "Grok") return "Grok";
+    if (config.provider_type === "Gemini") return "Gemini";
+    if (config.provider_type === "DeepSeek") return "DeepSeek";
     return "Online LLM";
 }
 
@@ -334,6 +339,9 @@ const App: Component = () => {
         addOption(settings.ai_provider);
         addOption(defaultAiProviderConfig("LMStudio"));
         addOption(defaultAiProviderConfig("Ollama"));
+        for (const provider of BUILT_IN_ONLINE_PROVIDER_TYPES) {
+            addOption(defaultAiProviderConfig(provider));
+        }
         for (const config of settings.ai_custom_providers ?? []) {
             addOption(config);
         }

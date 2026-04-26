@@ -7,7 +7,7 @@ import { Component, Show, For, createSignal, createEffect, createMemo, onMount, 
 import { invoke } from "@tauri-apps/api/core";
 import { open as dialogOpen } from "@tauri-apps/plugin-dialog";
 import { Eye, EyeOff } from "lucide-solid";
-import { aiStore, defaultAiProviderConfig } from "../../stores/ai";
+import { BUILT_IN_ONLINE_PROVIDER_TYPES, aiStore, builtInModelOptions, defaultAiProviderConfig, isBuiltInOnlineProviderType } from "../../stores/ai";
 import { aiModelSettingsKey, settingsStore, type AiProviderConfig, type AiProviderType, type AiSkill, type AppSettings, reloadCssSnippets, DEFAULT_FONT_FAMILY } from "../../stores/settings";
 import {
   BUILT_IN_SKINS,
@@ -125,9 +125,18 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
   const customAiProviders = () => s().ai_custom_providers ?? [];
   const isApiKeyAiProvider = (config = aiConfig()) =>
     config.provider_type !== "Ollama" && config.provider_type !== "LMStudio";
+  const isBuiltInOnlineAiProvider = (config = aiConfig()) =>
+    isBuiltInOnlineProviderType(config.provider_type);
+  const aiBuiltInModelOptions = (config = aiConfig()) => {
+    const options = builtInModelOptions(config.provider_type);
+    const current = config.model.trim();
+    if (!current || options.some((option) => option.value === current)) return options;
+    return [{ value: current, label: current }, ...options];
+  };
   const aiCurrentApiProviderOption = () => {
     const config = aiConfig();
     if (!isApiKeyAiProvider(config)) return null;
+    if (isBuiltInOnlineAiProvider(config)) return null;
     if (config.id && customAiProviders().some((item) => item.id === config.id)) return null;
     return {
       value: config.id ? `custom:${config.id}` : "current-api-key-llm",
@@ -135,7 +144,12 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
     };
   };
   const aiProviderValueForConfig = (config: AiProviderConfig) => {
-    if (config.provider_type === "Ollama" || config.provider_type === "LMStudio") {
+    if (
+      config.provider_type === "Ollama"
+      || config.provider_type === "LMStudio"
+      || isBuiltInOnlineProviderType(config.provider_type)
+      || (config.provider_type === "Custom" && !config.id)
+    ) {
       return config.provider_type;
     }
     return config.id ? `custom:${config.id}` : "current-api-key-llm";
@@ -145,6 +159,11 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
     const options = [
       { value: "LMStudio", label: "LM Studio" },
       { value: "Ollama", label: "Ollama" },
+      ...BUILT_IN_ONLINE_PROVIDER_TYPES.map((provider) => ({
+        value: provider,
+        label: defaultAiProviderConfig(provider).display_name || provider,
+      })),
+      { value: "Custom", label: t("settings.aiProviderCustom") },
       ...(aiCurrentApiProviderOption() ? [aiCurrentApiProviderOption()!] : []),
       ...customAiProviders()
         .filter((config) => !!config.id)
@@ -179,12 +198,15 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
   const aiProviderKindLabel = () =>
     isLocalAiProvider() ? t("settings.aiLocalModel") : t("settings.aiOnlineModel");
   const aiOnlineEndpointPlaceholder = () => {
+    const providerDefault = defaultAiProviderConfig(aiConfig().provider_type).endpoint;
+    if (!aiAddMode() && providerDefault) return providerDefault;
     const model = aiAddMode()
       ? aiAddModelDraft().toLowerCase()
       : `${aiConfig().display_name ?? ""} ${aiConfig().model ?? ""}`.toLowerCase();
     if (model.includes("gemini")) return "https://generativelanguage.googleapis.com/v1beta";
     if (model.includes("grok") || model.includes("xai")) return "https://api.x.ai/v1";
     if (model.includes("claude")) return "https://api.anthropic.com/v1";
+    if (model.includes("deepseek")) return "https://api.deepseek.com";
     return "https://api.openai.com/v1";
   };
   function loadAiApiKeyIntoDraft(config: AiProviderConfig) {
@@ -231,7 +253,11 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
       loadAiApiKeyIntoDraft(config);
       return;
     }
-    const config = defaultAiProviderConfig(value as AiProviderType);
+    const providerType = value as AiProviderType;
+    const config = isBuiltInOnlineProviderType(providerType)
+      ? customAiProviders().find((item) => item.provider_type === providerType && !item.id)
+        ?? defaultAiProviderConfig(providerType)
+      : defaultAiProviderConfig(providerType);
     setAiProviderSelectDraft(value);
     setAiAddingModel(false);
     setAiApiKeyDraft("");
@@ -321,10 +347,13 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
   }
   async function saveAiProvider(showStatus = true): Promise<boolean> {
     const current = aiConfig();
+    const providerDefault = defaultAiProviderConfig(current.provider_type);
     const next: AiProviderConfig = {
       ...current,
       endpoint: current.endpoint?.trim() || null,
-      display_name: current.model.trim() || current.display_name || null,
+      display_name: isBuiltInOnlineAiProvider(current)
+        ? providerDefault.display_name ?? current.display_name ?? null
+        : current.model.trim() || current.display_name || null,
     };
     if (!next.model.trim()) {
       if (showStatus) setAiTestResult(t("settings.aiModelRequired"));
@@ -332,9 +361,18 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
     }
     const value = aiApiKeyDraft().trim();
     if (isApiKeyAiProvider(next)) {
-      next.id = next.id || `api-key-llm-${Date.now()}`;
       next.api_key = value || null;
       next.has_api_key = value.length > 0;
+    }
+    if (isApiKeyAiProvider(next) && isBuiltInOnlineAiProvider(next)) {
+      const providers = customAiProviders();
+      const exists = providers.some((config) => config.provider_type === next.provider_type && !config.id);
+      const updated = exists
+        ? providers.map((config) => (config.provider_type === next.provider_type && !config.id ? next : config))
+        : [...providers, next];
+      await set("ai_custom_providers", updated);
+    } else if (isApiKeyAiProvider(next)) {
+      next.id = next.id || `api-key-llm-${Date.now()}`;
       const providers = customAiProviders();
       const exists = providers.some((config) => config.id === next.id);
       const updated = exists
@@ -879,6 +917,28 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
                       />
                     </Show>
                     <Show when={isApiKeyAiProvider()}>
+                      <Show
+                        when={isBuiltInOnlineAiProvider()}
+                        fallback={
+                          <SettingInput
+                            label={t("settings.aiModel")}
+                            description={t("settings.aiModelDescription")}
+                            value={aiConfig().model}
+                            placeholder={t("settings.aiModelPlaceholder")}
+                            width="290px"
+                            onChange={(value) => updateAiConfig({ model: value.trim() })}
+                          />
+                        }
+                      >
+                        <SettingSelect
+                          label={t("settings.aiModel")}
+                          description={t("settings.aiModelDescription")}
+                          value={aiConfig().model}
+                          options={aiBuiltInModelOptions()}
+                          width="290px"
+                          onChange={(value) => updateAiConfig({ model: value })}
+                        />
+                      </Show>
                       <AiApiKeyInput
                         label={t("settings.aiApiKey")}
                         description={aiConfig().has_api_key ? t("settings.aiApiKeyStored") : t("settings.aiApiKeyDescription")}
@@ -889,14 +949,16 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
                         onChange={setAiApiKeyDraft}
                         onToggleVisible={() => setAiApiKeyVisible((value) => !value)}
                       />
-                      <SettingInput
-                        label={t("settings.aiEndpoint")}
-                        description={t("settings.aiOnlineEndpointDescription")}
-                        value={aiConfig().endpoint ?? ""}
-                        placeholder={aiOnlineEndpointPlaceholder()}
-                        width="360px"
-                        onChange={(value) => updateAiConfig({ endpoint: value.trim() || null })}
-                      />
+                      <Show when={!isBuiltInOnlineAiProvider()}>
+                        <SettingInput
+                          label={t("settings.aiEndpoint")}
+                          description={t("settings.aiOnlineEndpointDescription")}
+                          value={aiConfig().endpoint ?? ""}
+                          placeholder={aiOnlineEndpointPlaceholder()}
+                          width="360px"
+                          onChange={(value) => updateAiConfig({ endpoint: value.trim() || null })}
+                        />
+                      </Show>
                     </Show>
                     <div style={{ display: "flex", gap: "12px", "justify-content": "flex-end", padding: "14px 0 4px" }}>
                       <Show when={isApiKeyAiProvider()}>

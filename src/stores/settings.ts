@@ -73,6 +73,9 @@ export type AiProviderType =
   | "ApiKeyLLM"
   | "OpenAI"
   | "Claude"
+  | "Grok"
+  | "Gemini"
+  | "DeepSeek"
   | "Custom";
 
 export interface AiProviderConfig {
@@ -307,11 +310,18 @@ function serializeTheme(theme: Theme): string {
 }
 
 function normalizeAiProviderType(type: unknown): AiProviderType {
-  if (type === "Ollama" || type === "LMStudio" || type === "ApiKeyLLM") {
+  if (
+    type === "Ollama"
+    || type === "LMStudio"
+    || type === "ApiKeyLLM"
+    || type === "OpenAI"
+    || type === "Claude"
+    || type === "Grok"
+    || type === "Gemini"
+    || type === "DeepSeek"
+    || type === "Custom"
+  ) {
     return type;
-  }
-  if (type === "OpenAI" || type === "Claude" || type === "Custom") {
-    return "ApiKeyLLM";
   }
   return "Ollama";
 }
