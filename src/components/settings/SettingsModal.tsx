@@ -7,7 +7,7 @@ import { Component, Show, For, createSignal, createEffect, createMemo, onMount, 
 import { invoke } from "@tauri-apps/api/core";
 import { open as dialogOpen } from "@tauri-apps/plugin-dialog";
 import { Eye, EyeOff } from "lucide-solid";
-import { BUILT_IN_ONLINE_PROVIDER_TYPES, aiStore, builtInModelOptions, defaultAiProviderConfig, isBuiltInOnlineProviderType } from "../../stores/ai";
+import { BUILT_IN_ONLINE_PROVIDER_TYPES, GROK_STT_MODEL, GROK_TTS_LANGUAGE_OPTIONS, GROK_TTS_VOICES, aiStore, builtInModelOptions, defaultAiProviderConfig, isBuiltInOnlineProviderType } from "../../stores/ai";
 import { aiModelSettingsKey, settingsStore, type AiProviderConfig, type AiProviderType, type AiSkill, type AppSettings, reloadCssSnippets, DEFAULT_FONT_FAMILY } from "../../stores/settings";
 import {
   BUILT_IN_SKINS,
@@ -163,7 +163,6 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
         value: provider,
         label: defaultAiProviderConfig(provider).display_name || provider,
       })),
-      { value: "Custom", label: t("settings.aiProviderCustom") },
       ...(aiCurrentApiProviderOption() ? [aiCurrentApiProviderOption()!] : []),
       ...customAiProviders()
         .filter((config) => !!config.id)
@@ -194,6 +193,8 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
   };
   const isLocalAiProvider = (config = aiConfig()) =>
     config.provider_type === "Ollama" || config.provider_type === "LMStudio";
+  const aiVoiceProviderOptions = [{ value: "Grok", label: "Grok STT / TTS" }];
+  const aiSttModelOptions = [{ value: GROK_STT_MODEL, label: "Grok STT" }];
   const aiAddMode = () => aiAddingModel();
   const aiProviderKindLabel = () =>
     isLocalAiProvider() ? t("settings.aiLocalModel") : t("settings.aiOnlineModel");
@@ -294,6 +295,16 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
       ...(s().ai_model_skill_ids ?? {}),
       [key]: next,
     });
+  }
+  async function selectAiVoiceExportFolder() {
+    try {
+      const selected = await dialogOpen({ directory: true, title: t("settings.aiVoiceExportFolderSelect") });
+      if (selected && typeof selected === "string") {
+        await set("ai_voice_export_folder", selected);
+      }
+    } catch (e) {
+      console.error("Failed to select AI voice export folder:", e);
+    }
   }
   function resetAiSkillDrafts() {
     setAiSkillEditingId(null);
@@ -1056,6 +1067,70 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
             </SettingSection>
 
             <Show when={!aiAddMode()}>
+              <SettingSection title={t("settings.aiVoiceSection")}>
+                <SettingSelect
+                  label={t("settings.aiVoiceProvider")}
+                  description={t("settings.aiVoiceProviderDescription")}
+                  value={s().ai_voice_provider}
+                  options={aiVoiceProviderOptions}
+                  width="190px"
+                  onChange={(value) => set("ai_voice_provider", value)}
+                />
+                <SettingSelect
+                  label={t("settings.aiSttModel")}
+                  description={t("settings.aiSttModelDescription")}
+                  value={s().ai_stt_model}
+                  options={aiSttModelOptions}
+                  width="190px"
+                  onChange={(value) => set("ai_stt_model", value)}
+                />
+                <SettingSelect
+                  label={t("settings.aiTtsVoice")}
+                  description={t("settings.aiTtsVoiceDescription")}
+                  value={s().ai_tts_voice}
+                  options={GROK_TTS_VOICES}
+                  width="190px"
+                  onChange={(value) => set("ai_tts_voice", value)}
+                />
+                <SettingSelect
+                  label={t("settings.aiTtsLanguage")}
+                  description={t("settings.aiTtsLanguageDescription")}
+                  value={s().ai_tts_language}
+                  options={GROK_TTS_LANGUAGE_OPTIONS}
+                  width="190px"
+                  onChange={(value) => set("ai_tts_language", value)}
+                />
+                <div style={{ ...settingsRowStyle, "align-items": "center", "flex-wrap": "wrap" }}>
+                  <div style={{ flex: "1", "min-width": "180px" }}>
+                    <div style={settingsLabelStyle}>{t("settings.aiVoiceExportFolder")}</div>
+                    <div style={settingsDescStyle}>{t("settings.aiVoiceExportFolderDescription")}</div>
+                  </div>
+                  <div style={{ display: "flex", "align-items": "center", gap: "8px", "flex-shrink": "0", "max-width": "100%" }}>
+                    <input
+                      type="text"
+                      value={s().ai_voice_export_folder || ""}
+                      placeholder={t("settings.aiVoiceExportFolderPlaceholder")}
+                      onInput={(event) => set("ai_voice_export_folder", event.currentTarget.value.trim() || null)}
+                      style={{ ...settingsInputBareStyle, ...aiVoiceExportInputStyle }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void selectAiVoiceExportFolder()}
+                      style={settingsButtonStyle}
+                    >
+                      {t("settings.aiVoiceExportFolderChoose")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => set("ai_voice_export_folder", null)}
+                      style={settingsButtonStyle}
+                    >
+                      {t("common.reset")}
+                    </button>
+                  </div>
+                </div>
+              </SettingSection>
+
               <SettingSection title={t("settings.aiPromptSection")}>
                 <div style={{ ...settingsRowStyle, "align-items": "flex-start", "flex-wrap": "wrap" }}>
                   <div style={{ flex: "1", "min-width": "180px" }}>
@@ -2596,6 +2671,14 @@ const aiSkillPreviewStyle = {
   overflow: "hidden",
   "text-overflow": "ellipsis",
   "max-width": "52vw",
+} as const;
+
+const aiVoiceExportInputStyle = {
+  width: "min(360px, 40vw)",
+  "box-sizing": "border-box",
+  border: "1px solid var(--mz-border)",
+  "border-radius": "var(--mz-radius-sm)",
+  background: "var(--mz-bg-primary)",
 } as const;
 
 // ---------------------------------------------------------------------------

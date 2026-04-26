@@ -43,7 +43,7 @@ import { ImageViewer } from "./components/common/ImageViewer";
 import { FilePreview } from "./components/common/FilePreview";
 import { createPersistableWindowState } from "./utils/windowState";
 import { register, unregister, isRegistered } from "@tauri-apps/plugin-global-shortcut";
-import { Copy, History, Trash2, X } from "lucide-solid";
+import { Copy, History, Mic, MicOff, Trash2, Volume2, X } from "lucide-solid";
 import { ScreenshotOverlay } from "./components/screenshot/ScreenshotOverlay";
 import { promptDialog } from "./components/common/ConfirmDialog";
 import { openFileRouted } from "./utils/openFileRouted";
@@ -124,6 +124,92 @@ function formatAiHistoryTimestamp(value: string): string {
         minute: "2-digit",
         second: "2-digit",
     });
+}
+
+function mergeAudioSamples(chunks: Float32Array[]): Float32Array {
+    const length = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+    const result = new Float32Array(length);
+    let offset = 0;
+    for (const chunk of chunks) {
+        result.set(chunk, offset);
+        offset += chunk.length;
+    }
+    return result;
+}
+
+function resampleAudio(samples: Float32Array, fromRate: number, toRate: number): Float32Array {
+    if (fromRate === toRate || samples.length === 0) return samples;
+    const nextLength = Math.max(1, Math.round(samples.length * toRate / fromRate));
+    const result = new Float32Array(nextLength);
+    const ratio = (samples.length - 1) / Math.max(1, nextLength - 1);
+    for (let i = 0; i < nextLength; i += 1) {
+        const position = i * ratio;
+        const left = Math.floor(position);
+        const right = Math.min(samples.length - 1, left + 1);
+        const weight = position - left;
+        result[i] = samples[left] * (1 - weight) + samples[right] * weight;
+    }
+    return result;
+}
+
+function writeAscii(view: DataView, offset: number, value: string) {
+    for (let i = 0; i < value.length; i += 1) {
+        view.setUint8(offset + i, value.charCodeAt(i));
+    }
+}
+
+function encodeWav(chunks: Float32Array[], sampleRate: number): ArrayBuffer {
+    const supportedRates = new Set([8000, 16000, 22050, 24000, 44100, 48000]);
+    const targetRate = supportedRates.has(Math.round(sampleRate)) ? Math.round(sampleRate) : 48000;
+    const samples = resampleAudio(mergeAudioSamples(chunks), Math.round(sampleRate), targetRate);
+    const bytesPerSample = 2;
+    const buffer = new ArrayBuffer(44 + samples.length * bytesPerSample);
+    const view = new DataView(buffer);
+
+    writeAscii(view, 0, "RIFF");
+    view.setUint32(4, 36 + samples.length * bytesPerSample, true);
+    writeAscii(view, 8, "WAVE");
+    writeAscii(view, 12, "fmt ");
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, 1, true);
+    view.setUint32(24, targetRate, true);
+    view.setUint32(28, targetRate * bytesPerSample, true);
+    view.setUint16(32, bytesPerSample, true);
+    view.setUint16(34, 16, true);
+    writeAscii(view, 36, "data");
+    view.setUint32(40, samples.length * bytesPerSample, true);
+
+    let offset = 44;
+    for (const sample of samples) {
+        const clamped = Math.max(-1, Math.min(1, sample));
+        view.setInt16(offset, clamped < 0 ? clamped * 0x8000 : clamped * 0x7fff, true);
+        offset += bytesPerSample;
+    }
+    return buffer;
+}
+
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+    const bytes = new Uint8Array(buffer);
+    const chunkSize = 0x8000;
+    let binary = "";
+    for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+        binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize));
+    }
+    return btoa(binary);
+}
+
+function aiAudioFileTimestamp(): string {
+    const now = new Date();
+    return [
+        now.getFullYear(),
+        pad2(now.getMonth() + 1),
+        pad2(now.getDate()),
+        "_",
+        pad2(now.getHours()),
+        pad2(now.getMinutes()),
+        pad2(now.getSeconds()),
+    ].join("");
 }
 
 function parseAiQuestionHistory(raw: string | null): AiQuestionHistoryEntry[] {
@@ -209,6 +295,8 @@ const App: Component = () => {
     const [aiPanelInput, setAiPanelInput] = createSignal("");
     const [aiPanelOutput, setAiPanelOutput] = createSignal("");
     const [aiPanelBusy, setAiPanelBusy] = createSignal(false);
+    const [aiVoiceRecording, setAiVoiceRecording] = createSignal(false);
+    const [aiVoiceBusy, setAiVoiceBusy] = createSignal(false);
     const [showAiHistory, setShowAiHistory] = createSignal(false);
     const [aiQuestionHistory, setAiQuestionHistory] = createSignal<AiQuestionHistoryEntry[]>([]);
     const [aiHistoryDate, setAiHistoryDate] = createSignal("");
@@ -236,6 +324,12 @@ const App: Component = () => {
     const startupUiZoom = startupUiZoomParam ? Number(startupUiZoomParam) : null;
     const [startupPayloadApplied, setStartupPayloadApplied] = createSignal(false);
     const isTransientWindow = () => startupParams.get("split") === "1";
+    let aiVoiceStream: MediaStream | null = null;
+    let aiVoiceAudioContext: AudioContext | null = null;
+    let aiVoiceSource: MediaStreamAudioSourceNode | null = null;
+    let aiVoiceProcessor: ScriptProcessorNode | null = null;
+    let aiVoiceSamples: Float32Array[] = [];
+    let aiVoiceSampleRate = 48000;
 
     // When the app restarts with a previously-opened vault saved in
     // localStorage, onMount will asynchronously restore it. Between the
@@ -1840,6 +1934,126 @@ const App: Component = () => {
         void navigator.clipboard?.writeText(text).catch(() => {});
     }
 
+    function pushAiPanelStatus(message: string) {
+        const stamp = new Date().toLocaleTimeString(undefined, {
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+        });
+        setAiPanelOutput((current) => {
+            const line = `[${stamp}] ${message}`;
+            return current ? `${current}\n${line}` : line;
+        });
+    }
+
+    function disposeAiVoiceCapture() {
+        aiVoiceProcessor?.disconnect();
+        aiVoiceSource?.disconnect();
+        aiVoiceStream?.getTracks().forEach((track) => track.stop());
+        void aiVoiceAudioContext?.close().catch(() => {});
+        aiVoiceProcessor = null;
+        aiVoiceSource = null;
+        aiVoiceStream = null;
+        aiVoiceAudioContext = null;
+    }
+
+    async function startAiVoiceRecording() {
+        if (aiVoiceBusy() || aiVoiceRecording()) return;
+        const mediaDevices = navigator.mediaDevices;
+        if (!mediaDevices?.getUserMedia) {
+            pushAiPanelStatus(t("aiPanel.voiceUnsupported"));
+            return;
+        }
+        try {
+            const stream = await mediaDevices.getUserMedia({ audio: true });
+            aiVoiceStream = stream;
+            const AudioContextCtor = window.AudioContext || (window as any).webkitAudioContext;
+            if (!AudioContextCtor) throw new Error(t("aiPanel.voiceUnsupported"));
+            const audioContext = new AudioContextCtor({ sampleRate: 48000 });
+            const source = audioContext.createMediaStreamSource(stream);
+            const processor = audioContext.createScriptProcessor(4096, 1, 1);
+            aiVoiceSamples = [];
+            aiVoiceSampleRate = audioContext.sampleRate || 48000;
+            processor.onaudioprocess = (event) => {
+                if (!aiVoiceRecording()) return;
+                const input = event.inputBuffer.getChannelData(0);
+                aiVoiceSamples.push(new Float32Array(input));
+            };
+            source.connect(processor);
+            processor.connect(audioContext.destination);
+            aiVoiceAudioContext = audioContext;
+            aiVoiceSource = source;
+            aiVoiceProcessor = processor;
+            setAiVoiceRecording(true);
+            pushAiPanelStatus(t("aiPanel.voiceRecording"));
+        } catch (err: any) {
+            disposeAiVoiceCapture();
+            setAiVoiceRecording(false);
+            pushAiPanelStatus(err?.message || String(err));
+        }
+    }
+
+    async function stopAiVoiceRecording() {
+        if (!aiVoiceRecording()) return;
+        const chunks = aiVoiceSamples.slice();
+        const sampleRate = aiVoiceSampleRate;
+        setAiVoiceRecording(false);
+        disposeAiVoiceCapture();
+        if (!chunks.length) {
+            pushAiPanelStatus(t("aiPanel.voiceEmpty"));
+            return;
+        }
+        setAiVoiceBusy(true);
+        pushAiPanelStatus(t("aiPanel.voiceTranscribing"));
+        try {
+            const wavBuffer = encodeWav(chunks, sampleRate);
+            const text = await aiStore.transcribeGrokAudio(
+                arrayBufferToBase64(wavBuffer),
+                `mindzj_recording_${aiAudioFileTimestamp()}.wav`,
+                "audio/wav",
+            );
+            if (!text) {
+                pushAiPanelStatus(t("aiPanel.voiceEmpty"));
+                return;
+            }
+            setAiHistoryCursor(null);
+            setAiPanelInput((current) => {
+                const prefix = current.trim() ? `${current}${current.endsWith("\n") ? "" : "\n"}` : "";
+                return `${prefix}${text}`;
+            });
+            pushAiPanelStatus(t("aiPanel.voiceInserted"));
+        } catch (err: any) {
+            pushAiPanelStatus(err?.message || String(err));
+        } finally {
+            setAiVoiceBusy(false);
+        }
+    }
+
+    function toggleAiVoiceRecording() {
+        if (aiVoiceRecording()) {
+            void stopAiVoiceRecording();
+            return;
+        }
+        void startAiVoiceRecording();
+    }
+
+    async function synthesizeAiPanelInput() {
+        const text = aiPanelInput().trim();
+        if (!text || aiPanelBusy() || aiVoiceBusy() || aiVoiceRecording()) return;
+        setAiVoiceBusy(true);
+        pushAiPanelStatus(t("aiPanel.ttsWorking"));
+        try {
+            const result = await aiStore.synthesizeGrokSpeech(text);
+            pushAiPanelStatus(t("aiPanel.ttsExported", { path: result.path }));
+        } catch (err: any) {
+            pushAiPanelStatus(err?.message || String(err));
+        } finally {
+            setAiVoiceBusy(false);
+        }
+    }
+
+    onCleanup(() => disposeAiVoiceCapture());
+
     function clampAiPanelHeight(value: number): number {
         const max = Math.max(AI_PANEL_MIN_HEIGHT, Math.min(Math.floor(window.innerHeight * 0.72), window.innerHeight - 96));
         return Math.max(AI_PANEL_MIN_HEIGHT, Math.min(max, Math.round(value)));
@@ -3068,6 +3282,8 @@ const App: Component = () => {
                                 input={aiPanelInput()}
                                 output={aiPanelOutput()}
                                 busy={aiPanelBusy()}
+                                voiceRecording={aiVoiceRecording()}
+                                voiceBusy={aiVoiceBusy()}
                                 height={aiPanelHeight()}
                                 activePath={activePanePath() ?? vaultStore.activeFile()?.path ?? null}
                                 modelLabel={currentAiModelLabel()}
@@ -3082,6 +3298,8 @@ const App: Component = () => {
                                 onSelectModel={selectAiPanelModel}
                                 onInput={handleAiPanelInput}
                                 onRun={() => void runAiPanelInstruction()}
+                                onToggleVoiceInput={toggleAiVoiceRecording}
+                                onSpeakInput={() => void synthesizeAiPanelInput()}
                                 onToggleHistory={toggleAiHistoryDialog}
                                 onCloseHistory={closeAiHistoryDialog}
                                 onMoveHistory={setAiHistoryPosition}
@@ -3158,6 +3376,8 @@ const AiBottomPanel: Component<{
     input: string;
     output: string;
     busy: boolean;
+    voiceRecording: boolean;
+    voiceBusy: boolean;
     height: number;
     activePath: string | null;
     modelLabel: string;
@@ -3172,6 +3392,8 @@ const AiBottomPanel: Component<{
     onSelectModel: (value: string) => void;
     onInput: (value: string) => void;
     onRun: () => void;
+    onToggleVoiceInput: () => void;
+    onSpeakInput: () => void;
     onToggleHistory: () => void;
     onCloseHistory: () => void;
     onMoveHistory: (position: Point) => void;
@@ -3287,6 +3509,54 @@ const AiBottomPanel: Component<{
                             }}
                         >
                             <History size={15} strokeWidth={1.8} />
+                        </button>
+                        <button
+                            type="button"
+                            onClick={props.onToggleVoiceInput}
+                            disabled={props.busy || props.voiceBusy}
+                            title={props.voiceRecording ? t("aiPanel.voiceStop") : t("aiPanel.voiceStart")}
+                            aria-label={props.voiceRecording ? t("aiPanel.voiceStop") : t("aiPanel.voiceStart")}
+                            style={{
+                                width: "26px",
+                                height: "26px",
+                                display: "inline-flex",
+                                "align-items": "center",
+                                "justify-content": "center",
+                                border: "1px solid var(--mz-border)",
+                                "border-radius": "var(--mz-radius-sm)",
+                                background: props.voiceRecording ? "var(--mz-bg-hover)" : "transparent",
+                                color: props.voiceRecording ? "var(--mz-accent)" : "var(--mz-text-muted)",
+                                cursor: props.busy || props.voiceBusy ? "default" : "pointer",
+                                opacity: props.busy || props.voiceBusy ? "0.55" : "1",
+                                padding: "0",
+                            }}
+                        >
+                            <Show when={props.voiceRecording} fallback={<Mic size={15} strokeWidth={1.8} />}>
+                                <MicOff size={15} strokeWidth={1.8} />
+                            </Show>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={props.onSpeakInput}
+                            disabled={props.busy || props.voiceBusy || props.voiceRecording || !props.input.trim()}
+                            title={t("aiPanel.ttsInput")}
+                            aria-label={t("aiPanel.ttsInput")}
+                            style={{
+                                width: "26px",
+                                height: "26px",
+                                display: "inline-flex",
+                                "align-items": "center",
+                                "justify-content": "center",
+                                border: "1px solid var(--mz-border)",
+                                "border-radius": "var(--mz-radius-sm)",
+                                background: "transparent",
+                                color: "var(--mz-text-muted)",
+                                cursor: props.busy || props.voiceBusy || props.voiceRecording || !props.input.trim() ? "default" : "pointer",
+                                opacity: props.busy || props.voiceBusy || props.voiceRecording || !props.input.trim() ? "0.55" : "1",
+                                padding: "0",
+                            }}
+                        >
+                            <Volume2 size={15} strokeWidth={1.8} />
                         </button>
                         <Show when={false}>
                             <div
@@ -3586,20 +3856,20 @@ const AiBottomPanel: Component<{
                     <div style={{ display: "flex", "justify-content": "flex-end", gap: "8px" }}>
                         <button
                             onClick={props.onRun}
-                            disabled={props.busy || !props.input.trim()}
+                            disabled={props.busy || props.voiceBusy || props.voiceRecording || !props.input.trim()}
                             style={{
                                 border: "1px solid var(--mz-accent)",
                                 background: "transparent",
                                 color: "var(--mz-accent)",
                                 "border-radius": "var(--mz-radius-sm)",
                                 padding: "6px 16px",
-                                cursor: props.busy || !props.input.trim() ? "default" : "pointer",
-                                opacity: props.busy || !props.input.trim() ? "0.55" : "1",
+                                cursor: props.busy || props.voiceBusy || props.voiceRecording || !props.input.trim() ? "default" : "pointer",
+                                opacity: props.busy || props.voiceBusy || props.voiceRecording || !props.input.trim() ? "0.55" : "1",
                                 "font-size": "var(--mz-font-size-sm)",
                                 "font-family": "var(--mz-font-sans)",
                             }}
                         >
-                            {props.busy ? t("aiPanel.working") : t("aiPanel.run")}
+                            {props.busy || props.voiceBusy ? t("aiPanel.working") : t("aiPanel.run")}
                         </button>
                     </div>
                 </div>

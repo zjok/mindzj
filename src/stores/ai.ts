@@ -39,6 +39,7 @@ type ToolResult = {
 
 type AiProviderFamily = "openai-compatible" | "anthropic" | "gemini";
 type AiModelOption = { value: string; label: string };
+type AiTextToSpeechResult = { path: string; fileName: string };
 
 interface RunInstructionOptions {
   restrictToActiveFile?: boolean;
@@ -63,6 +64,24 @@ interface ToolExecutionContext {
 }
 
 export const BUILT_IN_ONLINE_PROVIDER_TYPES = ["OpenAI", "Claude", "Grok", "Gemini", "DeepSeek"] as const;
+export const GROK_STT_MODEL = "grok-stt";
+export const GROK_TTS_VOICES: AiModelOption[] = [
+  { value: "eve", label: "Eve" },
+  { value: "ara", label: "Ara" },
+  { value: "rex", label: "Rex" },
+  { value: "sal", label: "Sal" },
+  { value: "leo", label: "Leo" },
+];
+export const GROK_TTS_LANGUAGE_OPTIONS: AiModelOption[] = [
+  { value: "auto", label: "Auto" },
+  { value: "zh", label: "Chinese" },
+  { value: "en", label: "English" },
+  { value: "ja", label: "Japanese" },
+  { value: "ko", label: "Korean" },
+  { value: "fr", label: "French" },
+  { value: "de", label: "German" },
+  { value: "es-ES", label: "Spanish" },
+];
 
 const PROVIDER_DEFAULTS: Record<AiProviderType, AiProviderConfig> = {
   Ollama: {
@@ -206,6 +225,13 @@ export function defaultAiProviderConfig(provider: AiProviderType): AiProviderCon
 
 function configuredProvider(): AiProviderConfig | null {
   return settingsStore.settings().ai_provider ?? defaultAiProviderConfig("Ollama");
+}
+
+function configuredGrokProvider(): AiProviderConfig {
+  const settings = settingsStore.settings();
+  if (settings.ai_provider?.provider_type === "Grok") return settings.ai_provider;
+  return settings.ai_custom_providers?.find((config) => config.provider_type === "Grok" && !config.id)
+    ?? defaultAiProviderConfig("Grok");
 }
 
 function providerBaseUrl(config: AiProviderConfig): string {
@@ -1014,6 +1040,57 @@ async function getAiJson(url: string, headers: Record<string, string>) {
   }
 }
 
+async function postAiAudioTranscription(
+  url: string,
+  headers: Record<string, string>,
+  fileName: string,
+  mimeType: string,
+  base64Data: string,
+) {
+  try {
+    return await invoke<any>("ai_transcribe_audio", {
+      request: { url, headers, fileName, mimeType, base64Data },
+    });
+  } catch (error) {
+    throw new Error(formatAiProviderError(error));
+  }
+}
+
+async function postAiTextToSpeech(
+  url: string,
+  headers: Record<string, string>,
+  body: unknown,
+  outputDir: string | null,
+  fileName: string,
+): Promise<AiTextToSpeechResult> {
+  try {
+    return await invoke<AiTextToSpeechResult>("ai_text_to_speech", {
+      request: { url, headers, body, outputDir, fileName },
+    });
+  } catch (error) {
+    throw new Error(formatAiProviderError(error));
+  }
+}
+
+function padAudioTimestamp(value: number): string {
+  return String(value).padStart(2, "0");
+}
+
+function audioExportFileName(): string {
+  const now = new Date();
+  return [
+    "mindzj_grok_tts_",
+    now.getFullYear(),
+    padAudioTimestamp(now.getMonth() + 1),
+    padAudioTimestamp(now.getDate()),
+    "_",
+    padAudioTimestamp(now.getHours()),
+    padAudioTimestamp(now.getMinutes()),
+    padAudioTimestamp(now.getSeconds()),
+    ".mp3",
+  ].join("");
+}
+
 function parseProviderErrorPayload(raw: string): { status?: string; message: string; code?: string; type?: string; param?: string | null } {
   const trimmed = raw.trim();
   const match = trimmed.match(/^(\d{3})(?::\s*)?([\s\S]*)$/);
@@ -1510,6 +1587,49 @@ function createAiStore() {
     return result;
   }
 
+  async function transcribeGrokAudio(
+    base64Data: string,
+    fileName: string,
+    mimeType: string,
+  ): Promise<string> {
+    const config = configuredGrokProvider();
+    const apiKey = await getApiKey(config);
+    if (!apiKey) throw new Error("Grok API key is required for speech-to-text.");
+    const data = await postAiAudioTranscription(
+      `${providerBaseUrl(config)}/stt`,
+      authHeader(apiKey),
+      fileName,
+      mimeType || "audio/wav",
+      base64Data,
+    );
+    return String(data?.text ?? "").trim();
+  }
+
+  async function synthesizeGrokSpeech(text: string): Promise<AiTextToSpeechResult> {
+    const input = text.trim();
+    if (!input) throw new Error("Text is required for speech export.");
+    if (input.length > 15000) throw new Error("xAI TTS text must be 15,000 characters or fewer.");
+
+    const config = configuredGrokProvider();
+    const apiKey = await getApiKey(config);
+    if (!apiKey) throw new Error("Grok API key is required for text-to-speech.");
+    const settings = settingsStore.settings();
+    const voice = settings.ai_tts_voice?.trim() || "eve";
+    const language = settings.ai_tts_language?.trim() || "auto";
+    return postAiTextToSpeech(
+      `${providerBaseUrl(config)}/tts`,
+      authHeader(apiKey),
+      {
+        text: input,
+        voice_id: voice,
+        language,
+        output_format: { codec: "mp3" },
+      },
+      settings.ai_voice_export_folder?.trim() || null,
+      audioExportFileName(),
+    );
+  }
+
   return {
     defaultAiProviderConfig,
     isConfigured,
@@ -1518,6 +1638,8 @@ function createAiStore() {
     loadApiKey,
     testConnection,
     runInstruction,
+    transcribeGrokAudio,
+    synthesizeGrokSpeech,
   };
 }
 

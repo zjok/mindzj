@@ -261,6 +261,16 @@ pub struct AppSettings {
     pub ai_skills: Vec<AiSkill>,
     #[serde(default)]
     pub ai_model_skill_ids: HashMap<String, Vec<String>>,
+    #[serde(default = "default_ai_voice_provider")]
+    pub ai_voice_provider: String,
+    #[serde(default = "default_ai_stt_model")]
+    pub ai_stt_model: String,
+    #[serde(default = "default_ai_tts_voice")]
+    pub ai_tts_voice: String,
+    #[serde(default = "default_ai_tts_language")]
+    pub ai_tts_language: String,
+    #[serde(default)]
+    pub ai_voice_export_folder: Option<String>,
     #[serde(default = "default_image_resize_options")]
     pub image_resize_options: String,
     #[serde(default = "default_image_ctrl_click")]
@@ -316,6 +326,10 @@ fn normalize_theme(value: Option<String>) -> String {
 fn default_font_family() -> String {
     "\"Inter\", \"Segoe UI\", -apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"PingFang SC\", \"Microsoft YaHei\", \"Noto Sans\", Ubuntu, Cantarell, sans-serif".to_string()
 }
+fn default_ai_voice_provider() -> String { "Grok".to_string() }
+fn default_ai_stt_model() -> String { "grok-stt".to_string() }
+fn default_ai_tts_voice() -> String { "eve".to_string() }
+fn default_ai_tts_language() -> String { "auto".to_string() }
 fn default_image_resize_options() -> String { "25%, 33%, 50%, 100%".to_string() }
 fn default_image_ctrl_click() -> String { "open-in-new-tab".to_string() }
 fn default_image_wheel_modifier() -> String { "Alt".to_string() }
@@ -357,6 +371,11 @@ impl Default for AppSettings {
             ai_model_prompts: HashMap::new(),
             ai_skills: Vec::new(),
             ai_model_skill_ids: HashMap::new(),
+            ai_voice_provider: default_ai_voice_provider(),
+            ai_stt_model: default_ai_stt_model(),
+            ai_tts_voice: default_ai_tts_voice(),
+            ai_tts_language: default_ai_tts_language(),
+            ai_voice_export_folder: None,
             image_resize_options: default_image_resize_options(),
             image_ctrl_click: default_image_ctrl_click(),
             image_wheel_zoom: true,

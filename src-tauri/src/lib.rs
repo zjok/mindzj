@@ -757,6 +757,8 @@ pub fn run() {
             api::settings_api::set_ai_api_key,
             api::settings_api::ai_chat_completion,
             api::settings_api::ai_get_json,
+            api::settings_api::ai_transcribe_audio,
+            api::settings_api::ai_text_to_speech,
             // Workspace API
             api::settings_api::load_workspace,
             api::settings_api::save_workspace,

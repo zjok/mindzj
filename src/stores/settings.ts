@@ -171,6 +171,16 @@ export interface AppSettings {
   ai_skills: AiSkill[];
   /** Per-model selected skill ids, keyed by aiModelSettingsKey(config). */
   ai_model_skill_ids: Record<string, string[]>;
+  /** Built-in voice provider for STT/TTS features. */
+  ai_voice_provider: string;
+  /** Built-in speech-to-text model identifier shown in settings. */
+  ai_stt_model: string;
+  /** xAI TTS voice id. */
+  ai_tts_voice: string;
+  /** xAI TTS language code or auto detection. */
+  ai_tts_language: string;
+  /** Absolute folder path for exported TTS audio files. */
+  ai_voice_export_folder: string | null;
   /** Custom hotkey overrides: command -> key combo string (e.g. "Ctrl+Shift+L") */
   hotkey_overrides: Record<string, string>;
 
@@ -229,6 +239,11 @@ const DEFAULT_SETTINGS: AppSettings = {
   ai_model_prompts: {},
   ai_skills: [],
   ai_model_skill_ids: {},
+  ai_voice_provider: "Grok",
+  ai_stt_model: "grok-stt",
+  ai_tts_voice: "eve",
+  ai_tts_language: "auto",
+  ai_voice_export_folder: null,
   hotkey_overrides: {},
 
   // Image defaults
@@ -414,6 +429,26 @@ function normalizeLoadedSettings(loaded?: PersistedSettings | null): AppSettings
       ...base.ai_model_skill_ids,
       ...normalizeStringArrayRecord(loaded?.ai_model_skill_ids),
     },
+    ai_voice_provider:
+      typeof loaded?.ai_voice_provider === "string" && loaded.ai_voice_provider.trim()
+        ? loaded.ai_voice_provider.trim()
+        : base.ai_voice_provider,
+    ai_stt_model:
+      typeof loaded?.ai_stt_model === "string" && loaded.ai_stt_model.trim()
+        ? loaded.ai_stt_model.trim()
+        : base.ai_stt_model,
+    ai_tts_voice:
+      typeof loaded?.ai_tts_voice === "string" && loaded.ai_tts_voice.trim()
+        ? loaded.ai_tts_voice.trim()
+        : base.ai_tts_voice,
+    ai_tts_language:
+      typeof loaded?.ai_tts_language === "string" && loaded.ai_tts_language.trim()
+        ? loaded.ai_tts_language.trim()
+        : base.ai_tts_language,
+    ai_voice_export_folder:
+      typeof loaded?.ai_voice_export_folder === "string" && loaded.ai_voice_export_folder.trim()
+        ? loaded.ai_voice_export_folder.trim()
+        : null,
     font_family:
       typeof loaded?.font_family === "string" && loaded.font_family.trim()
         ? loaded.font_family
