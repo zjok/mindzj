@@ -851,6 +851,17 @@ export function isPluginSaving(path: string): boolean {
     return _pluginSavingPaths.has(_normPath(path));
 }
 
+export async function updatePluginViewsForFile(filePath: string, content: string, clear = true): Promise<void> {
+    const normalized = _normPath(filePath);
+    const updates: Promise<void>[] = [];
+    for (const view of activePluginViews.values()) {
+        if (_normPath(String(view?.file?.path ?? "")) !== normalized) continue;
+        if (typeof view?.setViewData !== "function") continue;
+        updates.push(Promise.resolve(view.setViewData(content, clear)).then(() => undefined));
+    }
+    await Promise.all(updates);
+}
+
 /** Plugin setting tabs keyed by plugin id */
 const pluginSettingTabs = new Map<string, any>();
 

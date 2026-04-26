@@ -2,7 +2,21 @@ import { invoke } from "@tauri-apps/api/core";
 import { editorStore, type ViewMode } from "./editor";
 import { aiModelSettingsKey, settingsStore, type AiProviderConfig, type AiProviderType, type AiSkill, type AppSettings } from "./settings";
 import { vaultStore, type VaultEntry, type FileContent } from "./vault";
-import { listPluginCommands, runPluginCommand } from "./plugins";
+import { listPluginCommands, runPluginCommand, updatePluginViewsForFile } from "./plugins";
+import {
+  addMindzjNode,
+  deleteMindzjNode,
+  findMindzjNode,
+  flattenMindzjNodes,
+  mindzjDocumentFromMarkdown,
+  parseMindzjDocument,
+  serializeMindzjDocument,
+  summarizeMindzjDocument,
+  updateMindzjNodeText,
+  type MindzjDocument,
+  type MindzjNodeMatch,
+  type MindzjTextPathInput,
+} from "../utils/mindzjMindmap";
 
 type ChatRole = "system" | "user" | "assistant" | "tool";
 
@@ -357,6 +371,60 @@ function cleanPath(path: string): string {
   return path.replace(/\\/g, "/").replace(/^\/+/, "").trim();
 }
 
+function isMindmapPath(path: string | null | undefined): boolean {
+  return !!path && /\.mindzj$/i.test(path.trim());
+}
+
+function isMarkdownPath(path: string | null | undefined): boolean {
+  return !!path && /\.md$/i.test(path.trim());
+}
+
+function ensureMindmapPath(path: string): string {
+  const clean = cleanPath(path);
+  if (!clean) return "";
+  return /\.mindzj$/i.test(clean) ? clean : `${clean.replace(/\.[^/.]+$/, "")}.mindzj`;
+}
+
+function defaultMindmapPathForSource(sourcePath: string): string {
+  return ensureMindmapPath(sourcePath.replace(/\.[^/.]+$/, ""));
+}
+
+function sanitizeMindmapFileName(value: string): string {
+  const cleaned = value
+    .replace(/[#*_`~[\]()]/g, "")
+    .replace(/[\\/:*?"<>|]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 48)
+    .trim();
+  return cleaned || "MindZJMap";
+}
+
+function firstOutlineTitle(outline: string, fallback?: string): string {
+  for (const rawLine of outline.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line) continue;
+    return sanitizeMindmapFileName(line.replace(/^#{1,6}\s+/, "").replace(/^(?:[-*+]|\d+[.)])\s+/, ""));
+  }
+  return sanitizeMindmapFileName(fallback || "MindZJMap");
+}
+
+function uniqueMindmapPath(baseName: string): string {
+  const existing = new Set(
+    flattenEntries(vaultStore.fileTree())
+      .filter((entry) => !entry.is_dir)
+      .map((entry) => entry.path.toLowerCase()),
+  );
+  const base = sanitizeMindmapFileName(baseName);
+  let candidate = `${base}.mindzj`;
+  let suffix = 1;
+  while (existing.has(candidate.toLowerCase())) {
+    candidate = `${base} ${suffix}.mindzj`;
+    suffix += 1;
+  }
+  return candidate;
+}
+
 function parseJsonObject(value: string): any | null {
   const trimmed = value.trim();
   if (!trimmed) return null;
@@ -378,6 +446,119 @@ function parseJsonObject(value: string): any | null {
   }
 }
 
+function mindmapPathRequiredResult(toolName: string): ToolResult {
+  return {
+    ok: false,
+    message: `${toolName} requires a .mindzj path or an active .mindzj file.`,
+  };
+}
+
+function resolveMindmapPath(
+  toolName: string,
+  rawPath: string | null | undefined,
+  context?: ToolExecutionContext,
+): { ok: true; path: string } | { ok: false; result: ToolResult } {
+  const requested = ensureMindmapPath(String(rawPath ?? ""));
+  const activePath = context?.activePath ?? vaultStore.activeFile()?.path ?? null;
+  const fallback = isMindmapPath(activePath) ? activePath! : "";
+  const path = requested || fallback;
+  if (!path) return { ok: false, result: mindmapPathRequiredResult(toolName) };
+  if (!isMindmapPath(path)) {
+    return { ok: false, result: { ok: false, message: `${path} is not a .mindzj file.` } };
+  }
+  if (context?.restrictToActiveFile && !context.hasExplicitPath && requested && requested !== activePath) {
+    return {
+      ok: false,
+      result: {
+        ok: false,
+        message: `No explicit file path was provided. Refusing to modify ${requested}; only ${activePath ?? "(none)"} may be changed.`,
+      },
+    };
+  }
+  return { ok: true, path };
+}
+
+function textPathArg(value: unknown): MindzjTextPathInput {
+  if (Array.isArray(value)) return value.map((item) => String(item));
+  if (typeof value === "string") return value;
+  return null;
+}
+
+function nodeReferenceFromArgs(args: any): { nodeId?: string | null; textPath?: MindzjTextPathInput; text?: string | null } {
+  return {
+    nodeId: typeof args.node_id === "string" ? args.node_id : null,
+    textPath: textPathArg(args.text_path),
+    text: typeof args.current_text === "string" ? args.current_text : null,
+  };
+}
+
+function nodeTargetMissingResult(toolName: string): ToolResult {
+  return {
+    ok: false,
+    message: `${toolName} requires node_id, text_path, or unique current_text.`,
+  };
+}
+
+function nodeNotFoundResult(toolName: string): ToolResult {
+  return {
+    ok: false,
+    message: `${toolName} could not find a unique matching node. Use read_mindmap first and retry with node_id.`,
+  };
+}
+
+function countMindmapNodes(document: MindzjDocument): number {
+  return flattenMindzjNodes(document).length;
+}
+
+async function readMindmapFile(path: string): Promise<MindzjDocument> {
+  const file = await invoke<FileContent>("read_file", { relativePath: path });
+  return parseMindzjDocument(file.content);
+}
+
+async function saveMindmapFile(path: string, document: MindzjDocument, openAfterSave = false): Promise<FileContent> {
+  const content = serializeMindzjDocument(document);
+  let file: FileContent;
+  try {
+    file = await vaultStore.createFile(path, content);
+  } catch (error: any) {
+    if (!isFileAlreadyExistsError(error)) throw error;
+    file = await vaultStore.saveFile(path, content);
+  }
+  await updatePluginViewsForFile(file.path, content, true);
+  if (openAfterSave) await vaultStore.openFile(file.path);
+  return file;
+}
+
+function readMindmapResult(path: string, document: MindzjDocument, query?: string): ToolResult {
+  const trimmedQuery = query?.trim().toLowerCase() ?? "";
+  const allNodes = flattenMindzjNodes(document);
+  const matches = trimmedQuery
+    ? allNodes
+        .filter((match) => match.node.text.toLowerCase().includes(trimmedQuery))
+        .slice(0, 80)
+        .map((match) => ({
+          id: match.node.id,
+          text: match.node.text,
+          path: match.path,
+          side: match.node.side ?? null,
+        }))
+    : [];
+  return {
+    ok: true,
+    data: {
+      path,
+      node_count: allNodes.length,
+      root_count: document.rootNodes.length,
+      outline: summarizeMindzjDocument(document),
+      ...(trimmedQuery ? { matches } : {}),
+    },
+  };
+}
+
+function mindmapChangeMessage(action: string, path: string, match: MindzjNodeMatch): string {
+  return `${action} ${match.path.join(" > ")} in ${path}`;
+}
+
 const NOTE_TOOL_PARAMETERS = {
   type: "object",
   properties: {
@@ -385,6 +566,17 @@ const NOTE_TOOL_PARAMETERS = {
   },
   required: ["path"],
   additionalProperties: false,
+};
+
+const OPTIONAL_MINDMAP_PATH_PROPERTY = {
+  type: "string",
+  description: "Vault-relative .mindzj path. Optional when the active file is the target mind map.",
+};
+
+const MINDMAP_TEXT_PATH_PROPERTY = {
+  type: "array",
+  items: { type: "string" },
+  description: "Node text path from root to target, for example [\"Project\", \"Tasks\", \"Done\"]. Prefer node_id after read_mindmap when possible.",
 };
 
 const TOOLS: ToolDefinition[] = [
@@ -430,6 +622,124 @@ const TOOLS: ToolDefinition[] = [
       name: "read_note",
       description: "Read the full contents of a vault note.",
       parameters: NOTE_TOOL_PARAMETERS,
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "list_mindmaps",
+      description: "List .mindzj mind map files in the current vault.",
+      parameters: {
+        type: "object",
+        properties: {},
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "read_mindmap",
+      description: "Read a .mindzj mind map as a structured node outline. Use this before editing nodes to get node ids or text paths.",
+      parameters: {
+        type: "object",
+        properties: {
+          path: OPTIONAL_MINDMAP_PATH_PROPERTY,
+          query: { type: "string", description: "Optional text query to return matching nodes." },
+        },
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "create_mindmap_from_markdown",
+      description: "Convert a Markdown file into a .mindzj mind map. Defaults to the active Markdown file and writes beside it using the .mindzj extension.",
+      parameters: {
+        type: "object",
+        properties: {
+          source_path: { type: "string", description: "Vault-relative Markdown source path. Optional when the active file is Markdown." },
+          target_path: { type: "string", description: "Vault-relative .mindzj target path. Optional; defaults to source basename with .mindzj extension." },
+          root_title: { type: "string", description: "Fallback root title when the Markdown content has no H1 heading." },
+        },
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "create_mindmap",
+      description: "Create or replace a .mindzj mind map from an indented Markdown outline such as '# Root\\n## Branch\\n- Leaf'.",
+      parameters: {
+        type: "object",
+        properties: {
+          path: OPTIONAL_MINDMAP_PATH_PROPERTY,
+          outline_markdown: { type: "string", description: "Markdown outline to convert to rootNodes." },
+          root_title: { type: "string", description: "Fallback root title when outline_markdown has no H1 heading." },
+        },
+        required: ["outline_markdown"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "add_mindmap_node",
+      description: "Add a node to a .mindzj mind map. If parent is omitted, add under the only root node, or create a new root when the map has multiple roots.",
+      parameters: {
+        type: "object",
+        properties: {
+          path: OPTIONAL_MINDMAP_PATH_PROPERTY,
+          parent_id: { type: "string", description: "Parent node id from read_mindmap." },
+          parent_text_path: MINDMAP_TEXT_PATH_PROPERTY,
+          parent_text: { type: "string", description: "Parent node text, only when it is unique." },
+          text: { type: "string", description: "New node text." },
+          index: { type: "number", description: "Optional child insertion index." },
+          side: { type: "string", enum: ["left", "right"], description: "Optional side for root children." },
+        },
+        required: ["text"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "update_mindmap_node",
+      description: "Change the text of one node in a .mindzj mind map.",
+      parameters: {
+        type: "object",
+        properties: {
+          path: OPTIONAL_MINDMAP_PATH_PROPERTY,
+          node_id: { type: "string", description: "Target node id from read_mindmap." },
+          text_path: MINDMAP_TEXT_PATH_PROPERTY,
+          current_text: { type: "string", description: "Current target text, only when it is unique." },
+          text: { type: "string", description: "Replacement node text." },
+        },
+        required: ["text"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "delete_mindmap_node",
+      description: "Delete one node and its children from a .mindzj mind map.",
+      parameters: {
+        type: "object",
+        properties: {
+          path: OPTIONAL_MINDMAP_PATH_PROPERTY,
+          node_id: { type: "string", description: "Target node id from read_mindmap." },
+          text_path: MINDMAP_TEXT_PATH_PROPERTY,
+          current_text: { type: "string", description: "Current target text, only when it is unique." },
+          allow_delete_root: { type: "boolean", description: "Set true only when the user explicitly asked to delete a root node." },
+        },
+        additionalProperties: false,
+      },
     },
   },
   {
@@ -661,7 +971,7 @@ const TOOLS: ToolDefinition[] = [
 function instructionMentionsExplicitPath(instruction: string): boolean {
   const text = instruction.trim();
   if (!text) return false;
-  return /\.md\b/i.test(text)
+  return /\.(?:md|mindzj)\b/i.test(text)
     || /\[\[[^\]]+\]\]/.test(text)
     || /(?:^|[\s"'`])[\w\u4e00-\u9fff ._-]+\/[\w\u4e00-\u9fff ./_-]+(?:$|[\s"'`])/u.test(text);
 }
@@ -804,6 +1114,109 @@ async function executeTool(name: string, args: any, context?: ToolExecutionConte
         if (!path) return pathRequiredResult(name);
         const file = await invoke<FileContent>("read_file", { relativePath: path });
         return { ok: true, data: { path: file.path, content: file.content } };
+      }
+      case "list_mindmaps": {
+        return {
+          ok: true,
+          data: flattenEntries(vaultStore.fileTree())
+            .filter((entry) => !entry.is_dir && isMindmapPath(entry.path))
+            .slice(0, 500),
+        };
+      }
+      case "read_mindmap": {
+        const resolved = resolveMindmapPath(name, String(args.path ?? ""), context);
+        if (!resolved.ok) return resolved.result;
+        const document = await readMindmapFile(resolved.path);
+        return readMindmapResult(resolved.path, document, typeof args.query === "string" ? args.query : undefined);
+      }
+      case "create_mindmap_from_markdown": {
+        const activePath = context?.activePath ?? vaultStore.activeFile()?.path ?? null;
+        const sourcePath = cleanPath(String(args.source_path ?? "")) || (isMarkdownPath(activePath) ? activePath! : "");
+        if (!sourcePath) {
+          return { ok: false, message: "create_mindmap_from_markdown requires source_path or an active Markdown file." };
+        }
+        if (context?.restrictToActiveFile && !context.hasExplicitPath && sourcePath !== activePath) {
+          return {
+            ok: false,
+            message: `No explicit file path was provided. Refusing to read ${sourcePath}; only ${activePath ?? "(none)"} may be used.`,
+          };
+        }
+        const targetPath = ensureMindmapPath(String(args.target_path ?? "")) || defaultMindmapPathForSource(sourcePath);
+        const source = await invoke<FileContent>("read_file", { relativePath: sourcePath });
+        const document = mindzjDocumentFromMarkdown(source.content, {
+          rootTitle: typeof args.root_title === "string" ? args.root_title : sourcePath.split("/").pop()?.replace(/\.[^.]+$/, ""),
+        });
+        const file = await saveMindmapFile(targetPath, document, true);
+        return {
+          ok: true,
+          message: `Created ${file.path} from ${sourcePath}`,
+          data: { path: file.path, source_path: sourcePath, node_count: countMindmapNodes(document) },
+        };
+      }
+      case "create_mindmap": {
+        const outline = String(args.outline_markdown ?? "").trim();
+        if (!outline) return { ok: false, message: "create_mindmap requires outline_markdown." };
+        const requestedPath = ensureMindmapPath(String(args.path ?? ""));
+        const activePath = context?.activePath ?? vaultStore.activeFile()?.path ?? null;
+        const targetPath = requestedPath || uniqueMindmapPath(firstOutlineTitle(outline, typeof args.root_title === "string" ? args.root_title : undefined));
+        if (context?.restrictToActiveFile && !context.hasExplicitPath && requestedPath && requestedPath !== activePath) {
+          return {
+            ok: false,
+            message: `No explicit file path was provided. Refusing to replace ${requestedPath}; omit path to create a new mind map automatically.`,
+          };
+        }
+        const document = mindzjDocumentFromMarkdown(outline, {
+          rootTitle: typeof args.root_title === "string" ? args.root_title : undefined,
+        });
+        const file = await saveMindmapFile(targetPath, document, true);
+        return {
+          ok: true,
+          message: `Created ${file.path}`,
+          data: { path: file.path, node_count: countMindmapNodes(document) },
+        };
+      }
+      case "add_mindmap_node": {
+        const resolved = resolveMindmapPath(name, String(args.path ?? ""), context);
+        if (!resolved.ok) return resolved.result;
+        const text = String(args.text ?? "").trim();
+        if (!text) return { ok: false, message: "add_mindmap_node requires text." };
+        const document = await readMindmapFile(resolved.path);
+        const match = addMindzjNode(document, {
+          text,
+          parentId: typeof args.parent_id === "string" ? args.parent_id : null,
+          parentTextPath: textPathArg(args.parent_text_path),
+          parentText: typeof args.parent_text === "string" ? args.parent_text : null,
+          index: typeof args.index === "number" ? args.index : null,
+          side: typeof args.side === "string" ? args.side : null,
+        });
+        await saveMindmapFile(resolved.path, document);
+        return { ok: true, message: mindmapChangeMessage("Added", resolved.path, match), data: { id: match.node.id, path: match.path } };
+      }
+      case "update_mindmap_node": {
+        const resolved = resolveMindmapPath(name, String(args.path ?? ""), context);
+        if (!resolved.ok) return resolved.result;
+        const text = String(args.text ?? "").trim();
+        if (!text) return { ok: false, message: "update_mindmap_node requires text." };
+        const reference = nodeReferenceFromArgs(args);
+        if (!reference.nodeId && !reference.textPath && !reference.text) return nodeTargetMissingResult(name);
+        const document = await readMindmapFile(resolved.path);
+        const match = findMindzjNode(document, reference);
+        if (!match) return nodeNotFoundResult(name);
+        const updated = updateMindzjNodeText(match, text);
+        await saveMindmapFile(resolved.path, document);
+        return { ok: true, message: mindmapChangeMessage("Updated", resolved.path, updated), data: { id: updated.node.id, path: updated.path } };
+      }
+      case "delete_mindmap_node": {
+        const resolved = resolveMindmapPath(name, String(args.path ?? ""), context);
+        if (!resolved.ok) return resolved.result;
+        const reference = nodeReferenceFromArgs(args);
+        if (!reference.nodeId && !reference.textPath && !reference.text) return nodeTargetMissingResult(name);
+        const document = await readMindmapFile(resolved.path);
+        const match = findMindzjNode(document, reference);
+        if (!match) return nodeNotFoundResult(name);
+        const deleted = deleteMindzjNode(document, match, !!args.allow_delete_root);
+        await saveMindmapFile(resolved.path, document);
+        return { ok: true, message: mindmapChangeMessage("Deleted", resolved.path, deleted), data: { id: deleted.node.id, path: deleted.path } };
       }
       case "create_note": {
         const scoped = enforceCurrentFileContentScope(name, String(args.path ?? ""), context);
@@ -990,6 +1403,9 @@ function buildSystemPrompt(context?: ToolExecutionContext, config?: AiProviderCo
     "You are MindZJ's local automation agent.",
     "Use tools to inspect and modify the user's current vault. Do not invent file contents or paths.",
     "The bottom AI command panel is for executing note actions, not casual chat.",
+    ".mindzj files are MindZJ mind maps. Use read_mindmap, create_mindmap_from_markdown, create_mindmap, add_mindmap_node, update_mindmap_node, and delete_mindmap_node for them instead of hand-writing raw JSON.",
+    "To turn Markdown into a mind map, call create_mindmap_from_markdown. If the user omits a target path, write beside the source with the .mindzj extension.",
+    "For mind map node edits, call read_mindmap first when you need node ids, then edit by node_id or text_path.",
     "If the user asks you to translate, draft, summarize, rewrite, polish, generate, or record content, write the result into the target note with create_note, update_note, or append_note.",
     "If the user did not name a target note, write content changes to the active note.",
     "For destructive changes, only perform the exact action requested by the user.",
@@ -998,7 +1414,7 @@ function buildSystemPrompt(context?: ToolExecutionContext, config?: AiProviderCo
     "When you finish, summarize what you changed in one concise sentence.",
     `Active note: ${active}`,
     `Available plugin command ids: ${commands.join(", ") || "(none)"}`,
-    "If tool calling is unavailable, respond with JSON like {\"tool\":\"read_note\",\"arguments\":{\"path\":\"note.md\"}} or {\"actions\":[...]} only.",
+    "If tool calling is unavailable, respond with JSON like {\"tool\":\"read_note\",\"arguments\":{\"path\":\"note.md\"}}, {\"tool\":\"read_mindmap\",\"arguments\":{\"path\":\"map.mindzj\"}}, or {\"actions\":[...]} only.",
   ];
   if (modelConfig.prompt) {
     lines.push("User-configured prompt for this model:", modelConfig.prompt);
@@ -1013,6 +1429,7 @@ function buildSystemPrompt(context?: ToolExecutionContext, config?: AiProviderCo
   if (context?.restrictToActiveFile && !context.hasExplicitPath) {
     lines.push(
       `The user did not name a specific file path. Any content-changing operation must target only the current active note: ${context.activePath ?? "(none)"}.`,
+      "If the active file is a .mindzj mind map, node edits may target that active mind map with the mind map tools.",
       "Do not create, delete, rename, or modify another note unless the user explicitly names its vault-relative path.",
     );
   }
