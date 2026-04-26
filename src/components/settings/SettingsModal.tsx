@@ -73,6 +73,7 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
   const [aiProviderSelectDraft, setAiProviderSelectDraft] = createSignal<string | null>(null);
   const [aiAddingModel, setAiAddingModel] = createSignal(false);
   const [aiAddModelDraft, setAiAddModelDraft] = createSignal("");
+  const [aiAddEndpointDraft, setAiAddEndpointDraft] = createSignal("");
   const [aiSkillEditingId, setAiSkillEditingId] = createSignal<string | null>(null);
   const [aiSkillNameDraft, setAiSkillNameDraft] = createSignal("");
   const [aiSkillDescriptionDraft, setAiSkillDescriptionDraft] = createSignal("");
@@ -177,6 +178,15 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
   const aiAddMode = () => aiAddingModel();
   const aiProviderKindLabel = () =>
     isLocalAiProvider() ? t("settings.aiLocalModel") : t("settings.aiOnlineModel");
+  const aiOnlineEndpointPlaceholder = () => {
+    const model = aiAddMode()
+      ? aiAddModelDraft().toLowerCase()
+      : `${aiConfig().display_name ?? ""} ${aiConfig().model ?? ""}`.toLowerCase();
+    if (model.includes("gemini")) return "https://generativelanguage.googleapis.com/v1beta";
+    if (model.includes("grok") || model.includes("xai")) return "https://api.x.ai/v1";
+    if (model.includes("claude")) return "https://api.anthropic.com/v1";
+    return "https://api.openai.com/v1";
+  };
   function loadAiApiKeyIntoDraft(config: AiProviderConfig) {
     const token = ++aiApiKeyLoadToken;
     if (aiAddMode()) {
@@ -313,7 +323,7 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
     const current = aiConfig();
     const next: AiProviderConfig = {
       ...current,
-      endpoint: isApiKeyAiProvider(current) ? null : current.endpoint,
+      endpoint: current.endpoint?.trim() || null,
       display_name: current.model.trim() || current.display_name || null,
     };
     if (!next.model.trim()) {
@@ -345,16 +355,19 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
       return;
     }
     const apiKey = aiApiKeyDraft().trim();
+    const endpoint = aiAddEndpointDraft().trim();
     const next: AiProviderConfig = {
       ...createApiKeyProviderConfig(),
       model,
       display_name: model,
+      endpoint: endpoint || null,
       api_key: apiKey || null,
       has_api_key: apiKey.length > 0,
     };
     await set("ai_custom_providers", [...customAiProviders(), next]);
     await set("ai_provider", next);
     setAiAddModelDraft("");
+    setAiAddEndpointDraft("");
     setAiApiKeyDraft(apiKey);
     setAiApiKeyVisible(false);
     setAiAddingModel(false);
@@ -830,6 +843,7 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
                   onClick={() => {
                     setAiAddingModel(true);
                     setAiAddModelDraft("");
+                    setAiAddEndpointDraft("");
                     setAiApiKeyDraft("");
                     setAiApiKeyVisible(false);
                     setAiTestResult(null);
@@ -874,6 +888,14 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
                         width="290px"
                         onChange={setAiApiKeyDraft}
                         onToggleVisible={() => setAiApiKeyVisible((value) => !value)}
+                      />
+                      <SettingInput
+                        label={t("settings.aiEndpoint")}
+                        description={t("settings.aiOnlineEndpointDescription")}
+                        value={aiConfig().endpoint ?? ""}
+                        placeholder={aiOnlineEndpointPlaceholder()}
+                        width="360px"
+                        onChange={(value) => updateAiConfig({ endpoint: value.trim() || null })}
                       />
                     </Show>
                     <div style={{ display: "flex", gap: "12px", "justify-content": "flex-end", padding: "14px 0 4px" }}>
@@ -921,11 +943,23 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
                   onChange={setAiApiKeyDraft}
                   onToggleVisible={() => setAiApiKeyVisible((value) => !value)}
                 />
+                <SettingInput
+                  label={t("settings.aiEndpoint")}
+                  description={t("settings.aiOnlineEndpointDescription")}
+                  value={aiAddEndpointDraft()}
+                  placeholder={aiOnlineEndpointPlaceholder()}
+                  width="360px"
+                  onChange={(value) => {
+                    setAiAddEndpointDraft(value.trim());
+                    setAiTestResult(null);
+                  }}
+                />
                 <div style={{ display: "flex", gap: "36px", "justify-content": "flex-end", padding: "48px 0 4px" }}>
                   <button
                     onClick={() => {
                       setAiAddingModel(false);
                       setAiAddModelDraft("");
+                      setAiAddEndpointDraft("");
                       setAiApiKeyDraft("");
                       setAiApiKeyVisible(false);
                       setAiTestResult(null);
@@ -943,7 +977,17 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
                 </div>
               </Show>
               <Show when={aiTestResult()}>
-                <div style={{ color: "var(--mz-text-muted)", "font-size": "var(--mz-font-size-xs)", "white-space": "pre-wrap", "padding-top": "8px" }}>
+                <div
+                  style={{
+                    color: "var(--mz-text-muted)",
+                    "font-size": "var(--mz-font-size-xs)",
+                    "white-space": "pre-wrap",
+                    "padding-top": "8px",
+                    "user-select": "text",
+                    "-webkit-user-select": "text",
+                    cursor: "text",
+                  }}
+                >
                   {aiTestResult()}
                 </div>
               </Show>

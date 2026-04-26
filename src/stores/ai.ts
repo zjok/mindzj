@@ -113,7 +113,13 @@ function providerBaseUrl(config: AiProviderConfig): string {
   const fallback = providerType === "ApiKeyLLM"
     ? defaultApiKeyEndpoint(config)
     : PROVIDER_DEFAULTS[providerType]?.endpoint ?? "";
-  return (config.endpoint || fallback || "").replace(/\/+$/, "");
+  const base = (config.endpoint || fallback || "").replace(/\/+$/, "");
+  if (inferProviderFamily(config) === "gemini") {
+    return base
+      .replace(/\/models\/[^/]+(?::(?:generateContent|streamGenerateContent))?$/i, "")
+      .replace(/\/models$/i, "");
+  }
+  return base;
 }
 
 function modelHint(config: AiProviderConfig): string {
@@ -123,8 +129,11 @@ function modelHint(config: AiProviderConfig): string {
 function inferProviderFamily(config: AiProviderConfig): AiProviderFamily {
   const endpoint = (config.endpoint ?? "").toLowerCase();
   const hint = modelHint(config);
-  if (endpoint.includes("anthropic.com") || hint.includes("claude")) return "anthropic";
-  if (endpoint.includes("generativelanguage.googleapis.com") || hint.includes("gemini")) return "gemini";
+  if (endpoint.includes("anthropic.com")) return "anthropic";
+  if (endpoint.includes("generativelanguage.googleapis.com")) return "gemini";
+  if (endpoint) return "openai-compatible";
+  if (hint.includes("claude")) return "anthropic";
+  if (hint.includes("gemini")) return "gemini";
   return "openai-compatible";
 }
 
@@ -150,6 +159,36 @@ function configMatchesProvider(config: AiProviderConfig, provider: string): bool
 
 function providerStorageId(config: AiProviderConfig): string {
   return config.id || normalizeProviderType(config.provider_type);
+}
+
+function stripCopiedModelPath(value: string): string {
+  let model = value.trim().replace(/^["']|["']$/g, "");
+  if (!model) return "";
+  try {
+    if (/^https?:\/\//i.test(model)) {
+      const url = new URL(model);
+      model = url.pathname;
+    }
+  } catch {
+    // Keep the original value; the provider will report a precise error.
+  }
+  model = model
+    .replace(/[?#].*$/, "")
+    .replace(/^\/+|\/+$/g, "")
+    .replace(/:(?:generateContent|streamGenerateContent)$/i, "");
+  const modelsMatch = model.match(/(?:^|\/)models\/([^/:]+)$/i);
+  if (modelsMatch?.[1]) return modelsMatch[1];
+  return model;
+}
+
+function openAiCompatibleModelId(config: AiProviderConfig): string {
+  let model = stripCopiedModelPath(config.model).replace(/^models\//i, "");
+  const base = providerBaseUrl(config).toLowerCase();
+  const preserveProviderPrefix = base.includes("openrouter.ai");
+  if (!preserveProviderPrefix && model.includes("/")) {
+    model = model.split("/").filter(Boolean).pop() ?? model;
+  }
+  return model;
 }
 
 function flattenEntries(entries: VaultEntry[], result: Array<{ path: string; name: string; is_dir: boolean }> = []) {
@@ -847,15 +886,63 @@ function authHeader(apiKey: string | null): Record<string, string> {
 }
 
 async function postAiJson(url: string, headers: Record<string, string>, body: unknown) {
-  return invoke<any>("ai_chat_completion", {
-    request: { url, headers, body },
-  });
+  try {
+    return await invoke<any>("ai_chat_completion", {
+      request: { url, headers, body },
+    });
+  } catch (error) {
+    throw new Error(formatAiProviderError(error));
+  }
 }
 
 async function getAiJson(url: string, headers: Record<string, string>) {
-  return invoke<any>("ai_get_json", {
-    request: { url, headers },
-  });
+  try {
+    return await invoke<any>("ai_get_json", {
+      request: { url, headers },
+    });
+  } catch (error) {
+    throw new Error(formatAiProviderError(error));
+  }
+}
+
+function parseProviderErrorPayload(raw: string): { status?: string; message: string; code?: string; type?: string; param?: string | null } {
+  const trimmed = raw.trim();
+  const match = trimmed.match(/^(\d{3})(?::\s*)?([\s\S]*)$/);
+  const status = match?.[1];
+  const body = (match?.[2] ?? trimmed).trim();
+  if (!body) return { status, message: trimmed };
+  try {
+    const parsed = JSON.parse(body);
+    const error = parsed?.error ?? parsed;
+    return {
+      status,
+      message: String(error?.message ?? parsed?.message ?? body),
+      code: error?.code != null ? String(error.code) : parsed?.code != null ? String(parsed.code) : undefined,
+      type: error?.type != null ? String(error.type) : undefined,
+      param: error?.param ?? null,
+    };
+  } catch {
+    const message = body
+      .replace(/^\{|\}$/g, "")
+      .replace(/\bmessage\s*:\s*/i, "")
+      .replace(/\bstatus\s*:\s*/i, "status: ")
+      .trim();
+    return { status, message: message || trimmed };
+  }
+}
+
+function formatAiProviderError(error: any): string {
+  const raw = String(error?.message ?? error ?? "").trim();
+  const payload = parseProviderErrorPayload(raw);
+  const lower = payload.message.toLowerCase();
+  const status = payload.status ? `${payload.status}: ` : "";
+  let hint = "";
+  if (lower.includes("generatecontentrequest.model") || lower.includes("unexpected model name format")) {
+    hint = " Gemini 模型名格式不正确。请填写类似 gemini-1.5-flash、gemini-2.0-flash 或 models/gemini-2.0-flash 的模型名，不要填写完整 URL。";
+  } else if (lower.includes("invalid model id") || lower.includes("invalid model")) {
+    hint = " 模型 ID 无效。请确认模型名、API Key 和 endpoint 属于同一家服务；OpenAI/xAI 通常不要使用 models/ 前缀。";
+  }
+  return `${status}${payload.message}${hint}`.trim();
 }
 
 function parseModelIds(data: any): string[] {
@@ -890,7 +977,7 @@ async function chatCompletionOpenAiCompatible(
     `${providerBaseUrl(config)}/chat/completions`,
     authHeader(apiKey),
     {
-      model: config.model,
+      model: openAiCompatibleModelId(config),
       messages,
       ...(includeTools ? { tools: TOOLS, tool_choice: "auto" } : {}),
     },
@@ -1025,8 +1112,14 @@ function geminiToolDefinitions() {
 }
 
 function geminiModelPath(model: string): string {
-  const trimmed = model.trim().replace(/^\/+/, "");
-  return trimmed.startsWith("models/") ? trimmed : `models/${trimmed}`;
+  let id = stripCopiedModelPath(model)
+    .replace(/^models\//i, "")
+    .replace(/^(?:google|gemini)\//i, "");
+  if (id.includes("/")) {
+    const last = id.split("/").filter(Boolean).pop();
+    if (last?.toLowerCase().startsWith("gemini-")) id = last;
+  }
+  return `models/${id}`;
 }
 
 function geminiMessages(messages: ChatMessage[]) {
