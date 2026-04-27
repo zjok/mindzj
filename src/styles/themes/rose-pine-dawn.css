@@ -16,8 +16,8 @@
   --mz-text-muted: #9893a5;         /* muted */
   --mz-text-on-accent: #faf4ed;
 
-  --mz-accent: #b4637a;              /* love */
-  --mz-accent-hover: #d7827e;        /* rose */
+  --mz-accent: #ff918d;              /* love */
+  --mz-accent-hover: #d77e7e;        /* rose */
   --mz-accent-subtle: rgba(180, 99, 122, 0.14);
   --mz-drag-indicator: var(--mz-accent);
 
@@ -27,22 +27,22 @@
   --mz-scrollbar-thumb: #cecacd;
   --mz-scrollbar-track: transparent;
 
-  --mz-syntax-keyword: #907aa9;     /* iris */
-  --mz-syntax-string: #56949f;      /* foam */
-  --mz-syntax-number: #ea9d34;      /* gold */
+  --mz-syntax-keyword: rgb(251, 161, 224);     /* iris */
+  --mz-syntax-string: #9f569e;      /* foam */
+  --mz-syntax-number: #fcb552;      /* gold */
   --mz-syntax-comment: #9893a5;
   --mz-syntax-function: #d7827e;    /* rose */
   --mz-syntax-variable: #b4637a;    /* love */
-  --mz-syntax-type: #286983;        /* pine */
-  --mz-syntax-link: #56949f;
-  --mz-syntax-heading: #ea9d34;
+  --mz-syntax-type: #83285a;        /* pine */
+  --mz-syntax-link: #9f568e;
+  --mz-syntax-heading: #f768b7;
   --mz-syntax-bold: #b4637a;
-  --mz-syntax-italic: #907aa9;
+  --mz-syntax-italic: #e65ed4;
   --mz-syntax-strikethrough: #9893a5;
   --mz-syntax-code-bg: rgba(87, 82, 121, 0.08);
   --mz-syntax-highlight-bg: rgba(234, 157, 52, 0.2);
 
-  --mz-success: #56949f;
+  --mz-success: #3ba453;
   --mz-warning: #ea9d34;
   --mz-error: #b4637a;
   --mz-info: #286983;
