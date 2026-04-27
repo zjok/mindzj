@@ -136,17 +136,17 @@
   --mz-syntax-number: #986801;
   --mz-syntax-comment: #a0a1a7;
   --mz-syntax-function: #4078f2;
-  --mz-syntax-variable: #e45649;
+  --mz-syntax-variable: #ee695d;
   --mz-syntax-type: #c18401;
   --mz-syntax-link: #2164d1;
-  --mz-syntax-heading: #c18401;
-  --mz-syntax-bold: #e45649;
+  --mz-syntax-heading: #35a35d;
+  --mz-syntax-bold: #f77367;
   --mz-syntax-italic: #a626a4;
   --mz-syntax-strikethrough: #a0a1a7;
   --mz-syntax-code-bg: rgba(0, 0, 0, 0.04);
   --mz-syntax-highlight-bg: rgba(193, 132, 1, 0.18);
 
-  --mz-success: #2da44e;
+  --mz-success: #23ac49;
   --mz-warning: #bf8700;
   --mz-error: #cf222e;
   --mz-info: #4078f2;
