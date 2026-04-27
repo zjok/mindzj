@@ -55,6 +55,44 @@ impl Vault {
         }
     }
 
+    fn rename_case_only(from_path: &Path, to_path: &Path) -> KernelResult<()> {
+        let parent = from_path.parent().ok_or_else(|| {
+            KernelError::InvalidFileName(from_path.display().to_string())
+        })?;
+        let file_name = from_path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("entry");
+
+        let mut temp_path = None;
+        for i in 0..1000 {
+            let candidate = parent.join(format!(
+                ".{}.mindzj-case-rename-{}-{}.tmp",
+                file_name,
+                std::process::id(),
+                i
+            ));
+            if !candidate.exists() {
+                temp_path = Some(candidate);
+                break;
+            }
+        }
+        let temp_path = temp_path.ok_or_else(|| {
+            KernelError::Io(std::io::Error::new(
+                std::io::ErrorKind::AlreadyExists,
+                "Unable to allocate a temporary rename path",
+            ))
+        })?;
+
+        fs::rename(from_path, &temp_path)?;
+        if let Err(err) = fs::rename(&temp_path, to_path) {
+            let _ = fs::rename(&temp_path, from_path);
+            return Err(KernelError::Io(err));
+        }
+
+        Ok(())
+    }
+
     /// Open an existing vault or initialize a new one at the given path.
     ///
     /// Creates the `.mindzj/` config directory if it doesn't exist.
@@ -191,6 +229,51 @@ impl Vault {
             } else {
                 full_path.clone()
             }
+        };
+
+        // Ensure the resolved path is within the vault root
+        if !resolved.starts_with(&self.root) {
+            return Err(KernelError::PathTraversalDenied(format!(
+                "Path '{}' resolves to '{}' which is outside vault root '{}'",
+                relative,
+                resolved.display(),
+                self.root.display()
+            )));
+        }
+
+        Ok(resolved)
+    }
+
+    fn resolve_safe_rename_target(&self, relative: &str) -> KernelResult<PathBuf> {
+        // Reject obviously malicious patterns
+        if relative.contains("..") {
+            // Do a component-level check to catch "../" attempts
+            let path = Path::new(relative);
+            for component in path.components() {
+                if matches!(component, Component::ParentDir) {
+                    return Err(KernelError::PathTraversalDenied(
+                        relative.to_string(),
+                    ));
+                }
+            }
+        }
+
+        let full_path = self.root.join(relative);
+        let resolved = if let Some(parent) = full_path.parent() {
+            if parent.exists() {
+                let canonical_parent = parent.canonicalize()?;
+                if let Some(file_name) = full_path.file_name() {
+                    canonical_parent.join(file_name)
+                } else {
+                    return Err(KernelError::InvalidFileName(
+                        relative.to_string(),
+                    ));
+                }
+            } else {
+                full_path.clone()
+            }
+        } else {
+            full_path.clone()
         };
 
         // Ensure the resolved path is within the vault root
@@ -742,12 +825,14 @@ impl Vault {
         to: &str,
     ) -> KernelResult<()> {
         let from_abs = self.resolve_safe_path(from)?;
-        let to_abs = self.resolve_safe_path(to)?;
+        let to_abs = self.resolve_safe_rename_target(to)?;
 
         if !from_abs.exists() {
             return Err(KernelError::FileNotFound(from.to_string()));
         }
-        if to_abs.exists() {
+        let same_existing_entry = to_abs.exists()
+            && from_abs.canonicalize()? == to_abs.canonicalize()?;
+        if to_abs.exists() && !same_existing_entry {
             return Err(KernelError::FileAlreadyExists(to.to_string()));
         }
 
@@ -770,7 +855,13 @@ impl Vault {
             ))
         })?;
 
-        fs::rename(&from_abs, &to_abs)?;
+        if same_existing_entry {
+            if from_abs != to_abs {
+                Self::rename_case_only(&from_abs, &to_abs)?;
+            }
+        } else {
+            fs::rename(&from_abs, &to_abs)?;
+        }
         info!("File renamed: {} -> {}", from, to);
         Ok(())
     }
@@ -1132,6 +1223,19 @@ mod tests {
         let entries = vault.list_entries("subfolder").unwrap();
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0].name, "note.md");
+    }
+
+    #[test]
+    fn test_rename_file_case_change() {
+        let (_tmp, vault) = setup();
+
+        vault.create_file("note.md", "hello").unwrap();
+        vault.rename_file("note.md", "Note.md").unwrap();
+
+        let entries = vault.list_entries("").unwrap();
+        assert!(entries.iter().any(|entry| entry.name == "Note.md"));
+        assert!(!entries.iter().any(|entry| entry.name == "note.md"));
+        assert_eq!(vault.read_file("Note.md").unwrap().content, "hello");
     }
 
     #[test]
