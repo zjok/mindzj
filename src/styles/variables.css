@@ -52,6 +52,7 @@
   --mz-bg-hover: #333333;
   --mz-bg-active: #3a3a3a;
   --mz-bg-selection: rgba(82, 139, 255, 0.22);
+  --mz-bg-codeblock: #2d2d2d;
 
   --mz-text-primary: #cccccc;
   --mz-text-secondary: #9d9d9d;
@@ -112,10 +113,10 @@
   --mz-bg-hover: #e8e8e8;
   --mz-bg-active: #dcdcdc;
   --mz-bg-selection: rgba(33, 100, 209, 0.15);
-
+  --mz-bg-codeblock: #2d2d2d;
   --mz-text-primary: #1e1e1e;
   --mz-text-secondary: #5a5a5a;
-  --mz-text-muted: #999999;
+  --mz-text-muted: #8a8a8a;
   --mz-text-on-accent: #ffffff;
 
   --mz-accent: #1aad3f;

@@ -41,11 +41,11 @@ export interface BuiltInSkin {
  */
 export const BUILT_IN_SKINS: readonly BuiltInSkin[] = [
   // --- Original app defaults -----------------------------------------------
-  { id: "dark",             label: "MindZJ Dark",       mode: "dark",  swatch: ["#1e1e1e", "#1aad3f"] },
+  { id: "dark",             label: "MindZJ Dark",       mode: "dark",  swatch: ["#231f1a", "#1aad3f"] },
   { id: "light",            label: "MindZJ Light",      mode: "light", swatch: ["#ffffff", "#1aad3f"] },
   // Night Light-style warm variants — same structure, amber-shifted.
-  { id: "mindzj-dark-warm", label: "MindZJ Dark Warm",  mode: "dark",  swatch: ["#231f1a", "#8cb260"] },
-  { id: "mindzj-light-warm",label: "MindZJ Light Warm", mode: "light", swatch: ["#fbf2dd", "#7d9b3a"] },
+  { id: "mindzj-dark-warm", label: "MindZJ Dark Warm",  mode: "dark",  swatch: ["#231f1a", "#1aad3f"] },
+  { id: "mindzj-light-warm",label: "MindZJ Light Warm", mode: "light", swatch: ["#fbf2dd", "#1aad3f"] },
 
   // --- Dracula (classic + Alucard light) -----------------------------------
   { id: "dracula",          label: "Dracula",           mode: "dark",  swatch: ["#282a36", "#bd93f9"] },

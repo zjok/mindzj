@@ -20,9 +20,9 @@
   --mz-text-muted: #978a6f;           /* was #8a8a8a */
   --mz-text-on-accent: #231f1a;
 
-  --mz-accent: #8cb260;                /* was #1aad3f — warmer, olive-green */
-  --mz-accent-hover: #a5cc73;          /* was #20c748 */
-  --mz-accent-subtle: rgba(140, 178, 96, 0.18);
+  --mz-accent: #1aad3f;                /* was #1aad3f — warmer, olive-green */
+  --mz-accent-hover: #73cc7a;          /* was #20c748 */
+  --mz-accent-subtle: rgba(100, 178, 96, 0.18);
   --mz-drag-indicator: var(--mz-accent);
 
   --mz-border: #45392a;                /* was #3e3e3e */
@@ -49,13 +49,13 @@
   --mz-syntax-code-bg: rgba(216, 205, 176, 0.08);
   --mz-syntax-highlight-bg: rgba(224, 182, 114, 0.25);
 
-  --mz-success: #9bc080;
+  --mz-success: #82c080;
   --mz-warning: #e0b672;
   --mz-error: #d86c5e;
   --mz-info: #d4b472;
 
   --mz-callout-note: #c89c5a;
-  --mz-callout-tip: #9bc080;
+  --mz-callout-tip: #92c080;
   --mz-callout-warning: #e0b672;
   --mz-callout-danger: #d86c5e;
   --mz-callout-info: #d4b472;

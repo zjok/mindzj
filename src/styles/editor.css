@@ -1520,12 +1520,13 @@ html[data-theme-mode="light"] .mz-reading-view .mz-rv-task-item input[type="chec
 /* Code blocks */
 .mz-reading-view .mz-rv-code {
     position: relative;
-    background: var(--mz-bg-tertiary);
+    background: var(--mz-bg-codeblock);
     border-radius: 6px;
     margin: 10px 0;
     overflow: hidden;
     border: 1px solid var(--mz-border);
     font-family: var(--mz-font-mono);
+    color: #e1e4e8;
 }
 
 .mz-reading-view .mz-rv-code pre {
