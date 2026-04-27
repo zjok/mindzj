@@ -78,20 +78,40 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
   const [aiSkillNameDraft, setAiSkillNameDraft] = createSignal("");
   const [aiSkillDescriptionDraft, setAiSkillDescriptionDraft] = createSignal("");
   const [aiSkillContentDraft, setAiSkillContentDraft] = createSignal("");
+  let modalRootRef: HTMLDivElement | undefined;
   let aiApiKeyLoadToken = 0;
+
+  function isTextInputFocusTarget(element: Element | null): element is HTMLElement {
+    if (!(element instanceof HTMLElement)) return false;
+    if (element.isContentEditable) return true;
+    if (element instanceof HTMLTextAreaElement) return true;
+    if (!(element instanceof HTMLInputElement)) return false;
+
+    return [
+      "",
+      "email",
+      "number",
+      "password",
+      "search",
+      "tel",
+      "text",
+      "url",
+    ].includes(element.type);
+  }
 
   function handleKeydown(e: KeyboardEvent) {
     if (e.key !== "Escape") return;
-    // When we're on a plugin's settings sub-page, Escape steps BACK to
-    // the plugin list (matching Obsidian's behaviour). A second Escape
-    // on the main settings closes the modal entirely.
-    if (activeTab() === "plugin-settings") {
+    const activeElement = document.activeElement;
+    if (
+      modalRootRef?.contains(activeElement) &&
+      isTextInputFocusTarget(activeElement)
+    ) {
       e.preventDefault();
       e.stopPropagation();
-      setActiveTab("plugins");
-      setActivePluginId(null);
+      activeElement.blur();
       return;
     }
+
     props.onClose();
   }
 
@@ -537,6 +557,7 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
 
   return (
     <div
+      ref={modalRootRef}
       style={{
         position: "fixed",
         inset: "0",
