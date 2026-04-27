@@ -42,7 +42,7 @@
 }
 
 /* ===================================================================
-   Dark theme (default)
+   Dark theme (default) MindZJ-Dark
    =================================================================== */
 [data-theme="dark"],
 :root {
@@ -82,7 +82,7 @@
   --mz-syntax-variable: #e06c75;
   --mz-syntax-type: #e5c07b;
   --mz-syntax-link: #528bff;
-  --mz-syntax-heading: #e5c07b;
+  --mz-syntax-heading: #f7c973;
   --mz-syntax-bold: #e06c75;
   --mz-syntax-italic: #c678dd;
   --mz-syntax-strikethrough: #5c6370;
@@ -104,7 +104,7 @@
 }
 
 /* ===================================================================
-   Light theme
+   MindZJ-Light theme 
    =================================================================== */
 [data-theme="light"] {
   --mz-bg-primary: #ffffff;
