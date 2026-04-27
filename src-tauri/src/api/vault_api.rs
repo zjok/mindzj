@@ -496,7 +496,7 @@ pub async fn restore_snapshot(
 }
 
 // ---------------------------------------------------------------------------
-// CSS snippets (Obsidian-style per-vault .mindzj/snippets/*.css)
+// CSS snippets ( per-vault .mindzj/snippets/*.css)
 // ---------------------------------------------------------------------------
 
 /// List `.css` files in the current vault's `.mindzj/snippets/` folder.
@@ -721,7 +721,7 @@ pub async fn get_snippets_dir(
 }
 
 // ---------------------------------------------------------------------------
-// Custom themes / skins (Obsidian-style per-vault `.mindzj/themes/*.css`)
+// Custom themes / skins ( per-vault `.mindzj/themes/*.css`)
 // ---------------------------------------------------------------------------
 
 /// List `.css` files in `.mindzj/themes/`. Each entry is a bare filename

@@ -4,7 +4,7 @@
 </h1>
 
 <p align="center">
-  <em>A fully open-source local note-taking app that takes the best of <a href="https://obsidian.md">Obsidian</a> and pushes further on AI integration, CLI workflows and plugin sandboxing.</em>
+  <em>A fully open-source local note-taking app that takes the best of Obsidian and pushes further on AI integration, CLI workflows and plugin sandboxing.</em>
 </p>
 
 <p align="center">

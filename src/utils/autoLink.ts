@@ -33,8 +33,8 @@ const TLDS = [
 export const URL_REGEX = new RegExp(
     [
         "\\bhttps?:\\/\\/[^\\s<>\"')\\]{}]+",
-        "\\bwww\\.[a-zA-Z0-9][-a-zA-Z0-9]*(?:\\.[a-zA-Z0-9][-a-zA-Z0-9]*)+(?:\\/[^\\s<>\"')\\]{}]*)?",
-        `\\b(?:[a-zA-Z][a-zA-Z0-9-]*\\.)+(?:${TLDS})(?:\\/[^\\s<>"')\\]{}]*)?`,
+        `\\bwww\\.[a-zA-Z0-9][-a-zA-Z0-9]*(?:\\.[a-zA-Z0-9][-a-zA-Z0-9]*)*\\.(?:${TLDS})(?=$|[^a-zA-Z0-9-]|\\/)(?:\\/[^\\s<>\"')\\]{}]*)?`,
+        `\\b(?:[a-zA-Z][a-zA-Z0-9-]*\\.)+(?:${TLDS})(?=$|[^a-zA-Z0-9-]|\\/)(?:\\/[^\\s<>"')\\]{}]*)?`,
     ].join("|"),
     "g",
 );
@@ -95,7 +95,19 @@ export function linkifyHtmlText(
     // Split on tag boundaries. Even indices are text, odd indices
     // are tags (or tag-like fragments). Tags pass through verbatim.
     const parts = html.split(/(<[^>]*>)/g);
-    for (let i = 0; i < parts.length; i += 2) {
+    let anchorDepth = 0;
+    for (let i = 0; i < parts.length; i++) {
+        if (i % 2 === 1) {
+            const tag = parts[i].trim().toLowerCase();
+            if (/^<a(?:\s|>)/.test(tag) && !/\/>$/.test(tag)) {
+                anchorDepth += 1;
+            } else if (/^<\/a\s*>/.test(tag)) {
+                anchorDepth = Math.max(0, anchorDepth - 1);
+            }
+            continue;
+        }
+
+        if (anchorDepth > 0) continue;
         const segment = parts[i];
         if (!segment) continue;
         parts[i] = segment.replace(URL_REGEX, (match) => {

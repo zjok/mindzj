@@ -1,9 +1,9 @@
 /**
  * Image size helpers — parse and serialize the width/height suffix
- * that Obsidian uses in image alt text to persist per-image display
+ * that uses in image alt text to persist per-image display
  * sizes.
  *
- * Convention (matches Obsidian / Markdown extensions):
+ * Convention (matches / Markdown extensions):
  *
  *     ![alt text|400](path/to/img.png)       → width 400, height auto
  *     ![alt text|400x300](path/to/img.png)   → width 400, height 300
@@ -13,7 +13,7 @@
  * The pipe delimiter `|` lives INSIDE the alt-text brackets. This
  * works with standard CommonMark parsers (the bracket contents are
  * opaque text to them), and keeps the markdown portable — other
- * Obsidian-compatible editors render the same sizes.
+ * editors render the same sizes.
  *
  * Both `Editor.tsx` (live preview) and `ReadingView.tsx` parse the
  * alt with `parseImageSize` on render, apply `width:<px>px; height:

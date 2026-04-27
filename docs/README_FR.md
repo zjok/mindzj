@@ -4,7 +4,7 @@
 </h1>
 
 <p align="center">
-  <em>Une application de prise de notes locale entièrement open-source, qui s’inspire de <a href="https://obsidian.md">Obsidian</a> et pousse plus loin l’intégration IA, les workflows CLI et le sandboxing des plugins.</em>
+  <em>Une application de prise de notes locale entièrement open-source, qui s’inspire de Obsidian et pousse plus loin l’intégration IA, les workflows CLI et le sandboxing des plugins.</em>
 </p>
 
 <p align="center">

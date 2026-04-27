@@ -4,7 +4,7 @@
 </h1>
 
 <p align="center">
-  <em><a href="https://obsidian.md">Obsidian</a> の良さを受け継ぎつつ、AI 連携・CLI ワークフロー・プラグインサンドボックスをさらに一歩進めた、完全オープンソースのローカルノートアプリです。</em>
+  <em>Obsidian の良さを受け継ぎつつ、AI 連携・CLI ワークフロー・プラグインサンドボックスをさらに一歩進めた、完全オープンソースのローカルノートアプリです。</em>
 </p>
 
 <p align="center">

@@ -4,7 +4,7 @@
 </h1>
 
 <p align="center">
-  <em>Una aplicación de notas local totalmente open source que toma lo mejor de <a href="https://obsidian.md">Obsidian</a> y va más allá en integración de IA, flujos por CLI y sandboxing de plugins.</em>
+  <em>Una aplicación de notas local totalmente open source que toma lo mejor de Obsidian y va más allá en integración de IA, flujos por CLI y sandboxing de plugins.</em>
 </p>
 
 <p align="center">
@@ -84,7 +84,6 @@
   <br/>
   <em>Welcome</em>
 </p>
-
 
 <p align="center">
   <img src="../docs/mindzj.gif" alt="Interfaz principal de MindZJ" width="800" />

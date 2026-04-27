@@ -104,7 +104,7 @@ function pluginCommandShortcut(commandId: string, hotkeys?: Array<{ modifiers?: 
  *   - "files":    show notes + a "Create new note" action when the
  *     query doesn't match an existing file. Bound to Ctrl+O.
  *     Placeholder reads "Find or create a note…".
- * The split mirrors Obsidian's Ctrl+P (command palette) and
+ * The split Ctrl+P (command palette) and
  * Ctrl+O (quick switcher / find-or-create).
  */
 export type CommandPaletteMode = "commands" | "files";

@@ -111,7 +111,7 @@ impl Vault {
             .canonicalize()
             .map_err(|e| KernelError::Io(e))?;
 
-        // Create .mindzj config directory with full Obsidian-like structure
+        // Create .mindzj config directory with full structure
         let config_dir = root.join(VAULT_CONFIG_DIR);
         if !config_dir.exists() {
             fs::create_dir_all(&config_dir)?;
@@ -426,7 +426,7 @@ impl Vault {
     }
 
     /// List `.css` files directly under `.mindzj/snippets/`. Used by the
-    /// Appearance settings page to show the user's Obsidian-style CSS
+    /// Appearance settings page to show the user's  CSS
     /// snippets. Returns just the base filenames (without extension) so
     /// the caller can show a clean list and persist the enabled-state map
     /// keyed by snippet name. The `.mindzj/snippets/` directory is

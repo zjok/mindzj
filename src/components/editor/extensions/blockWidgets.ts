@@ -33,10 +33,34 @@ async function getShiki(): Promise<Highlighter> {
     shikiLoading = createHighlighter({
         themes: ["github-dark", "github-light"],
         langs: [
-            "javascript", "typescript", "python", "rust", "go", "java",
-            "c", "cpp", "csharp", "html", "css", "json", "yaml", "toml",
-            "bash", "shell", "sql", "markdown", "jsx", "tsx", "lua",
-            "ruby", "php", "swift", "kotlin", "dart", "zig", "haskell",
+            "javascript",
+            "typescript",
+            "python",
+            "rust",
+            "go",
+            "java",
+            "c",
+            "cpp",
+            "csharp",
+            "html",
+            "css",
+            "json",
+            "yaml",
+            "toml",
+            "bash",
+            "shell",
+            "sql",
+            "markdown",
+            "jsx",
+            "tsx",
+            "lua",
+            "ruby",
+            "php",
+            "swift",
+            "kotlin",
+            "dart",
+            "zig",
+            "haskell",
         ],
     }).then((h) => {
         shikiInstance = h;
@@ -50,7 +74,7 @@ async function getShiki(): Promise<Highlighter> {
 getShiki();
 
 // ---------------------------------------------------------------------------
-// Callout type definitions (matching Obsidian)
+// Callout type definitions 
 // ---------------------------------------------------------------------------
 
 interface CalloutDef {
@@ -59,31 +83,31 @@ interface CalloutDef {
 }
 
 const CALLOUT_TYPES: Record<string, CalloutDef> = {
-    note:      { icon: "📝", color: "var(--mz-callout-note)" },
-    abstract:  { icon: "📋", color: "var(--mz-callout-info)" },
-    summary:   { icon: "📋", color: "var(--mz-callout-info)" },
-    info:      { icon: "ℹ️", color: "var(--mz-callout-info)" },
-    tip:       { icon: "💡", color: "var(--mz-callout-tip)" },
-    hint:      { icon: "💡", color: "var(--mz-callout-tip)" },
+    note: { icon: "📝", color: "var(--mz-callout-note)" },
+    abstract: { icon: "📋", color: "var(--mz-callout-info)" },
+    summary: { icon: "📋", color: "var(--mz-callout-info)" },
+    info: { icon: "ℹ️", color: "var(--mz-callout-info)" },
+    tip: { icon: "💡", color: "var(--mz-callout-tip)" },
+    hint: { icon: "💡", color: "var(--mz-callout-tip)" },
     important: { icon: "🔥", color: "var(--mz-callout-warning)" },
-    success:   { icon: "✅", color: "var(--mz-callout-tip)" },
-    check:     { icon: "✅", color: "var(--mz-callout-tip)" },
-    done:      { icon: "✅", color: "var(--mz-callout-tip)" },
-    question:  { icon: "❓", color: "var(--mz-callout-warning)" },
-    help:      { icon: "❓", color: "var(--mz-callout-warning)" },
-    faq:       { icon: "❓", color: "var(--mz-callout-warning)" },
-    warning:   { icon: "⚠️", color: "var(--mz-callout-warning)" },
-    caution:   { icon: "⚠️", color: "var(--mz-callout-warning)" },
+    success: { icon: "✅", color: "var(--mz-callout-tip)" },
+    check: { icon: "✅", color: "var(--mz-callout-tip)" },
+    done: { icon: "✅", color: "var(--mz-callout-tip)" },
+    question: { icon: "❓", color: "var(--mz-callout-warning)" },
+    help: { icon: "❓", color: "var(--mz-callout-warning)" },
+    faq: { icon: "❓", color: "var(--mz-callout-warning)" },
+    warning: { icon: "⚠️", color: "var(--mz-callout-warning)" },
+    caution: { icon: "⚠️", color: "var(--mz-callout-warning)" },
     attention: { icon: "⚠️", color: "var(--mz-callout-warning)" },
-    failure:   { icon: "❌", color: "var(--mz-callout-danger)" },
-    fail:      { icon: "❌", color: "var(--mz-callout-danger)" },
-    missing:   { icon: "❌", color: "var(--mz-callout-danger)" },
-    danger:    { icon: "🔴", color: "var(--mz-callout-danger)" },
-    error:     { icon: "⛔", color: "var(--mz-callout-danger)" },
-    bug:       { icon: "🐛", color: "var(--mz-callout-danger)" },
-    example:   { icon: "📖", color: "var(--mz-callout-note)" },
-    quote:     { icon: "❝", color: "var(--mz-text-muted)" },
-    cite:      { icon: "❝", color: "var(--mz-text-muted)" },
+    failure: { icon: "❌", color: "var(--mz-callout-danger)" },
+    fail: { icon: "❌", color: "var(--mz-callout-danger)" },
+    missing: { icon: "❌", color: "var(--mz-callout-danger)" },
+    danger: { icon: "🔴", color: "var(--mz-callout-danger)" },
+    error: { icon: "⛔", color: "var(--mz-callout-danger)" },
+    bug: { icon: "🐛", color: "var(--mz-callout-danger)" },
+    example: { icon: "📖", color: "var(--mz-callout-note)" },
+    quote: { icon: "❝", color: "var(--mz-text-muted)" },
+    cite: { icon: "❝", color: "var(--mz-text-muted)" },
 };
 
 // ---------------------------------------------------------------------------
@@ -120,7 +144,9 @@ class CodeBlockWidget extends WidgetType {
         copyBtn.addEventListener("click", () => {
             navigator.clipboard.writeText(this.code).then(() => {
                 copyBtn.textContent = t("common.copyDone");
-                setTimeout(() => { copyBtn.textContent = t("common.copy"); }, 1500);
+                setTimeout(() => {
+                    copyBtn.textContent = t("common.copy");
+                }, 1500);
             });
         });
         wrapper.appendChild(copyBtn);
@@ -133,7 +159,9 @@ class CodeBlockWidget extends WidgetType {
         // (shiki output) or to each text line (plain fallback). The offsets are
         // 1-based within the source block (0 = opening fence).
         const annotateLines = () => {
-            const spans = codeEl.querySelectorAll<HTMLElement>("pre code .line, pre code > span, pre .line");
+            const spans = codeEl.querySelectorAll<HTMLElement>(
+                "pre code .line, pre code > span, pre .line",
+            );
             spans.forEach((el, idx) => {
                 el.setAttribute("data-mz-source-line", String(idx + 1));
             });
@@ -156,7 +184,8 @@ class CodeBlockWidget extends WidgetType {
                 span.setAttribute("data-mz-source-line", String(idx + 1));
                 span.textContent = lineText;
                 code.appendChild(span);
-                if (idx < codeLines.length - 1) code.appendChild(document.createTextNode("\n"));
+                if (idx < codeLines.length - 1)
+                    code.appendChild(document.createTextNode("\n"));
             });
             pre.appendChild(code);
             codeEl.appendChild(pre);
@@ -257,7 +286,8 @@ class CalloutWidget extends WidgetType {
     }
 
     toDOM(): HTMLElement {
-        const def = CALLOUT_TYPES[this.type.toLowerCase()] ?? CALLOUT_TYPES.note;
+        const def =
+            CALLOUT_TYPES[this.type.toLowerCase()] ?? CALLOUT_TYPES.note;
         const wrapper = document.createElement("div");
         wrapper.className = "mz-block-callout";
         wrapper.style.borderLeftColor = def.color;
@@ -273,7 +303,9 @@ class CalloutWidget extends WidgetType {
 
         const titleEl = document.createElement("span");
         titleEl.className = "mz-block-callout-title";
-        titleEl.textContent = this.title || this.type.charAt(0).toUpperCase() + this.type.slice(1);
+        titleEl.textContent =
+            this.title ||
+            this.type.charAt(0).toUpperCase() + this.type.slice(1);
         titleEl.style.color = def.color;
         header.appendChild(titleEl);
 
@@ -340,7 +372,10 @@ class CalloutWidget extends WidgetType {
 // ---------------------------------------------------------------------------
 
 class MermaidWidget extends WidgetType {
-    constructor(private code: string, private id: string) {
+    constructor(
+        private code: string,
+        private id: string,
+    ) {
         super();
     }
 
@@ -350,7 +385,8 @@ class MermaidWidget extends WidgetType {
 
         const loading = document.createElement("div");
         loading.textContent = t("common.loading");
-        loading.style.cssText = "color: var(--mz-text-muted); font-size: 12px; padding: 16px; text-align: center;";
+        loading.style.cssText =
+            "color: var(--mz-text-muted); font-size: 12px; padding: 16px; text-align: center;";
         wrapper.appendChild(loading);
 
         // Async render mermaid
@@ -361,16 +397,20 @@ class MermaidWidget extends WidgetType {
                 securityLevel: "strict",
             });
             const mermaidId = `mz-mermaid-${this.id}-${Date.now()}`;
-            mermaid.render(mermaidId, this.code).then(({ svg }) => {
-                wrapper.innerHTML = svg;
-                wrapper.style.textAlign = "center";
-            }).catch(() => {
-                wrapper.innerHTML = "";
-                const err = document.createElement("pre");
-                err.textContent = this.code;
-                err.style.cssText = "color: var(--mz-error); font-size: 12px; padding: 12px;";
-                wrapper.appendChild(err);
-            });
+            mermaid
+                .render(mermaidId, this.code)
+                .then(({ svg }) => {
+                    wrapper.innerHTML = svg;
+                    wrapper.style.textAlign = "center";
+                })
+                .catch(() => {
+                    wrapper.innerHTML = "";
+                    const err = document.createElement("pre");
+                    err.textContent = this.code;
+                    err.style.cssText =
+                        "color: var(--mz-error); font-size: 12px; padding: 12px;";
+                    wrapper.appendChild(err);
+                });
         });
 
         return wrapper;
@@ -386,7 +426,9 @@ class MermaidWidget extends WidgetType {
 // ---------------------------------------------------------------------------
 
 class TableWidget extends WidgetType {
-    constructor(private lines: string[]) { super(); }
+    constructor(private lines: string[]) {
+        super();
+    }
 
     toDOM(): HTMLElement {
         const wrapper = document.createElement("div");
@@ -396,13 +438,17 @@ class TableWidget extends WidgetType {
         table.className = "mz-lp-table";
 
         const parseRow = (line: string): string[] =>
-            line.replace(/^\|/, "").replace(/\|$/, "").split("|").map(c => c.trim());
+            line
+                .replace(/^\|/, "")
+                .replace(/\|$/, "")
+                .split("|")
+                .map((c) => c.trim());
 
         if (this.lines.length < 2) return wrapper;
 
         const headerCells = parseRow(this.lines[0]);
         const alignRow = parseRow(this.lines[1]);
-        const aligns = alignRow.map(c => {
+        const aligns = alignRow.map((c) => {
             if (c.startsWith(":") && c.endsWith(":")) return "center";
             if (c.endsWith(":")) return "right";
             return "left";
@@ -469,7 +515,9 @@ interface Block {
  * Without the ±1 line padding, the block's `Decoration.replace` range
  * is atomic and arrow keys skip the entire block.
  */
-export function detectBlocks(state: import("@codemirror/state").EditorState): Block[] {
+export function detectBlocks(
+    state: import("@codemirror/state").EditorState,
+): Block[] {
     const doc = state.doc;
     const cursorLine = doc.lineAt(state.selection.main.head).number;
     const blocks: Block[] = [];
@@ -497,8 +545,12 @@ export function detectBlocks(state: import("@codemirror/state").EditorState): Bl
             // Find closing fence
             for (let j = i + 1; j <= doc.lines; j++) {
                 const closeLine = doc.line(j);
-                if (closeLine.text.startsWith(fence.charAt(0).repeat(fence.length)) &&
-                    closeLine.text.trim().length <= fence.length + 1) {
+                if (
+                    closeLine.text.startsWith(
+                        fence.charAt(0).repeat(fence.length),
+                    ) &&
+                    closeLine.text.trim().length <= fence.length + 1
+                ) {
                     endLine = j;
                     break;
                 }
@@ -663,7 +715,10 @@ export function detectBlocks(state: import("@codemirror/state").EditorState): Bl
  * click-to-edit. Kept for future use.
  */
 class SourceLinkedWidget extends WidgetType {
-    constructor(private inner: WidgetType, private sourceFrom: number) {
+    constructor(
+        private inner: WidgetType,
+        private sourceFrom: number,
+    ) {
         super();
     }
     toDOM(view: EditorView): HTMLElement {
@@ -678,7 +733,9 @@ class SourceLinkedWidget extends WidgetType {
         // (so they can copy text out of the rendered block). A plain click
         // (pointer up near the same position) dispatches a cursor move to
         // the exact source line.
-        let downX = 0, downY = 0, downOnWidget = false;
+        let downX = 0,
+            downY = 0,
+            downOnWidget = false;
 
         wrapper.addEventListener("mousedown", (e) => {
             const target = e.target as HTMLElement;
@@ -716,11 +773,18 @@ class SourceLinkedWidget extends WidgetType {
             // clicked, not just the block start.
             const target = e.target as HTMLElement;
             let anchor = this.sourceFrom;
-            const tagged = target.closest("[data-mz-source-line]") as HTMLElement | null;
+            const tagged = target.closest(
+                "[data-mz-source-line]",
+            ) as HTMLElement | null;
             if (tagged) {
-                const offset = parseInt(tagged.getAttribute("data-mz-source-line") || "0", 10);
+                const offset = parseInt(
+                    tagged.getAttribute("data-mz-source-line") || "0",
+                    10,
+                );
                 if (!isNaN(offset) && offset > 0) {
-                    const startLine = view.state.doc.lineAt(this.sourceFrom).number;
+                    const startLine = view.state.doc.lineAt(
+                        this.sourceFrom,
+                    ).number;
                     const targetLineNum = Math.min(
                         startLine + offset,
                         view.state.doc.lines,
@@ -779,12 +843,12 @@ class SourceLinkedWidget extends WidgetType {
  *
  * Earlier iterations rendered tables/code blocks/callouts as block
  * widgets that REPLACED the raw source. That approach has a fundamental
- * conflict with what the user actually wants (and what Obsidian's
+ * conflict with what the user actually wants (and what
  * LivePreview does): `Decoration.replace({block: true})` is atomic, so
  * arrow keys skip over the entire block and the lines inside are not
  * cursor-addressable.
  *
- * Obsidian's actual trick is to leave the source fully in place and
+ *  actual trick is to leave the source fully in place and
  * style it via LINE DECORATIONS (font-family, border, background) so
  * that `|col1|col2|` / ```` ``` ```` etc. visually read as tables / code
  * blocks while every character remains a real cursor position. That

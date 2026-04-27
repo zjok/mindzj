@@ -1047,7 +1047,7 @@ html[data-theme-mode="light"] .cm-editor .mz-lp-task-marker {
 /* `](url)` tail of a markdown link shown on the cursor line. The default
    CodeMirror muted colour is barely visible against the dark background
    so we give it a dedicated legible tone. Matches the dim url styling
-   from Obsidian but with enough contrast to read anchors like `](#foo)`. */
+   from but with enough contrast to read anchors like `](#foo)`. */
 .cm-editor .mz-lp-link-url-tail {
     color: var(--mz-syntax-link);
     opacity: 0.85;

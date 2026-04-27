@@ -4,7 +4,7 @@
 </h1>
 
 <p align="center">
-  <em>Eine vollständig quelloffene lokale Notizanwendung, die das Beste aus <a href="https://obsidian.md">Obsidian</a> übernimmt und bei KI-Integration, CLI-Workflows und Plugin-Sandboxing einen Schritt weiter geht.</em>
+  <em>Eine vollständig quelloffene lokale Notizanwendung, die das Beste aus Obsidian übernimmt und bei KI-Integration, CLI-Workflows und Plugin-Sandboxing einen Schritt weiter geht.</em>
 </p>
 
 <p align="center">

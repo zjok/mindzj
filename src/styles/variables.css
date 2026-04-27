@@ -214,7 +214,7 @@ body {
   background: var(--mz-border-strong);
 }
 
-/* Hide scrollbar on tab header (matches Obsidian behavior) */
+/* Hide scrollbar on tab header (matches behavior) */
 [data-tauri-drag-region]::-webkit-scrollbar,
 [data-tauri-drag-region]::-webkit-scrollbar-thumb {
   display: none;

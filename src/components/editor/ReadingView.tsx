@@ -1,7 +1,7 @@
 /**
  * MindZJ Reading View
  *
- * Renders Markdown as fully styled HTML, matching Obsidian's reading mode.
+ * Renders Markdown as fully styled HTML, matching  reading mode.
  * Supports:
  * - Headings, paragraphs, blockquotes
  * - Bold, italic, strikethrough, highlight, inline code
@@ -32,12 +32,19 @@ import { editorStore } from "../../stores/editor";
 import { settingsStore } from "../../stores/settings";
 import { ContextMenu, type MenuItem } from "../common/ContextMenu";
 import { ReadingFindPanel } from "./ReadingFindPanel";
-import { findPanelOpen, setFindPanelOpen, setFindQuery } from "../../stores/findState";
+import {
+    findPanelOpen,
+    setFindPanelOpen,
+    setFindQuery,
+} from "../../stores/findState";
 import katex from "katex";
 import { resolveImageAssetUrl } from "../../utils/vaultPaths";
 import { openFileRouted } from "../../utils/openFileRouted";
 import { showImageContextMenu } from "./extensions/livePreview";
-import { LIST_INDENT_EXTRA_PX, LIST_RENDER_TAB_SIZE } from "./extensions/listUtils";
+import {
+    LIST_INDENT_EXTRA_PX,
+    LIST_RENDER_TAB_SIZE,
+} from "./extensions/listUtils";
 import { attachWheelZoom, attachCtrlClick } from "../../utils/imageInteraction";
 import { parseImageSize, formatImageAlt } from "../../utils/imageSize";
 import { linkifyHtmlText, ensureScheme } from "../../utils/autoLink";
@@ -167,7 +174,12 @@ function renderReadingListTokens(
         const first = tokens[index];
         if (first.level < level) break;
         if (first.level > level) {
-            const nested = renderReadingListTokens(tokens, index, first.level, ctx);
+            const nested = renderReadingListTokens(
+                tokens,
+                index,
+                first.level,
+                ctx,
+            );
             html += nested.html;
             index = nested.nextIndex;
             continue;
@@ -314,7 +326,10 @@ function markdownToHtml(md: string, ctx: RenderContext): string {
                 calloutMatch[3] || type.charAt(0).toUpperCase() + type.slice(1);
             const bodyLines: string[] = [];
             i++;
-            while (i < lines.length && (lines[i].startsWith("> ") || lines[i] === ">")) {
+            while (
+                i < lines.length &&
+                (lines[i].startsWith("> ") || lines[i] === ">")
+            ) {
                 bodyLines.push(lines[i].replace(/^>\s?/, ""));
                 i++;
             }
@@ -325,7 +340,7 @@ function markdownToHtml(md: string, ctx: RenderContext): string {
 
             html.push(
                 `<div class="mz-rv-callout" style="border-left-color:${def.color}">` +
-                    `<div class="mz-rv-callout-header"${foldable ? ' onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display===\'none\'?\'block\':\'none\';this.querySelector(\'.fold\').textContent=this.nextElementSibling.style.display===\'none\'?\'▶\':\'▼\'" style="cursor:pointer"' : ""}>` +
+                    `<div class="mz-rv-callout-header"${foldable ? " onclick=\"this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none';this.querySelector('.fold').textContent=this.nextElementSibling.style.display==='none'?'▶':'▼'\" style=\"cursor:pointer\"" : ""}>` +
                     `<span class="mz-rv-callout-icon">${def.icon}</span>` +
                     `<span class="mz-rv-callout-title" style="color:${def.color}">${escapeHtml(title)}</span>` +
                     (foldable
@@ -339,7 +354,11 @@ function markdownToHtml(md: string, ctx: RenderContext): string {
         }
 
         // --- Table ---
-        if (line.includes("|") && i + 1 < lines.length && /^\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$/.test(lines[i + 1])) {
+        if (
+            line.includes("|") &&
+            i + 1 < lines.length &&
+            /^\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$/.test(lines[i + 1])
+        ) {
             closeList();
             const tableLines: string[] = [];
             while (i < lines.length && lines[i].includes("|")) {
@@ -368,7 +387,9 @@ function markdownToHtml(md: string, ctx: RenderContext): string {
                 .toLowerCase()
                 .replace(/[^\w\u4e00-\u9fff]+/g, "-")
                 .replace(/(^-|-$)/g, "");
-            html.push(`<h${level} id="${id}" class="mz-rv-h${level}" data-line="${i}">${content}</h${level}>`);
+            html.push(
+                `<h${level} id="${id}" class="mz-rv-h${level}" data-line="${i}">${content}</h${level}>`,
+            );
             i++;
             continue;
         }
@@ -378,12 +399,17 @@ function markdownToHtml(md: string, ctx: RenderContext): string {
             closeList();
             const bqStart = i;
             const quoteLines: string[] = [];
-            while (i < lines.length && (lines[i].startsWith("> ") || lines[i] === ">")) {
+            while (
+                i < lines.length &&
+                (lines[i].startsWith("> ") || lines[i] === ">")
+            ) {
                 quoteLines.push(lines[i].replace(/^>\s?/, ""));
                 i++;
             }
             const inner = renderInline(quoteLines.join("\n"), ctx);
-            html.push(`<blockquote class="mz-rv-blockquote" data-line="${bqStart}">${inner}</blockquote>`);
+            html.push(
+                `<blockquote class="mz-rv-blockquote" data-line="${bqStart}">${inner}</blockquote>`,
+            );
             continue;
         }
 
@@ -468,58 +494,64 @@ function renderInline(text: string, ctx: RenderContext): string {
     let result = escapeHtml(text);
 
     // Inline math: $...$
-    result = result.replace(/(?<!\$)\$(?!\$)(.+?)(?<!\$)\$(?!\$)/g, (_, tex) => {
-        try {
-            return katex.renderToString(unescapeHtml(tex).trim(), {
-                displayMode: false,
-                throwOnError: false,
-                output: "html",
-                trust: true,
-            });
-        } catch {
-            return `<code class="mz-rv-error">${tex}</code>`;
-        }
-    });
+    result = result.replace(
+        /(?<!\$)\$(?!\$)(.+?)(?<!\$)\$(?!\$)/g,
+        (_, tex) => {
+            try {
+                return katex.renderToString(unescapeHtml(tex).trim(), {
+                    displayMode: false,
+                    throwOnError: false,
+                    output: "html",
+                    trust: true,
+                });
+            } catch {
+                return `<code class="mz-rv-error">${tex}</code>`;
+            }
+        },
+    );
 
     // Images: ![alt](src) — with optional `|width` / `|widthxheight`
     // suffix in the alt text for persisted display size (see
     // `utils/imageSize.ts`).
-    result = result.replace(
-        /!\[([^\]]*)\]\(([^)]+)\)/g,
-        (_, alt, src) => {
-            const rawSrc = unescapeHtml(src);
-            const resolvedSrc = resolveImageSrc(
-                rawSrc,
-                ctx.vaultRoot,
-                ctx.currentFilePath,
+    result = result.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, alt, src) => {
+        const rawSrc = unescapeHtml(src);
+        const resolvedSrc = resolveImageSrc(
+            rawSrc,
+            ctx.vaultRoot,
+            ctx.currentFilePath,
+        );
+        // Split `alt|width[xheight]` so the rendered alt text
+        // doesn't include the size suffix, and the inline
+        // style gets the persisted dimensions.
+        const { altText, width, height } = parseImageSize(alt);
+        const escapedAlt = escapeAttr(altText);
+        const styleBits: string[] = [];
+        if (width != null) {
+            styleBits.push(`width:${width}px`);
+            styleBits.push(
+                height != null ? `height:${height}px` : "height:auto",
             );
-            // Split `alt|width[xheight]` so the rendered alt text
-            // doesn't include the size suffix, and the inline
-            // style gets the persisted dimensions.
-            const { altText, width, height } = parseImageSize(alt);
-            const escapedAlt = escapeAttr(altText);
-            const styleBits: string[] = [];
-            if (width != null) {
-                styleBits.push(`width:${width}px`);
-                styleBits.push(height != null ? `height:${height}px` : "height:auto");
-            }
-            const styleAttr =
-                styleBits.length > 0 ? ` style="${styleBits.join(";")}"` : "";
-            const dataWidthAttr =
-                width != null ? ` data-ppi-wheel-inline-width="${width}"` : "";
-            return `<span class="image-embed internal-embed is-loaded"><img src="${resolvedSrc}" data-src="${escapeAttr(rawSrc)}" alt="${escapedAlt}" class="mz-rv-image"${styleAttr}${dataWidthAttr} loading="lazy" /></span>`;
+        }
+        const styleAttr =
+            styleBits.length > 0 ? ` style="${styleBits.join(";")}"` : "";
+        const dataWidthAttr =
+            width != null ? ` data-ppi-wheel-inline-width="${width}"` : "";
+        return `<span class="image-embed internal-embed is-loaded"><img src="${resolvedSrc}" data-src="${escapeAttr(rawSrc)}" alt="${escapedAlt}" class="mz-rv-image"${styleAttr}${dataWidthAttr} loading="lazy" /></span>`;
+    });
+
+    // Wiki links: [[target|display]] or [[target]]
+    result = result.replace(
+        /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g,
+        (_, target, display) => {
+            const label = display || target;
+            return `<a class="mz-rv-wikilink" data-target="${escapeAttr(target)}">${label}</a>`;
         },
     );
 
-    // Wiki links: [[target|display]] or [[target]]
-    result = result.replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_, target, display) => {
-        const label = display || target;
-        return `<a class="mz-rv-wikilink" data-target="${escapeAttr(target)}">${label}</a>`;
-    });
-
     // Markdown links: [text](url)
     result = result.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, text, url) => {
-        const isExternal = url.startsWith("http://") || url.startsWith("https://");
+        const isExternal =
+            url.startsWith("http://") || url.startsWith("https://");
         return `<a href="${escapeAttr(url)}" class="mz-rv-link"${isExternal ? ' target="_blank" rel="noopener"' : ""}>${text}</a>`;
     });
 
@@ -539,16 +571,25 @@ function renderInline(text: string, ctx: RenderContext): string {
     result = result.replace(/__(.+?)__/g, "<strong>$1</strong>");
 
     // Italic: *text* or _text_
-    result = result.replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, "<em>$1</em>");
+    result = result.replace(
+        /(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g,
+        "<em>$1</em>",
+    );
 
     // Strikethrough: ~~text~~
     result = result.replace(/~~(.+?)~~/g, "<del>$1</del>");
 
     // Highlight: ==text==
-    result = result.replace(/==(.+?)==/g, '<mark class="mz-rv-highlight">$1</mark>');
+    result = result.replace(
+        /==(.+?)==/g,
+        '<mark class="mz-rv-highlight">$1</mark>',
+    );
 
     // Inline code: `text`
-    result = result.replace(/(?<!`)`(?!`)(.+?)(?<!`)`(?!`)/g, '<code class="mz-rv-inline-code">$1</code>');
+    result = result.replace(
+        /(?<!`)`(?!`)(.+?)(?<!`)`(?!`)/g,
+        '<code class="mz-rv-inline-code">$1</code>',
+    );
 
     // Tags: #tag
     result = result.replace(
@@ -557,7 +598,10 @@ function renderInline(text: string, ctx: RenderContext): string {
     );
 
     // Footnote references: [^id]
-    result = result.replace(/\[\^([^\]]+)\]/g, '<sup class="mz-rv-footnote-ref"><a href="#fn-$1">$1</a></sup>');
+    result = result.replace(
+        /\[\^([^\]]+)\]/g,
+        '<sup class="mz-rv-footnote-ref"><a href="#fn-$1">$1</a></sup>',
+    );
 
     // Line breaks
     result = result.replace(/\n/g, "<br />");
@@ -615,31 +659,31 @@ interface CalloutDef {
 }
 
 const CALLOUT_TYPES: Record<string, CalloutDef> = {
-    note:      { icon: "📝", color: "var(--mz-callout-note)" },
-    abstract:  { icon: "📋", color: "var(--mz-callout-info)" },
-    summary:   { icon: "📋", color: "var(--mz-callout-info)" },
-    info:      { icon: "ℹ️", color: "var(--mz-callout-info)" },
-    tip:       { icon: "💡", color: "var(--mz-callout-tip)" },
-    hint:      { icon: "💡", color: "var(--mz-callout-tip)" },
+    note: { icon: "📝", color: "var(--mz-callout-note)" },
+    abstract: { icon: "📋", color: "var(--mz-callout-info)" },
+    summary: { icon: "📋", color: "var(--mz-callout-info)" },
+    info: { icon: "ℹ️", color: "var(--mz-callout-info)" },
+    tip: { icon: "💡", color: "var(--mz-callout-tip)" },
+    hint: { icon: "💡", color: "var(--mz-callout-tip)" },
     important: { icon: "🔥", color: "var(--mz-callout-warning)" },
-    success:   { icon: "✅", color: "var(--mz-callout-tip)" },
-    check:     { icon: "✅", color: "var(--mz-callout-tip)" },
-    done:      { icon: "✅", color: "var(--mz-callout-tip)" },
-    question:  { icon: "❓", color: "var(--mz-callout-warning)" },
-    help:      { icon: "❓", color: "var(--mz-callout-warning)" },
-    faq:       { icon: "❓", color: "var(--mz-callout-warning)" },
-    warning:   { icon: "⚠️", color: "var(--mz-callout-warning)" },
-    caution:   { icon: "⚠️", color: "var(--mz-callout-warning)" },
+    success: { icon: "✅", color: "var(--mz-callout-tip)" },
+    check: { icon: "✅", color: "var(--mz-callout-tip)" },
+    done: { icon: "✅", color: "var(--mz-callout-tip)" },
+    question: { icon: "❓", color: "var(--mz-callout-warning)" },
+    help: { icon: "❓", color: "var(--mz-callout-warning)" },
+    faq: { icon: "❓", color: "var(--mz-callout-warning)" },
+    warning: { icon: "⚠️", color: "var(--mz-callout-warning)" },
+    caution: { icon: "⚠️", color: "var(--mz-callout-warning)" },
     attention: { icon: "⚠️", color: "var(--mz-callout-warning)" },
-    failure:   { icon: "❌", color: "var(--mz-callout-danger)" },
-    fail:      { icon: "❌", color: "var(--mz-callout-danger)" },
-    missing:   { icon: "❌", color: "var(--mz-callout-danger)" },
-    danger:    { icon: "🔴", color: "var(--mz-callout-danger)" },
-    error:     { icon: "⛔", color: "var(--mz-callout-danger)" },
-    bug:       { icon: "🐛", color: "var(--mz-callout-danger)" },
-    example:   { icon: "📖", color: "var(--mz-callout-note)" },
-    quote:     { icon: "❝", color: "var(--mz-text-muted)" },
-    cite:      { icon: "❝", color: "var(--mz-text-muted)" },
+    failure: { icon: "❌", color: "var(--mz-callout-danger)" },
+    fail: { icon: "❌", color: "var(--mz-callout-danger)" },
+    missing: { icon: "❌", color: "var(--mz-callout-danger)" },
+    danger: { icon: "🔴", color: "var(--mz-callout-danger)" },
+    error: { icon: "⛔", color: "var(--mz-callout-danger)" },
+    bug: { icon: "🐛", color: "var(--mz-callout-danger)" },
+    example: { icon: "📖", color: "var(--mz-callout-note)" },
+    quote: { icon: "❝", color: "var(--mz-text-muted)" },
+    cite: { icon: "❝", color: "var(--mz-text-muted)" },
 };
 
 function getCalloutDef(type: string): CalloutDef {
@@ -684,7 +728,9 @@ function resolveImageSrc(
 
 async function highlightCodeBlocks(container: HTMLElement): Promise<void> {
     const { createHighlighter } = await import("shiki");
-    const codeBlocks = container.querySelectorAll<HTMLElement>(".mz-rv-code[data-lang]");
+    const codeBlocks = container.querySelectorAll<HTMLElement>(
+        ".mz-rv-code[data-lang]",
+    );
     if (codeBlocks.length === 0) return;
 
     const langs = new Set<string>();
@@ -736,7 +782,8 @@ async function highlightCodeBlocks(container: HTMLElement): Promise<void> {
 // ---------------------------------------------------------------------------
 
 async function renderMermaidBlocks(container: HTMLElement): Promise<void> {
-    const mermaidBlocks = container.querySelectorAll<HTMLElement>(".mz-rv-mermaid");
+    const mermaidBlocks =
+        container.querySelectorAll<HTMLElement>(".mz-rv-mermaid");
     if (mermaidBlocks.length === 0) return;
 
     try {
@@ -916,21 +963,17 @@ function flashReadingSearch(
     function findMatchIn(
         root: HTMLElement,
     ): { node: Text; index: number } | null {
-        const walker = document.createTreeWalker(
-            root,
-            NodeFilter.SHOW_TEXT,
-            {
-                acceptNode(node) {
-                    if (!node.nodeValue) return NodeFilter.FILTER_REJECT;
-                    // Rejecting <pre>/<code> descendants would lose
-                    // matches in fenced code blocks; the user DOES
-                    // search through those in the global search
-                    // panel, so skipping them here would be
-                    // inconsistent. Accept everything.
-                    return NodeFilter.FILTER_ACCEPT;
-                },
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+            acceptNode(node) {
+                if (!node.nodeValue) return NodeFilter.FILTER_REJECT;
+                // Rejecting <pre>/<code> descendants would lose
+                // matches in fenced code blocks; the user DOES
+                // search through those in the global search
+                // panel, so skipping them here would be
+                // inconsistent. Accept everything.
+                return NodeFilter.FILTER_ACCEPT;
             },
-        );
+        });
         let n: Node | null;
         while ((n = walker.nextNode())) {
             const textNode = n as Text;
@@ -967,9 +1010,11 @@ function flashReadingSearch(
     mark.className = "mz-search-flash";
     mark.textContent = matchText;
 
-    if (beforeText) parent.insertBefore(document.createTextNode(beforeText), node);
+    if (beforeText)
+        parent.insertBefore(document.createTextNode(beforeText), node);
     parent.insertBefore(mark, node);
-    if (afterText) parent.insertBefore(document.createTextNode(afterText), node);
+    if (afterText)
+        parent.insertBefore(document.createTextNode(afterText), node);
     parent.removeChild(node);
 
     _readingFlashMark = mark;
@@ -1008,7 +1053,9 @@ export const ReadingView: Component<ReadingViewProps> = (props) => {
     // Find panel open-state is read from the shared cross-mode
     // signal in findState.ts so Ctrl+F survives Editor ↔ ReadingView
     // transitions. Imported at the top of the file.
-    const resolvedFile = createMemo(() => props.file ?? vaultStore.activeFile());
+    const resolvedFile = createMemo(
+        () => props.file ?? vaultStore.activeFile(),
+    );
     const isPaneActive = () => props.isActive ?? true;
 
     function closeContextMenu() {
@@ -1039,19 +1086,38 @@ export const ReadingView: Component<ReadingViewProps> = (props) => {
             editMode: null,
             currentMode: null,
             sourceMode: null,
-            leaf: { width: scrollContainerRef.clientWidth || 0, containerEl: scrollContainerRef, view: null },
-            file: activePath ? {
-                path: activePath,
-                name: fileName,
-                basename: fileName.replace(/\.[^.]+$/, ""),
-                extension: fileName.includes(".") ? fileName.split(".").pop() ?? "" : "",
-                stat: { mtime: Date.now(), ctime: Date.now(), size: activeFile?.content.length ?? 0 },
-                vault: { getName: () => vaultStore.vaultInfo()?.name ?? "vault" },
-                parent: {
-                    path: activePath.includes("/") ? activePath.split("/").slice(0, -1).join("/") : "",
-                    name: activePath.includes("/") ? activePath.split("/").slice(-2, -1)[0] || "/" : "/",
-                },
-            } : null,
+            leaf: {
+                width: scrollContainerRef.clientWidth || 0,
+                containerEl: scrollContainerRef,
+                view: null,
+            },
+            file: activePath
+                ? {
+                      path: activePath,
+                      name: fileName,
+                      basename: fileName.replace(/\.[^.]+$/, ""),
+                      extension: fileName.includes(".")
+                          ? (fileName.split(".").pop() ?? "")
+                          : "",
+                      stat: {
+                          mtime: Date.now(),
+                          ctime: Date.now(),
+                          size: activeFile?.content.length ?? 0,
+                      },
+                      vault: {
+                          getName: () =>
+                              vaultStore.vaultInfo()?.name ?? "vault",
+                      },
+                      parent: {
+                          path: activePath.includes("/")
+                              ? activePath.split("/").slice(0, -1).join("/")
+                              : "",
+                          name: activePath.includes("/")
+                              ? activePath.split("/").slice(-2, -1)[0] || "/"
+                              : "/",
+                      },
+                  }
+                : null,
             getViewType: () => "markdown",
             getMode: () => "preview",
         };
@@ -1081,7 +1147,11 @@ export const ReadingView: Component<ReadingViewProps> = (props) => {
 
     function rememberReadingViewport(path: string | null = currentFilePath) {
         if (!path || !scrollContainerRef) return;
-        editorStore.setFileScrollPosition(path, "reading", scrollContainerRef.scrollTop);
+        editorStore.setFileScrollPosition(
+            path,
+            "reading",
+            scrollContainerRef.scrollTop,
+        );
         const line = computeTopVisibleLine();
         if (line !== null) {
             editorStore.setFileTopLine(path, line);
@@ -1113,12 +1183,22 @@ export const ReadingView: Component<ReadingViewProps> = (props) => {
         probe.remove();
         const rawIndentWidth = Math.max(
             40,
-            Math.round((Number.isFinite(measured) ? measured : 0) + LIST_INDENT_EXTRA_PX),
+            Math.round(
+                (Number.isFinite(measured) ? measured : 0) +
+                    LIST_INDENT_EXTRA_PX,
+            ),
         );
-        const indentWidth = rawIndentWidth % 2 === 0 ? rawIndentWidth : rawIndentWidth + 1;
+        const indentWidth =
+            rawIndentWidth % 2 === 0 ? rawIndentWidth : rawIndentWidth + 1;
         const guideOffset = Math.max(1, indentWidth / 2);
-        containerRef.style.setProperty("--mz-reading-list-indent-step", `${indentWidth}px`);
-        containerRef.style.setProperty("--mz-reading-list-guide-offset", `${guideOffset}px`);
+        containerRef.style.setProperty(
+            "--mz-reading-list-indent-step",
+            `${indentWidth}px`,
+        );
+        containerRef.style.setProperty(
+            "--mz-reading-list-guide-offset",
+            `${guideOffset}px`,
+        );
     }
 
     function selectAllReadingContent() {
@@ -1141,17 +1221,24 @@ export const ReadingView: Component<ReadingViewProps> = (props) => {
         return [
             {
                 label: t("common.copy"),
-                action: () => { void copyReadingSelection(); },
+                action: () => {
+                    void copyReadingSelection();
+                },
             },
             {
                 label: t("context.selectAll"),
-                action: () => { selectAllReadingContent(); },
+                action: () => {
+                    selectAllReadingContent();
+                },
             },
             {
                 label: t("context.readingView"),
                 action: () => {
                     activatePane();
-                    editorStore.setViewMode("reading", currentFilePath ?? undefined);
+                    editorStore.setViewMode(
+                        "reading",
+                        currentFilePath ?? undefined,
+                    );
                 },
                 separator: true,
             },
@@ -1159,14 +1246,20 @@ export const ReadingView: Component<ReadingViewProps> = (props) => {
                 label: t("context.editMode"),
                 action: () => {
                     activatePane();
-                    editorStore.setViewMode("live-preview", currentFilePath ?? undefined);
+                    editorStore.setViewMode(
+                        "live-preview",
+                        currentFilePath ?? undefined,
+                    );
                 },
             },
             {
                 label: t("context.sourceMode"),
                 action: () => {
                     activatePane();
-                    editorStore.setViewMode("source", currentFilePath ?? undefined);
+                    editorStore.setViewMode(
+                        "source",
+                        currentFilePath ?? undefined,
+                    );
                 },
             },
         ];
@@ -1185,14 +1278,19 @@ export const ReadingView: Component<ReadingViewProps> = (props) => {
         );
         const handler = (e: Event) => {
             const detail = (e as CustomEvent).detail;
-            if (detail?.command === "goto-line" && containerRef && scrollContainerRef) {
+            if (
+                detail?.command === "goto-line" &&
+                containerRef &&
+                scrollContainerRef
+            ) {
                 const targetLine = detail.line;
                 // Find an anchor element matching the target source
                 // line. Exact match first; if none, fall back to the
                 // largest `data-line` ≤ targetLine so Ctrl+G landing
                 // on a blank / list-item line still produces a
                 // useful scroll instead of silently doing nothing.
-                const anchors = containerRef.querySelectorAll<HTMLElement>("[data-line]");
+                const anchors =
+                    containerRef.querySelectorAll<HTMLElement>("[data-line]");
                 let target: HTMLElement | null = null;
                 let bestLine = -1;
                 for (const h of anchors) {
@@ -1214,9 +1312,11 @@ export const ReadingView: Component<ReadingViewProps> = (props) => {
                     // Instant scroll (no smooth animation) — user wants
                     // outline / Ctrl+G clicks to jump straight to the
                     // target.
-                    const containerTop = scrollContainerRef.getBoundingClientRect().top;
+                    const containerTop =
+                        scrollContainerRef.getBoundingClientRect().top;
                     const targetTop = target.getBoundingClientRect().top;
-                    const offset = targetTop - containerTop + scrollContainerRef.scrollTop;
+                    const offset =
+                        targetTop - containerTop + scrollContainerRef.scrollTop;
                     scrollContainerRef.scrollTop = offset;
 
                     // Paint the same search-reveal flash on the target
@@ -1234,9 +1334,8 @@ export const ReadingView: Component<ReadingViewProps> = (props) => {
                 // at 50ms intervals — total ≤ 1s — until the
                 // container has content, then fire the flash.
                 const line = typeof detail.line === "number" ? detail.line : 0;
-                const query: string = typeof detail.query === "string"
-                    ? detail.query
-                    : "";
+                const query: string =
+                    typeof detail.query === "string" ? detail.query : "";
                 let retries = 0;
                 const tryFlash = () => {
                     if (
@@ -1335,7 +1434,9 @@ export const ReadingView: Component<ReadingViewProps> = (props) => {
                 rememberReadingViewport();
             }, 60);
         };
-        scrollContainerRef?.addEventListener("scroll", onScroll, { passive: true });
+        scrollContainerRef?.addEventListener("scroll", onScroll, {
+            passive: true,
+        });
         // Kick an initial update so the outline reflects the first
         // visible heading the moment ReadingView mounts.
         requestAnimationFrame(() => onScroll());
@@ -1346,297 +1447,313 @@ export const ReadingView: Component<ReadingViewProps> = (props) => {
     });
 
     createEffect(
-        on(
-            resolvedFile,
-            async (activeFile) => {
-                if (!containerRef || !scrollContainerRef || !activeFile) return;
-                setReadingSurfaceVisibility(false);
-                const previousPath = currentFilePath;
-                const sameFile = previousPath === activeFile.path;
-                const preserveCurrentScrollTop = sameFile
-                    ? scrollContainerRef.scrollTop
-                    : null;
-                const restoreExactScroll = !sameFile && previousPath !== null
-                    ? editorStore.getFileScrollPosition(activeFile.path, "reading")
+        on(resolvedFile, async (activeFile) => {
+            if (!containerRef || !scrollContainerRef || !activeFile) return;
+            setReadingSurfaceVisibility(false);
+            const previousPath = currentFilePath;
+            const sameFile = previousPath === activeFile.path;
+            const preserveCurrentScrollTop = sameFile
+                ? scrollContainerRef.scrollTop
+                : null;
+            const restoreExactScroll =
+                !sameFile && previousPath !== null
+                    ? editorStore.getFileScrollPosition(
+                          activeFile.path,
+                          "reading",
+                      )
                     : preserveCurrentScrollTop;
 
-                if (previousPath && !sameFile) {
-                    rememberReadingViewport(previousPath);
-                }
+            if (previousPath && !sameFile) {
+                rememberReadingViewport(previousPath);
+            }
 
-                currentFilePath = activeFile.path;
-                closeContextMenu();
-                syncPluginReadingBindings();
+            currentFilePath = activeFile.path;
+            closeContextMenu();
+            syncPluginReadingBindings();
 
-                const vaultRoot = vaultStore.vaultInfo()?.path ?? "";
-                const ctx: RenderContext = {
-                    vaultRoot,
-                    currentFilePath: activeFile.path,
-                    footnotes: new Map(),
-                };
+            const vaultRoot = vaultStore.vaultInfo()?.path ?? "";
+            const ctx: RenderContext = {
+                vaultRoot,
+                currentFilePath: activeFile.path,
+                footnotes: new Map(),
+            };
 
-                const html = markdownToHtml(activeFile.content, ctx);
-                containerRef.innerHTML = html;
+            const html = markdownToHtml(activeFile.content, ctx);
+            containerRef.innerHTML = html;
 
-                // Post-render: syntax highlighting and mermaid
-                await Promise.all([
-                    highlightCodeBlocks(containerRef),
-                    renderMermaidBlocks(containerRef),
-                ]);
+            // Post-render: syntax highlighting and mermaid
+            await Promise.all([
+                highlightCodeBlocks(containerRef),
+                renderMermaidBlocks(containerRef),
+            ]);
 
-                // Notify the reading-mode find panel that the DOM has
-                // been replaced so it can re-wrap match spans against
-                // the new content. Without this, the panel survives a
-                // mode-switch / tab-switch but its match overlay is
-                // still attached to the previous document, leaving
-                // highlight marks stranded or absent.
-                document.dispatchEvent(
-                    new CustomEvent("mindzj:reading-find-refresh"),
-                );
+            // Notify the reading-mode find panel that the DOM has
+            // been replaced so it can re-wrap match spans against
+            // the new content. Without this, the panel survives a
+            // mode-switch / tab-switch but its match overlay is
+            // still attached to the previous document, leaving
+            // highlight marks stranded or absent.
+            document.dispatchEvent(
+                new CustomEvent("mindzj:reading-find-refresh"),
+            );
 
-                // If the user is switching into Reading mode from an editing
-                // mode we have a stashed anchor line — scroll to the element
-                // whose source line is closest to (but not past) that line,
-                // which gives the reader a position consistent with where
-                // they were editing.
-                if (restoreExactScroll !== null) {
-                    scrollContainerRef.scrollTop = restoreExactScroll;
-                } else {
-                    const restoreLine = editorStore.getFileTopLine(activeFile.path);
-                    if (restoreLine && containerRef && scrollContainerRef) {
-                        const restoreDataLine = restoreLine - 1;
-                        const elts = containerRef.querySelectorAll<HTMLElement>("[data-line]");
-                        let target: HTMLElement | null = null;
-                        let bestLine = -1;
-                        for (const el of elts) {
-                            const ln = parseInt(el.getAttribute("data-line") || "-1", 10);
-                            if (ln < 0) continue;
-                            // Prefer the greatest line number that is <= restoreLine.
-                            if (ln <= restoreDataLine && ln > bestLine) {
-                                bestLine = ln;
-                                target = el;
-                            }
-                        }
-                        // Fallback: if nothing matched (restoreLine is before the
-                        // first anchor), use the very first anchor.
-                        if (!target && elts.length > 0) target = elts[0];
-                        if (target) {
-                            const containerTop = scrollContainerRef.getBoundingClientRect().top;
-                            const targetTop = target.getBoundingClientRect().top;
-                            scrollContainerRef.scrollTop += targetTop - containerTop - 12;
+            // If the user is switching into Reading mode from an editing
+            // mode we have a stashed anchor line — scroll to the element
+            // whose source line is closest to (but not past) that line,
+            // which gives the reader a position consistent with where
+            // they were editing.
+            if (restoreExactScroll !== null) {
+                scrollContainerRef.scrollTop = restoreExactScroll;
+            } else {
+                const restoreLine = editorStore.getFileTopLine(activeFile.path);
+                if (restoreLine && containerRef && scrollContainerRef) {
+                    const restoreDataLine = restoreLine - 1;
+                    const elts =
+                        containerRef.querySelectorAll<HTMLElement>(
+                            "[data-line]",
+                        );
+                    let target: HTMLElement | null = null;
+                    let bestLine = -1;
+                    for (const el of elts) {
+                        const ln = parseInt(
+                            el.getAttribute("data-line") || "-1",
+                            10,
+                        );
+                        if (ln < 0) continue;
+                        // Prefer the greatest line number that is <= restoreLine.
+                        if (ln <= restoreDataLine && ln > bestLine) {
+                            bestLine = ln;
+                            target = el;
                         }
                     }
+                    // Fallback: if nothing matched (restoreLine is before the
+                    // first anchor), use the very first anchor.
+                    if (!target && elts.length > 0) target = elts[0];
+                    if (target) {
+                        const containerTop =
+                            scrollContainerRef.getBoundingClientRect().top;
+                        const targetTop = target.getBoundingClientRect().top;
+                        scrollContainerRef.scrollTop +=
+                            targetTop - containerTop - 12;
+                    }
                 }
+            }
 
-                // Handle wiki link clicks
-                containerRef
-                    .querySelectorAll<HTMLElement>(".mz-rv-wikilink")
-                    .forEach((el) => {
-                        el.addEventListener("click", async (e) => {
-                            e.preventDefault();
-                            const target = el.dataset.target;
-                            if (target) {
-                                let path = target;
-                                if (!path.includes(".")) path += ".md";
-                                try {
-                                    activatePane();
-                                    // Route via openFileRouted so wikilinks
-                                    // pointing at images / office docs /
-                                    // PDFs open in their proper viewer.
-                                    await openFileRouted(path);
-                                    editorStore.setViewMode("reading", path);
-                                } catch {
-                                    console.warn(t("reading.couldNotOpen", { path }));
-                                }
-                            }
-                        });
-                    });
-
-                // External link click handling. The rendered markdown
-                // gives every external link (`[text](http…)` and our
-                // auto-linked bare URLs) `class="mz-rv-link"` with an
-                // `href`. Tauri's webview doesn't honour
-                // `target="_blank"` on anchor elements — they either
-                // no-op or try to navigate the current view — so we
-                // hijack the click and dispatch to the shell plugin,
-                // which hands the URL to the user's default browser.
-                containerRef
-                    .querySelectorAll<HTMLAnchorElement>("a.mz-rv-link")
-                    .forEach((el) => {
-                        const href = el.getAttribute("href") ?? "";
-                        if (!/^https?:\/\//i.test(href)) return;
-                        el.addEventListener("click", async (e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
+            // Handle wiki link clicks
+            containerRef
+                .querySelectorAll<HTMLElement>(".mz-rv-wikilink")
+                .forEach((el) => {
+                    el.addEventListener("click", async (e) => {
+                        e.preventDefault();
+                        const target = el.dataset.target;
+                        if (target) {
+                            let path = target;
+                            if (!path.includes(".")) path += ".md";
                             try {
-                                const shell = await import("@tauri-apps/plugin-shell");
-                                await shell.open(href);
-                            } catch (err) {
-                                console.warn("[reading] failed to open external URL:", err);
-                            }
-                        });
-                    });
-
-                // Handle image interactions: context menu, wheel zoom, ctrl+click.
-                //
-                // `ordinal` disambiguates duplicate `src` references in
-                // the same file — e.g. if the user embeds `logo.png`
-                // three times, the first <img> has ordinal=0, the
-                // second ordinal=1, etc. `persistImageSize` below
-                // uses this to find the nth matching markdown image
-                // and rewrite ONLY that occurrence.
-                const ordinals = new Map<string, number>();
-                containerRef
-                    .querySelectorAll<HTMLImageElement>(".mz-rv-image")
-                    .forEach((img) => {
-                        const rawSrc = img.getAttribute("data-src") ?? "";
-                        const ordinal = ordinals.get(rawSrc) ?? 0;
-                        ordinals.set(rawSrc, ordinal + 1);
-
-                        // Persist a new display size to the markdown
-                        // source AND avoid triggering a re-render.
-                        //
-                        // Why we don't go through `vaultStore.saveFile`:
-                        // `saveFile` calls `setActiveFile(...)` with
-                        // a new FileContent object, which emits on
-                        // the `resolvedFile` memo → fires this very
-                        // `createEffect(on(resolvedFile, ...))` →
-                        // rebuilds `containerRef.innerHTML` from
-                        // scratch. The visible result is a hard
-                        // flicker every time the user flicks the
-                        // wheel, which is the exact bug we went
-                        // through hell fixing for the search-click
-                        // reveal in an earlier session.
-                        //
-                        // Instead we: (a) invoke the Rust `write_file`
-                        // command directly so the disk has the new
-                        // content, and (b) mutate the existing
-                        // `activeFile.content` string IN PLACE so
-                        // any consumer that later reads
-                        // `vaultStore.activeFile()?.content` sees
-                        // the new value. The in-place mutation
-                        // does NOT trigger Solid reactivity —
-                        // `activeFile` still holds the same object
-                        // reference, so the memo doesn't re-emit,
-                        // so the createEffect doesn't re-run.
-                        //
-                        // Consistency guarantees:
-                        //  - Disk is always correct.
-                        //  - In-memory `activeFile.content` is kept
-                        //    in sync by the in-place mutation, so
-                        //    switching to edit mode after a
-                        //    wheel-zoom shows the same content.
-                        //  - The DOM shows the new width instantly
-                        //    because `attachWheelZoom` already
-                        //    applied `img.style.width` before we
-                        //    even get here (rAF batch).
-                        const persistImageSize = (newWidth: number) => {
-                            try {
-                                const f = resolvedFile();
-                                if (!f || f.path !== activeFile.path) return;
-                                const src = rawSrc;
-                                // Find the nth `![...](src)` match in
-                                // the source where the src portion
-                                // matches and the index == ordinal.
-                                const escapedSrc = src.replace(
-                                    /[.*+?^${}()|[\]\\]/g,
-                                    "\\$&",
-                                );
-                                const regex = new RegExp(
-                                    `!\\[([^\\]]*)\\]\\(${escapedSrc}\\)`,
-                                    "g",
-                                );
-                                // Walk through every `![...](src)`
-                                // match on this file and capture the
-                                // one whose 0-based index equals the
-                                // DOM ordinal of the clicked image.
-                                // We can't just break on the first
-                                // match because that would always
-                                // rewrite the first image even when
-                                // the user resized the second one.
-                                let target: {
-                                    index: number;
-                                    length: number;
-                                    alt: string;
-                                } | null = null;
-                                let iterMatch: RegExpExecArray | null;
-                                let count = 0;
-                                while ((iterMatch = regex.exec(f.content)) !== null) {
-                                    if (count === ordinal) {
-                                        target = {
-                                            index: iterMatch.index,
-                                            length: iterMatch[0].length,
-                                            alt: iterMatch[1],
-                                        };
-                                        break;
-                                    }
-                                    count++;
-                                }
-                                if (!target) return;
-                                const currentAlt = parseImageSize(target.alt).altText;
-                                const newAlt = formatImageAlt(
-                                    currentAlt,
-                                    newWidth,
-                                    null,
-                                );
-                                const newMd = `![${newAlt}](${src})`;
-                                const mStart = target.index;
-                                const mEnd = mStart + target.length;
-                                if (f.content.slice(mStart, mEnd) === newMd) return;
-                                const newContent =
-                                    f.content.slice(0, mStart) +
-                                    newMd +
-                                    f.content.slice(mEnd);
-                                // Persist to disk
-                                void invoke("write_file", {
-                                    relativePath: activeFile.path,
-                                    content: newContent,
-                                }).catch((err) => {
-                                    console.warn(
-                                        "[reading image-resize] write_file failed:",
-                                        err,
-                                    );
-                                });
-                                // Mutate in place — no reactive trigger.
-                                (f as any).content = newContent;
-                                img.setAttribute(
-                                    "alt",
-                                    currentAlt,
-                                );
-                            } catch (err) {
+                                activatePane();
+                                // Route via openFileRouted so wikilinks
+                                // pointing at images / office docs /
+                                // PDFs open in their proper viewer.
+                                await openFileRouted(path);
+                                editorStore.setViewMode("reading", path);
+                            } catch {
                                 console.warn(
-                                    "[reading image-resize] persist failed:",
+                                    t("reading.couldNotOpen", { path }),
+                                );
+                            }
+                        }
+                    });
+                });
+
+            // External link click handling. The rendered markdown
+            // gives every external link (`[text](http…)` and our
+            // auto-linked bare URLs) `class="mz-rv-link"` with an
+            // `href`. Tauri's webview doesn't honour
+            // `target="_blank"` on anchor elements — they either
+            // no-op or try to navigate the current view — so we
+            // hijack the click and dispatch to the shell plugin,
+            // which hands the URL to the user's default browser.
+            containerRef
+                .querySelectorAll<HTMLAnchorElement>("a.mz-rv-link")
+                .forEach((el) => {
+                    const href = el.getAttribute("href") ?? "";
+                    if (!/^https?:\/\//i.test(href)) return;
+                    el.addEventListener("click", async (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        try {
+                            const shell =
+                                await import("@tauri-apps/plugin-shell");
+                            await shell.open(href);
+                        } catch (err) {
+                            console.warn(
+                                "[reading] failed to open external URL:",
+                                err,
+                            );
+                        }
+                    });
+                });
+
+            // Handle image interactions: context menu, wheel zoom, ctrl+click.
+            //
+            // `ordinal` disambiguates duplicate `src` references in
+            // the same file — e.g. if the user embeds `logo.png`
+            // three times, the first <img> has ordinal=0, the
+            // second ordinal=1, etc. `persistImageSize` below
+            // uses this to find the nth matching markdown image
+            // and rewrite ONLY that occurrence.
+            const ordinals = new Map<string, number>();
+            containerRef
+                .querySelectorAll<HTMLImageElement>(".mz-rv-image")
+                .forEach((img) => {
+                    const rawSrc = img.getAttribute("data-src") ?? "";
+                    const ordinal = ordinals.get(rawSrc) ?? 0;
+                    ordinals.set(rawSrc, ordinal + 1);
+
+                    // Persist a new display size to the markdown
+                    // source AND avoid triggering a re-render.
+                    //
+                    // Why we don't go through `vaultStore.saveFile`:
+                    // `saveFile` calls `setActiveFile(...)` with
+                    // a new FileContent object, which emits on
+                    // the `resolvedFile` memo → fires this very
+                    // `createEffect(on(resolvedFile, ...))` →
+                    // rebuilds `containerRef.innerHTML` from
+                    // scratch. The visible result is a hard
+                    // flicker every time the user flicks the
+                    // wheel, which is the exact bug we went
+                    // through hell fixing for the search-click
+                    // reveal in an earlier session.
+                    //
+                    // Instead we: (a) invoke the Rust `write_file`
+                    // command directly so the disk has the new
+                    // content, and (b) mutate the existing
+                    // `activeFile.content` string IN PLACE so
+                    // any consumer that later reads
+                    // `vaultStore.activeFile()?.content` sees
+                    // the new value. The in-place mutation
+                    // does NOT trigger Solid reactivity —
+                    // `activeFile` still holds the same object
+                    // reference, so the memo doesn't re-emit,
+                    // so the createEffect doesn't re-run.
+                    //
+                    // Consistency guarantees:
+                    //  - Disk is always correct.
+                    //  - In-memory `activeFile.content` is kept
+                    //    in sync by the in-place mutation, so
+                    //    switching to edit mode after a
+                    //    wheel-zoom shows the same content.
+                    //  - The DOM shows the new width instantly
+                    //    because `attachWheelZoom` already
+                    //    applied `img.style.width` before we
+                    //    even get here (rAF batch).
+                    const persistImageSize = (newWidth: number) => {
+                        try {
+                            const f = resolvedFile();
+                            if (!f || f.path !== activeFile.path) return;
+                            const src = rawSrc;
+                            // Find the nth `![...](src)` match in
+                            // the source where the src portion
+                            // matches and the index == ordinal.
+                            const escapedSrc = src.replace(
+                                /[.*+?^${}()|[\]\\]/g,
+                                "\\$&",
+                            );
+                            const regex = new RegExp(
+                                `!\\[([^\\]]*)\\]\\(${escapedSrc}\\)`,
+                                "g",
+                            );
+                            // Walk through every `![...](src)`
+                            // match on this file and capture the
+                            // one whose 0-based index equals the
+                            // DOM ordinal of the clicked image.
+                            // We can't just break on the first
+                            // match because that would always
+                            // rewrite the first image even when
+                            // the user resized the second one.
+                            let target: {
+                                index: number;
+                                length: number;
+                                alt: string;
+                            } | null = null;
+                            let iterMatch: RegExpExecArray | null;
+                            let count = 0;
+                            while (
+                                (iterMatch = regex.exec(f.content)) !== null
+                            ) {
+                                if (count === ordinal) {
+                                    target = {
+                                        index: iterMatch.index,
+                                        length: iterMatch[0].length,
+                                        alt: iterMatch[1],
+                                    };
+                                    break;
+                                }
+                                count++;
+                            }
+                            if (!target) return;
+                            const currentAlt = parseImageSize(
+                                target.alt,
+                            ).altText;
+                            const newAlt = formatImageAlt(
+                                currentAlt,
+                                newWidth,
+                                null,
+                            );
+                            const newMd = `![${newAlt}](${src})`;
+                            const mStart = target.index;
+                            const mEnd = mStart + target.length;
+                            if (f.content.slice(mStart, mEnd) === newMd) return;
+                            const newContent =
+                                f.content.slice(0, mStart) +
+                                newMd +
+                                f.content.slice(mEnd);
+                            // Persist to disk
+                            void invoke("write_file", {
+                                relativePath: activeFile.path,
+                                content: newContent,
+                            }).catch((err) => {
+                                console.warn(
+                                    "[reading image-resize] write_file failed:",
                                     err,
                                 );
-                            }
-                        };
-
-                        img.addEventListener("contextmenu", (e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            showImageContextMenu(
-                                e,
-                                rawSrc,
-                                activeFile.path,
-                                img,
-                                persistImageSize,
+                            });
+                            // Mutate in place — no reactive trigger.
+                            (f as any).content = newContent;
+                            img.setAttribute("alt", currentAlt);
+                        } catch (err) {
+                            console.warn(
+                                "[reading image-resize] persist failed:",
+                                err,
                             );
-                        });
-                        attachWheelZoom(img, { onResize: persistImageSize });
-                        attachCtrlClick(img, rawSrc, activeFile.path);
-                    });
+                        }
+                    };
 
-                rememberReadingViewport(activeFile.path);
-                if (isPaneActive()) {
-                    editorStore.updateStats(activeFile.content);
-                }
-                syncReadingListGuideMetrics();
-                requestAnimationFrame(() => {
-                    if (currentFilePath !== activeFile.path) return;
-                    setReadingSurfaceVisibility(true);
+                    img.addEventListener("contextmenu", (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        showImageContextMenu(
+                            e,
+                            rawSrc,
+                            activeFile.path,
+                            img,
+                            persistImageSize,
+                        );
+                    });
+                    attachWheelZoom(img, { onResize: persistImageSize });
+                    attachCtrlClick(img, rawSrc, activeFile.path);
                 });
-            },
-        ),
+
+            rememberReadingViewport(activeFile.path);
+            if (isPaneActive()) {
+                editorStore.updateStats(activeFile.content);
+            }
+            syncReadingListGuideMetrics();
+            requestAnimationFrame(() => {
+                if (currentFilePath !== activeFile.path) return;
+                setReadingSurfaceVisibility(true);
+            });
+        }),
     );
 
     // Apply zoom
@@ -1679,8 +1796,7 @@ export const ReadingView: Component<ReadingViewProps> = (props) => {
                     "flex-direction": "column",
                     "min-height": "0",
                     position: "relative",
-                }}
-            >
+                }}>
                 <div
                     ref={scrollContainerRef}
                     class="mz-reading-scroll-container"
@@ -1715,8 +1831,7 @@ export const ReadingView: Component<ReadingViewProps> = (props) => {
                         visibility: "hidden",
                     }}
                     onMouseDown={() => activatePane()}
-                    onFocusIn={() => activatePane()}
-                >
+                    onFocusIn={() => activatePane()}>
                     <div
                         ref={containerRef}
                         class="mz-reading-view"

@@ -10,7 +10,7 @@
  * - Syntax markers (**, ~~, ==, etc.) hide when cursor is elsewhere
  *
  * Design principle: the line the cursor is on always shows raw Markdown,
- * all other lines show the rendered preview. This matches Obsidian's
+ * all other lines show the rendered preview. This matches
  * Live Preview behavior.
  */
 
@@ -31,7 +31,12 @@ import {
 import katex from "katex";
 import { invoke } from "@tauri-apps/api/core";
 import { resolveImageAssetUrl } from "../../../utils/vaultPaths";
-import { attachWheelZoom, attachCtrlClick, getResizePresets, applyResizePreset } from "../../../utils/imageInteraction";
+import {
+    attachWheelZoom,
+    attachCtrlClick,
+    getResizePresets,
+    applyResizePreset,
+} from "../../../utils/imageInteraction";
 import { parseImageSize, formatImageAlt } from "../../../utils/imageSize";
 import { URL_REGEX, trimTrailingPunct } from "../../../utils/autoLink";
 import { settingsStore } from "../../../stores/settings";
@@ -68,7 +73,9 @@ function showImageContextMenu(
     onResize?: (newWidth: number) => void,
 ) {
     // Remove any existing context menu
-    document.querySelectorAll(".mz-image-context-menu").forEach((el) => el.remove());
+    document
+        .querySelectorAll(".mz-image-context-menu")
+        .forEach((el) => el.remove());
 
     const menu = document.createElement("div");
     menu.className = "mz-image-context-menu";
@@ -160,16 +167,26 @@ function showImageContextMenu(
 
     // ── Open in default app ──
     addMenuItem(t("livePreview.openInDefaultApp"), () => {
-        invoke("open_in_default_app", { relativePath: resolveImagePath() }).catch(
-            (err) => { console.warn("[ImageContextMenu] Failed to open in default app:", err); },
-        );
+        invoke("open_in_default_app", {
+            relativePath: resolveImagePath(),
+        }).catch((err) => {
+            console.warn(
+                "[ImageContextMenu] Failed to open in default app:",
+                err,
+            );
+        });
     });
 
     // ── Show in file manager ──
     addMenuItem(t("context.showInExplorer"), () => {
         invoke("reveal_in_file_manager", {
             relativePath: resolveImagePath(),
-        }).catch((err) => { console.warn("[ImageContextMenu] Failed to reveal in file manager:", err); });
+        }).catch((err) => {
+            console.warn(
+                "[ImageContextMenu] Failed to reveal in file manager:",
+                err,
+            );
+        });
     });
 
     // ── Resize presets ──
@@ -217,9 +234,7 @@ function showImageContextMenu(
                         "\\$&",
                     );
                     const patterns = [
-                        new RegExp(
-                            `!\\[[^\\]]*\\]\\(${escapedSrc}\\)\\n?`,
-                        ),
+                        new RegExp(`!\\[[^\\]]*\\]\\(${escapedSrc}\\)\\n?`),
                         new RegExp(`!\\[\\[${escapedSrc}\\]\\]\\n?`),
                     ];
                     let newContent = result.content;
@@ -245,10 +260,7 @@ function showImageContextMenu(
             }
             // Delete the image file from the vault
             invoke("delete_file", { relativePath: imgPath }).catch((err) => {
-                console.warn(
-                    "[ImageContextMenu] Failed to delete image:",
-                    err,
-                );
+                console.warn("[ImageContextMenu] Failed to delete image:", err);
             });
         },
         { danger: true },
@@ -333,8 +345,7 @@ class ImageWidget extends WidgetType {
         img.className = "mz-embed-image";
         // Do NOT set max-width/max-height inline — use CSS class instead.
         // This allows plugins (pixel-perfect-image) to freely resize via inline style.width.
-        img.style.cssText =
-            "border-radius: 6px; display: block;";
+        img.style.cssText = "border-radius: 6px; display: block;";
         // Apply persisted display size from the markdown alt. We
         // set the width BEFORE the image finishes loading so there's
         // no reflow jitter when the natural size comes in.
@@ -388,7 +399,11 @@ class ImageWidget extends WidgetType {
                     // picks out the specific occurrence.
                     if (pos < mStart || pos > mEnd) continue;
                     const currentAltText = parseImageSize(m[1]).altText;
-                    const newAlt = formatImageAlt(currentAltText, newWidth, null);
+                    const newAlt = formatImageAlt(
+                        currentAltText,
+                        newWidth,
+                        null,
+                    );
                     const newMd = `![${newAlt}](${this.src})`;
                     if (newMd === m[0]) return;
                     view.dispatch({
@@ -413,7 +428,13 @@ class ImageWidget extends WidgetType {
         wrapper.addEventListener("contextmenu", (e) => {
             e.preventDefault();
             e.stopPropagation();
-            showImageContextMenu(e, this.src, this.currentFilePath, img, persistSize);
+            showImageContextMenu(
+                e,
+                this.src,
+                this.currentFilePath,
+                img,
+                persistSize,
+            );
         });
 
         return wrapper;
@@ -478,7 +499,9 @@ class BulletWidget extends WidgetType {
         anchor.appendChild(dot);
         return anchor;
     }
-    eq(): boolean { return true; }
+    eq(): boolean {
+        return true;
+    }
 }
 const bulletWidget = new BulletWidget();
 
@@ -529,7 +552,7 @@ class InlineMathWidget extends WidgetType {
  * level position map stays complete) but make them visually invisible
  * via CSS. The key CSS trick is `font-size: 0` which collapses the
  * text node to zero width/height while CM6 still knows those positions
- * exist. This is the same approach Obsidian uses for marker hiding.
+ * exist. This is the same approach  uses for marker hiding.
  */
 const hideMarker = Decoration.mark({ class: "mz-lp-hidden" });
 
@@ -610,17 +633,30 @@ function measureListIndentWidth(view: EditorView): number {
         return measured + LIST_INDENT_EXTRA_PX;
     }
 
-    return Math.max(1, view.defaultCharacterWidth) * LIST_INDENT_WIDTH + LIST_INDENT_EXTRA_PX;
+    return (
+        Math.max(1, view.defaultCharacterWidth) * LIST_INDENT_WIDTH +
+        LIST_INDENT_EXTRA_PX
+    );
 }
 
 function syncListGuideMetrics(view: EditorView) {
-    const rawIndentWidth = Math.max(40, Math.round(measureListIndentWidth(view)));
-    const indentWidth = rawIndentWidth % 2 === 0 ? rawIndentWidth : rawIndentWidth + 1;
+    const rawIndentWidth = Math.max(
+        40,
+        Math.round(measureListIndentWidth(view)),
+    );
+    const indentWidth =
+        rawIndentWidth % 2 === 0 ? rawIndentWidth : rawIndentWidth + 1;
     const guideOffset = Math.max(1, indentWidth / 2);
     view.contentDOM.style.setProperty("tab-size", `${indentWidth}px`);
     view.contentDOM.style.setProperty("-moz-tab-size", `${indentWidth}px`);
-    view.contentDOM.style.setProperty("--mz-list-indent-step", `${indentWidth}px`);
-    view.contentDOM.style.setProperty("--mz-list-guide-offset", `${guideOffset}px`);
+    view.contentDOM.style.setProperty(
+        "--mz-list-indent-step",
+        `${indentWidth}px`,
+    );
+    view.contentDOM.style.setProperty(
+        "--mz-list-guide-offset",
+        `${guideOffset}px`,
+    );
 }
 
 function eventTargetElement(target: EventTarget | null): Element | null {
@@ -643,9 +679,15 @@ function isHorizontalRuleLine(text: string): boolean {
 function lineFromDomTarget(
     view: EditorView,
     target: EventTarget | null,
-): { element: HTMLElement; line: ReturnType<typeof view.state.doc.line> } | null {
+): {
+    element: HTMLElement;
+    line: ReturnType<typeof view.state.doc.line>;
+} | null {
     const lineElement = eventTargetElement(target)?.closest(".cm-line");
-    if (!(lineElement instanceof HTMLElement) || !view.dom.contains(lineElement)) {
+    if (
+        !(lineElement instanceof HTMLElement) ||
+        !view.dom.contains(lineElement)
+    ) {
         return null;
     }
 
@@ -669,7 +711,10 @@ function visibleTextRight(element: HTMLElement): number | null {
         range.selectNodeContents(node);
         for (const rect of Array.from(range.getClientRects())) {
             if (rect.width > 0.5) {
-                maxRight = maxRight === null ? rect.right : Math.max(maxRight, rect.right);
+                maxRight =
+                    maxRight === null
+                        ? rect.right
+                        : Math.max(maxRight, rect.right);
             }
         }
         range.detach();
@@ -678,25 +723,37 @@ function visibleTextRight(element: HTMLElement): number | null {
     return maxRight;
 }
 
-function domCaretPositionFromPoint(view: EditorView, event: MouseEvent): number | null {
+function domCaretPositionFromPoint(
+    view: EditorView,
+    event: MouseEvent,
+): number | null {
     try {
         const caretPosition = document.caretPositionFromPoint?.(
             event.clientX,
             event.clientY,
         );
         if (caretPosition) {
-            return view.posAtDOM(caretPosition.offsetNode, caretPosition.offset);
+            return view.posAtDOM(
+                caretPosition.offsetNode,
+                caretPosition.offset,
+            );
         }
 
         const legacyDocument = document as Document & {
-            caretRangeFromPoint?: (x: number, y: number) => globalThis.Range | null;
+            caretRangeFromPoint?: (
+                x: number,
+                y: number,
+            ) => globalThis.Range | null;
         };
         const caretRange = legacyDocument.caretRangeFromPoint?.(
             event.clientX,
             event.clientY,
         );
         if (caretRange) {
-            return view.posAtDOM(caretRange.startContainer, caretRange.startOffset);
+            return view.posAtDOM(
+                caretRange.startContainer,
+                caretRange.startOffset,
+            );
         }
     } catch {
         return null;
@@ -711,7 +768,12 @@ function clampToLine(pos: number, line: { from: number; to: number }): number {
 
 const listLineBoundaryClickHandler = EditorView.domEventHandlers({
     mousedown(event: MouseEvent, view: EditorView) {
-        if (event.button !== 0 || event.ctrlKey || event.metaKey || event.altKey) {
+        if (
+            event.button !== 0 ||
+            event.ctrlKey ||
+            event.metaKey ||
+            event.altKey
+        ) {
             return false;
         }
 
@@ -736,11 +798,13 @@ const listLineBoundaryClickHandler = EditorView.domEventHandlers({
         const caretPos = domCaretPositionFromPoint(view, event);
         const textRight = visibleTextRight(domLine.element);
         const targetPos =
-            caretPos !== null && caretPos >= domLine.line.from && caretPos <= domLine.line.to
+            caretPos !== null &&
+            caretPos >= domLine.line.from &&
+            caretPos <= domLine.line.to
                 ? caretPos
                 : textRight !== null && event.clientX >= textRight - 1
-                    ? domLine.line.to
-                    : clampToLine(pos, domLine.line);
+                  ? domLine.line.to
+                  : clampToLine(pos, domLine.line);
 
         event.preventDefault();
         view.dispatch({
@@ -751,7 +815,7 @@ const listLineBoundaryClickHandler = EditorView.domEventHandlers({
         return true;
     },
 });
-// Code fence + content + table line decorations (Obsidian-style: keep the
+// Code fence + content + table line decorations (: keep the
 // raw source visible AND cursor-navigable; use CSS to make it LOOK like a
 // rendered code block / table).
 const codeFenceOpenDeco = Decoration.line({ class: "mz-lp-code-fence-open" });
@@ -761,7 +825,9 @@ const tableHeaderDeco = Decoration.line({ class: "mz-lp-table-header-line" });
 const tableSepDeco = Decoration.line({ class: "mz-lp-table-separator-line" });
 const tableRowDeco = Decoration.line({ class: "mz-lp-table-row-line" });
 
-function horizontalRuleActiveLine(state: import("@codemirror/state").EditorState) {
+function horizontalRuleActiveLine(
+    state: import("@codemirror/state").EditorState,
+) {
     return state.doc.lineAt(state.selection.main.head).number;
 }
 
@@ -1149,7 +1215,12 @@ function buildDecorationsImpl(
                 // Always show image (inline widget after the text)
                 decorations.push(
                     Decoration.widget({
-                        widget: new ImageWidget(src, alt, vaultRoot, currentFilePath),
+                        widget: new ImageWidget(
+                            src,
+                            alt,
+                            vaultRoot,
+                            currentFilePath,
+                        ),
                         side: 1,
                     }).range(end),
                 );
@@ -1659,7 +1730,11 @@ function buildLineDecorations(
         {
             const listInfo = getContinuationInfo(text);
             if (listInfo && listInfo.kind !== "blockquote") {
-                decos.push(listWrapDeco(listInfo.level, listInfo.marker.length).range(line.from));
+                decos.push(
+                    listWrapDeco(listInfo.level, listInfo.marker.length).range(
+                        line.from,
+                    ),
+                );
                 if (listInfo.level > 0) {
                     decos.push(listGuideDeco(listInfo.level).range(line.from));
                 }
@@ -1680,7 +1755,10 @@ function buildLineDecorations(
                 let inTable = false;
                 while (j >= 1) {
                     const pt = doc.line(j).text;
-                    if (tableSepRe.test(pt)) { inTable = true; break; }
+                    if (tableSepRe.test(pt)) {
+                        inTable = true;
+                        break;
+                    }
                     if (!isTableRow(pt)) break;
                     j--;
                 }
@@ -1724,8 +1802,12 @@ const lineDecorationField = StateField.define<DecorationSet>({
 function createLivePreviewPlugin(vaultRoot: string, currentFilePath: string) {
     function cursorLineChanged(update: ViewUpdate): boolean {
         if (!update.selectionSet) return false;
-        const before = update.startState.doc.lineAt(update.startState.selection.main.head).number;
-        const after = update.state.doc.lineAt(update.state.selection.main.head).number;
+        const before = update.startState.doc.lineAt(
+            update.startState.selection.main.head,
+        ).number;
+        const after = update.state.doc.lineAt(
+            update.state.selection.main.head,
+        ).number;
         return before !== after;
     }
 
@@ -1736,7 +1818,11 @@ function createLivePreviewPlugin(vaultRoot: string, currentFilePath: string) {
 
             constructor(view: EditorView) {
                 syncListGuideMetrics(view);
-                this.decorations = buildDecorations(view, vaultRoot, currentFilePath);
+                this.decorations = buildDecorations(
+                    view,
+                    vaultRoot,
+                    currentFilePath,
+                );
 
                 if (typeof ResizeObserver !== "undefined") {
                     this.resizeObserver = new ResizeObserver(() => {
@@ -1791,7 +1877,10 @@ function createLivePreviewPlugin(vaultRoot: string, currentFilePath: string) {
  * @param vaultRoot - Absolute path to the vault root (for resolving image paths)
  * @returns Array of CM6 extensions to add to the editor
  */
-export function livePreviewExtension(vaultRoot: string, currentFilePath: string) {
+export function livePreviewExtension(
+    vaultRoot: string,
+    currentFilePath: string,
+) {
     return [
         livePreviewTheme,
         listLineBoundaryClickHandler,

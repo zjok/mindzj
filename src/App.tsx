@@ -1,13 +1,34 @@
-import { Component, Show, For, createSignal, createEffect, createMemo, on, onMount, onCleanup } from "solid-js";
+import {
+    Component,
+    Show,
+    For,
+    createSignal,
+    createEffect,
+    createMemo,
+    on,
+    onMount,
+    onCleanup,
+} from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { vaultStore, type FileContent } from "./stores/vault";
 import { editorStore, type ViewMode } from "./stores/editor";
 import { settingsStore, type AiProviderConfig } from "./stores/settings";
-import { BUILT_IN_ONLINE_PROVIDER_TYPES, aiProviderModelLabel, aiStore, defaultAiProviderConfig } from "./stores/ai";
+import {
+    BUILT_IN_ONLINE_PROVIDER_TYPES,
+    aiProviderModelLabel,
+    aiStore,
+    defaultAiProviderConfig,
+} from "./stores/ai";
 import { workspaceStore, type WorkspaceState } from "./stores/workspace";
-import { pluginStore, hasPluginViewForExtension, mountPluginView, destroyPluginView, isPluginSaving } from "./stores/plugins";
+import {
+    pluginStore,
+    hasPluginViewForExtension,
+    mountPluginView,
+    destroyPluginView,
+    isPluginSaving,
+} from "./stores/plugins";
 import {
     FileTree,
     SortBar,
@@ -42,7 +63,11 @@ import { WindowControls } from "./components/common/TitleBar";
 import { ImageViewer } from "./components/common/ImageViewer";
 import { FilePreview } from "./components/common/FilePreview";
 import { createPersistableWindowState } from "./utils/windowState";
-import { register, unregister, isRegistered } from "@tauri-apps/plugin-global-shortcut";
+import {
+    register,
+    unregister,
+    isRegistered,
+} from "@tauri-apps/plugin-global-shortcut";
 import { Copy, History, Mic, MicOff, Trash2, Volume2, X } from "lucide-solid";
 import { ScreenshotOverlay } from "./components/screenshot/ScreenshotOverlay";
 import { promptDialog } from "./components/common/ConfirmDialog";
@@ -57,9 +82,7 @@ import {
 } from "@codemirror/search";
 import { EditorView } from "@codemirror/view";
 import { t } from "./i18n";
-import {
-    setFindQuery,
-} from "./stores/findState";
+import { setFindQuery } from "./stores/findState";
 
 type SidebarTab = "files" | "outline" | "search" | "calendar";
 type SplitDirection = "left" | "right" | "up" | "down";
@@ -86,10 +109,15 @@ const AI_PANEL_DEFAULT_HEIGHT = 300;
 
 function normalizeVaultPath(path: string | null | undefined): string {
     if (!path) return "";
-    return path.replace(/^\\\\\?\\/, "").replace(/\\/g, "/").toLowerCase();
+    return path
+        .replace(/^\\\\\?\\/, "")
+        .replace(/\\/g, "/")
+        .toLowerCase();
 }
 
-function aiQuestionHistoryStorageKey(vaultPath: string | null | undefined): string {
+function aiQuestionHistoryStorageKey(
+    vaultPath: string | null | undefined,
+): string {
     return `mindzj-ai-question-history:${normalizeVaultPath(vaultPath) || "no-vault"}`;
 }
 
@@ -137,9 +165,16 @@ function mergeAudioSamples(chunks: Float32Array[]): Float32Array {
     return result;
 }
 
-function resampleAudio(samples: Float32Array, fromRate: number, toRate: number): Float32Array {
+function resampleAudio(
+    samples: Float32Array,
+    fromRate: number,
+    toRate: number,
+): Float32Array {
     if (fromRate === toRate || samples.length === 0) return samples;
-    const nextLength = Math.max(1, Math.round(samples.length * toRate / fromRate));
+    const nextLength = Math.max(
+        1,
+        Math.round((samples.length * toRate) / fromRate),
+    );
     const result = new Float32Array(nextLength);
     const ratio = (samples.length - 1) / Math.max(1, nextLength - 1);
     for (let i = 0; i < nextLength; i += 1) {
@@ -160,8 +195,14 @@ function writeAscii(view: DataView, offset: number, value: string) {
 
 function encodeWav(chunks: Float32Array[], sampleRate: number): ArrayBuffer {
     const supportedRates = new Set([8000, 16000, 22050, 24000, 44100, 48000]);
-    const targetRate = supportedRates.has(Math.round(sampleRate)) ? Math.round(sampleRate) : 48000;
-    const samples = resampleAudio(mergeAudioSamples(chunks), Math.round(sampleRate), targetRate);
+    const targetRate = supportedRates.has(Math.round(sampleRate))
+        ? Math.round(sampleRate)
+        : 48000;
+    const samples = resampleAudio(
+        mergeAudioSamples(chunks),
+        Math.round(sampleRate),
+        targetRate,
+    );
     const bytesPerSample = 2;
     const buffer = new ArrayBuffer(44 + samples.length * bytesPerSample);
     const view = new DataView(buffer);
@@ -183,7 +224,11 @@ function encodeWav(chunks: Float32Array[], sampleRate: number): ArrayBuffer {
     let offset = 44;
     for (const sample of samples) {
         const clamped = Math.max(-1, Math.min(1, sample));
-        view.setInt16(offset, clamped < 0 ? clamped * 0x8000 : clamped * 0x7fff, true);
+        view.setInt16(
+            offset,
+            clamped < 0 ? clamped * 0x8000 : clamped * 0x7fff,
+            true,
+        );
         offset += bytesPerSample;
     }
     return buffer;
@@ -194,7 +239,9 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
     const chunkSize = 0x8000;
     let binary = "";
     for (let offset = 0; offset < bytes.length; offset += chunkSize) {
-        binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize));
+        binary += String.fromCharCode(
+            ...bytes.subarray(offset, offset + chunkSize),
+        );
     }
     return btoa(binary);
 }
@@ -229,7 +276,11 @@ function parseAiQuestionHistory(raw: string | null): AiQuestionHistoryEntry[] {
                 };
             })
             .filter((entry): entry is AiQuestionHistoryEntry => !!entry)
-            .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+            .sort(
+                (a, b) =>
+                    new Date(a.createdAt).getTime() -
+                    new Date(b.createdAt).getTime(),
+            )
             .slice(-AI_QUESTION_HISTORY_LIMIT);
     } catch {
         return [];
@@ -285,22 +336,38 @@ const App: Component = () => {
     const [aiVoiceRecording, setAiVoiceRecording] = createSignal(false);
     const [aiVoiceBusy, setAiVoiceBusy] = createSignal(false);
     const [showAiHistory, setShowAiHistory] = createSignal(false);
-    const [aiQuestionHistory, setAiQuestionHistory] = createSignal<AiQuestionHistoryEntry[]>([]);
+    const [aiQuestionHistory, setAiQuestionHistory] = createSignal<
+        AiQuestionHistoryEntry[]
+    >([]);
     const [aiHistoryDate, setAiHistoryDate] = createSignal("");
-    const [aiHistoryCursor, setAiHistoryCursor] = createSignal<number | null>(null);
-    const [aiPanelHeight, setAiPanelHeight] = createSignal(AI_PANEL_DEFAULT_HEIGHT);
-    const [aiHistoryPosition, setAiHistoryPosition] = createSignal<Point>({ x: 0, y: 0 });
-    const [aiHistoryPositionReady, setAiHistoryPositionReady] = createSignal(false);
+    const [aiHistoryCursor, setAiHistoryCursor] = createSignal<number | null>(
+        null,
+    );
+    const [aiPanelHeight, setAiPanelHeight] = createSignal(
+        AI_PANEL_DEFAULT_HEIGHT,
+    );
+    const [aiHistoryPosition, setAiHistoryPosition] = createSignal<Point>({
+        x: 0,
+        y: 0,
+    });
+    const [aiHistoryPositionReady, setAiHistoryPositionReady] =
+        createSignal(false);
     const [sidebarTab, setSidebarTab] = createSignal<SidebarTab>("files");
     const [sidebarCollapsed, setSidebarCollapsed] = createSignal(false);
     const [showVaultMenu, setShowVaultMenu] = createSignal(false);
     const [sortMode, setSortMode] = createSignal<SortMode>("custom");
     const [sortOrder, setSortOrder] = createSignal<SortOrder>("asc");
     const [sidebarWidth, setSidebarWidth] = createSignal(260);
-    const [primaryPanePath, setPrimaryPanePath] = createSignal<string | null>(null);
-    const [secondaryPanePath, setSecondaryPanePath] = createSignal<string | null>(null);
-    const [activePaneSlot, setActivePaneSlot] = createSignal<PaneSlot>("primary");
-    const [splitDirection, setSplitDirection] = createSignal<SplitDirection>("right");
+    const [primaryPanePath, setPrimaryPanePath] = createSignal<string | null>(
+        null,
+    );
+    const [secondaryPanePath, setSecondaryPanePath] = createSignal<
+        string | null
+    >(null);
+    const [activePaneSlot, setActivePaneSlot] =
+        createSignal<PaneSlot>("primary");
+    const [splitDirection, setSplitDirection] =
+        createSignal<SplitDirection>("right");
     const [splitRatio, setSplitRatio] = createSignal(0.5);
     const startupParams = new URLSearchParams(window.location.search);
     const startupVaultPath = startupParams.get("vault_path");
@@ -308,8 +375,11 @@ const App: Component = () => {
     const startupFilePath = startupParams.get("file_path");
     const startupViewMode = startupParams.get("view_mode");
     const startupUiZoomParam = startupParams.get("ui_zoom");
-    const startupUiZoom = startupUiZoomParam ? Number(startupUiZoomParam) : null;
-    const [startupPayloadApplied, setStartupPayloadApplied] = createSignal(false);
+    const startupUiZoom = startupUiZoomParam
+        ? Number(startupUiZoomParam)
+        : null;
+    const [startupPayloadApplied, setStartupPayloadApplied] =
+        createSignal(false);
     const isTransientWindow = () => startupParams.get("split") === "1";
     let aiVoiceStream: MediaStream | null = null;
     let aiVoiceAudioContext: AudioContext | null = null;
@@ -333,25 +403,29 @@ const App: Component = () => {
     // render takes over. If there's nothing to restore, we skip
     // bootstrapping entirely and go straight to the welcome screen.
     const hasRestorableVault = (() => {
-        if (startupParams.get("vault_path") && startupParams.get("vault_name")) return true;
+        if (startupParams.get("vault_path") && startupParams.get("vault_name"))
+            return true;
         try {
             return !!localStorage.getItem("mindzj-last-vault");
         } catch {
             return false;
         }
     })();
-    const [isBootstrapping, setIsBootstrapping] = createSignal(hasRestorableVault);
+    const [isBootstrapping, setIsBootstrapping] =
+        createSignal(hasRestorableVault);
     let workspaceRestoreInProgress = false;
 
     // Recently-closed tab history (LIFO stack of vault-relative
     // file paths). Used by Ctrl+T to "reopen the last closed tab",
-    // mirroring the same shortcut in browsers / VS Code / Obsidian.
+    // mirroring the same shortcut in browsers / .
     //
     // The stack is bounded so a user who closes thousands of tabs in
     // a long session doesn't accumulate unbounded state. The most
     // recent entry is at the END of the array (LIFO push/pop).
     const MAX_CLOSED_HISTORY = 50;
-    const [closedTabsHistory, setClosedTabsHistory] = createSignal<string[]>([]);
+    const [closedTabsHistory, setClosedTabsHistory] = createSignal<string[]>(
+        [],
+    );
 
     function pushClosedTab(path: string) {
         setClosedTabsHistory((prev) => {
@@ -397,7 +471,7 @@ const App: Component = () => {
     const uiScale = createMemo(() => editorStore.uiZoom() / 100);
     const activePanePath = createMemo(() =>
         activePaneSlot() === "secondary"
-            ? secondaryPanePath() ?? primaryPanePath()
+            ? (secondaryPanePath() ?? primaryPanePath())
             : primaryPanePath(),
     );
     const currentAiModelLabel = createMemo(() => aiStore.currentModelLabel());
@@ -430,10 +504,14 @@ const App: Component = () => {
         return options;
     });
     const currentAiModelOptionValue = createMemo(() => {
-        const config = settingsStore.settings().ai_provider ?? defaultAiProviderConfig("Ollama");
+        const config =
+            settingsStore.settings().ai_provider ??
+            defaultAiProviderConfig("Ollama");
         return aiPanelModelOptionValue(config);
     });
-    const aiQuestionHistoryKey = createMemo(() => aiQuestionHistoryStorageKey(vaultStore.vaultInfo()?.path));
+    const aiQuestionHistoryKey = createMemo(() =>
+        aiQuestionHistoryStorageKey(vaultStore.vaultInfo()?.path),
+    );
     const aiHistoryDates = createMemo(() => {
         const dates = new Set<string>();
         for (const entry of aiQuestionHistory()) {
@@ -447,22 +525,36 @@ const App: Component = () => {
         return aiQuestionHistory()
             .filter((entry) => aiHistoryDateKey(entry.createdAt) === date)
             .slice()
-            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+            .sort(
+                (a, b) =>
+                    new Date(b.createdAt).getTime() -
+                    new Date(a.createdAt).getTime(),
+            );
     });
     const splitPaneActive = createMemo(() => secondaryPanePath() !== null);
 
-    createEffect(on(aiQuestionHistoryKey, (key) => {
-        let entries: AiQuestionHistoryEntry[] = [];
-        try {
-            entries = parseAiQuestionHistory(localStorage.getItem(key));
-        } catch {
-            entries = [];
-        }
-        setAiQuestionHistory(entries);
-        setAiHistoryCursor(null);
-        const dates = Array.from(new Set(entries.map((entry) => aiHistoryDateKey(entry.createdAt)).filter(Boolean))).sort().reverse();
-        setAiHistoryDate(dates[0] ?? "");
-    }));
+    createEffect(
+        on(aiQuestionHistoryKey, (key) => {
+            let entries: AiQuestionHistoryEntry[] = [];
+            try {
+                entries = parseAiQuestionHistory(localStorage.getItem(key));
+            } catch {
+                entries = [];
+            }
+            setAiQuestionHistory(entries);
+            setAiHistoryCursor(null);
+            const dates = Array.from(
+                new Set(
+                    entries
+                        .map((entry) => aiHistoryDateKey(entry.createdAt))
+                        .filter(Boolean),
+                ),
+            )
+                .sort()
+                .reverse();
+            setAiHistoryDate(dates[0] ?? "");
+        }),
+    );
 
     createEffect(() => {
         const dates = aiHistoryDates();
@@ -477,14 +569,22 @@ const App: Component = () => {
     });
 
     // Screenshot state
-    const [screenshotData, setScreenshotData] = createSignal<string | null>(null);
+    const [screenshotData, setScreenshotData] = createSignal<string | null>(
+        null,
+    );
     const [screenshotLoading, setScreenshotLoading] = createSignal(false);
 
     function isViewMode(value: string | null): value is ViewMode {
-        return value === "source" || value === "live-preview" || value === "reading";
+        return (
+            value === "source" ||
+            value === "live-preview" ||
+            value === "reading"
+        );
     }
 
-    function resolveDefaultViewMode(value: string | null | undefined): ViewMode {
+    function resolveDefaultViewMode(
+        value: string | null | undefined,
+    ): ViewMode {
         switch (value) {
             case "Source":
             case "source":
@@ -499,18 +599,39 @@ const App: Component = () => {
         }
     }
 
-    function buildDefaultSidebarTabs(): { id: SidebarTab; title: string; icon: string }[] {
+    function buildDefaultSidebarTabs(): {
+        id: SidebarTab;
+        title: string;
+        icon: string;
+    }[] {
         return [
-            { id: "files", title: t("sidebar.files"), icon: "M3 3h7l2 2h5a1 1 0 011 1v9a1 1 0 01-1 1H3a1 1 0 01-1-1V4a1 1 0 011-1z" },
-            { id: "outline", title: t("sidebar.outline"), icon: "M4 6h16M4 10h10M4 14h13M4 18h7" },
-            { id: "search", title: t("sidebar.search"), icon: "M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" },
-            { id: "calendar", title: t("sidebar.calendar"), icon: "M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z" },
+            {
+                id: "files",
+                title: t("sidebar.files"),
+                icon: "M3 3h7l2 2h5a1 1 0 011 1v9a1 1 0 01-1 1H3a1 1 0 01-1-1V4a1 1 0 011-1z",
+            },
+            {
+                id: "outline",
+                title: t("sidebar.outline"),
+                icon: "M4 6h16M4 10h10M4 14h13M4 18h7",
+            },
+            {
+                id: "search",
+                title: t("sidebar.search"),
+                icon: "M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z",
+            },
+            {
+                id: "calendar",
+                title: t("sidebar.calendar"),
+                icon: "M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z",
+            },
         ];
     }
 
     function normalizeHotkeyKey(key: string): string {
         const normalized = key.length === 1 ? key.toUpperCase() : key;
-        if (normalized === "+" || normalized === "ADD" || normalized === "Plus") return "=";
+        if (normalized === "+" || normalized === "ADD" || normalized === "Plus")
+            return "=";
         if (normalized === "SUBTRACT" || normalized === "Minus") return "-";
         // Normalise arrow keys so hotkey strings like "Ctrl+Alt+Left"
         // actually match DOM events whose `e.key` is `"ArrowLeft"`.
@@ -559,7 +680,12 @@ const App: Component = () => {
     }
 
     function isSplitDirection(value: unknown): value is SplitDirection {
-        return value === "left" || value === "right" || value === "up" || value === "down";
+        return (
+            value === "left" ||
+            value === "right" ||
+            value === "up" ||
+            value === "down"
+        );
     }
 
     function isPaneSlot(value: unknown): value is PaneSlot {
@@ -574,7 +700,9 @@ const App: Component = () => {
 
     function findOpenFile(path: string | null | undefined): FileContent | null {
         if (!path) return null;
-        return vaultStore.openFiles().find((file) => file.path === path) ?? null;
+        return (
+            vaultStore.openFiles().find((file) => file.path === path) ?? null
+        );
     }
 
     function activatePane(slot: PaneSlot) {
@@ -602,13 +730,17 @@ const App: Component = () => {
     }
 
     function handleTabSelect(path: string) {
-        document.dispatchEvent(new CustomEvent("mindzj:remember-active-viewport"));
+        document.dispatchEvent(
+            new CustomEvent("mindzj:remember-active-viewport"),
+        );
         setPanePath(activePaneSlot(), path);
         vaultStore.switchToFile(path);
     }
 
     async function handleSidebarFileClick(path: string) {
-        document.dispatchEvent(new CustomEvent("mindzj:remember-active-viewport"));
+        document.dispatchEvent(
+            new CustomEvent("mindzj:remember-active-viewport"),
+        );
         const targetSlot = activePaneSlot();
         await openFileRouted(path);
         const file = findOpenFile(path);
@@ -640,13 +772,14 @@ const App: Component = () => {
         const idx = currentPath
             ? files.findIndex((file) => file.path === currentPath)
             : -1;
-        const newIdx = direction === "prev"
-            ? idx <= 0
-                ? files.length - 1
-                : idx - 1
-            : idx < 0 || idx >= files.length - 1
-                ? 0
-                : idx + 1;
+        const newIdx =
+            direction === "prev"
+                ? idx <= 0
+                    ? files.length - 1
+                    : idx - 1
+                : idx < 0 || idx >= files.length - 1
+                  ? 0
+                  : idx + 1;
         const next = files[newIdx];
         if (!next) return false;
 
@@ -689,7 +822,9 @@ const App: Component = () => {
         //      showing that candidate and we don't want both panes
         //      pointing at the same file), skip past it in either
         //      direction.
-        const pickReplacement = (exclude: string | null = null): string | null => {
+        const pickReplacement = (
+            exclude: string | null = null,
+        ): string | null => {
             if (remainingPaths.length === 0) return null;
 
             // Build the search order: left neighbour first, then walk
@@ -703,7 +838,8 @@ const App: Component = () => {
             // file. We want to traverse those in the original order,
             // which corresponds to remaining indices `closedIndex,
             // closedIndex+1, …` IF closedIndex < remainingPaths.length.
-            for (let i = closedIndex; i < remainingPaths.length; i++) order.push(i);
+            for (let i = closedIndex; i < remainingPaths.length; i++)
+                order.push(i);
 
             for (const idx of order) {
                 const candidate = remainingPaths[idx];
@@ -716,12 +852,16 @@ const App: Component = () => {
         // file, replace it with the picker's choice; the OTHER pane
         // is unaffected unless both happened to point at the same
         // (now closed) file.
-        let nextPrimary = primaryBefore === path
-            ? pickReplacement(secondaryBefore === path ? null : secondaryBefore)
-            : primaryBefore;
-        let nextSecondary = secondaryBefore === path
-            ? pickReplacement(nextPrimary)
-            : secondaryBefore;
+        let nextPrimary =
+            primaryBefore === path
+                ? pickReplacement(
+                      secondaryBefore === path ? null : secondaryBefore,
+                  )
+                : primaryBefore;
+        let nextSecondary =
+            secondaryBefore === path
+                ? pickReplacement(nextPrimary)
+                : secondaryBefore;
 
         if (nextSecondary === nextPrimary && nextSecondary !== null) {
             nextSecondary = pickReplacement(nextPrimary);
@@ -735,16 +875,23 @@ const App: Component = () => {
         setPrimaryPanePath(nextPrimary);
         setSecondaryPanePath(nextSecondary);
 
-        const nextSlot = activeBefore === "secondary" && nextSecondary ? "secondary" : "primary";
+        const nextSlot =
+            activeBefore === "secondary" && nextSecondary
+                ? "secondary"
+                : "primary";
         setActivePaneSlot(nextSlot);
-        const nextActivePath = nextSlot === "secondary" ? nextSecondary : nextPrimary;
+        const nextActivePath =
+            nextSlot === "secondary" ? nextSecondary : nextPrimary;
         const nextActiveFile = findOpenFile(nextActivePath);
         if (nextActiveFile) {
             vaultStore.setActiveFile(nextActiveFile);
         }
     }
 
-    async function handleOpenSplitInPane(path: string, direction: SplitDirection) {
+    async function handleOpenSplitInPane(
+        path: string,
+        direction: SplitDirection,
+    ) {
         // Cooperatively cancel any in-flight sidebar global search
         // BEFORE we start the split. Spinning up a new Editor
         // (secondary pane) while the search loop is still hammering
@@ -898,7 +1045,9 @@ const App: Component = () => {
     );
 
     createEffect(() => {
-        const openPaths = new Set(vaultStore.openFiles().map((file) => file.path));
+        const openPaths = new Set(
+            vaultStore.openFiles().map((file) => file.path),
+        );
         const primary = primaryPanePath();
         const secondary = secondaryPanePath();
 
@@ -915,7 +1064,9 @@ const App: Component = () => {
 
     async function flushWorkspaceNow() {
         if (!vaultStore.vaultInfo() || isTransientWindow()) return;
-        document.dispatchEvent(new CustomEvent("mindzj:remember-active-viewport"));
+        document.dispatchEvent(
+            new CustomEvent("mindzj:remember-active-viewport"),
+        );
         await Promise.all([
             workspaceStore.saveWorkspace(buildWorkspaceSnapshot()),
             saveFolderState(),
@@ -1061,8 +1212,18 @@ const App: Component = () => {
         const suppressNativeContextMenu = (e: MouseEvent) => {
             e.preventDefault();
         };
-        document.addEventListener("contextmenu", suppressNativeContextMenu, true);
-        onCleanup(() => document.removeEventListener("contextmenu", suppressNativeContextMenu, true));
+        document.addEventListener(
+            "contextmenu",
+            suppressNativeContextMenu,
+            true,
+        );
+        onCleanup(() =>
+            document.removeEventListener(
+                "contextmenu",
+                suppressNativeContextMenu,
+                true,
+            ),
+        );
         onCleanup(() => {
             if ((window as any).__mindzj_switch_open_tab === switchOpenTab) {
                 (window as any).__mindzj_switch_open_tab = null;
@@ -1086,20 +1247,35 @@ const App: Component = () => {
                 // Dispatch a follow-up event that the SettingsModal can use
                 // to navigate to the specific plugin settings tab.
                 setTimeout(() => {
-                    document.dispatchEvent(new CustomEvent("mindzj:settings-navigate", {
-                        detail: { pluginId: detail.pluginId },
-                    }));
+                    document.dispatchEvent(
+                        new CustomEvent("mindzj:settings-navigate", {
+                            detail: { pluginId: detail.pluginId },
+                        }),
+                    );
                 }, 100);
             }
         };
         document.addEventListener("mindzj:open-settings", handleOpenSettings);
-        onCleanup(() => document.removeEventListener("mindzj:open-settings", handleOpenSettings));
+        onCleanup(() =>
+            document.removeEventListener(
+                "mindzj:open-settings",
+                handleOpenSettings,
+            ),
+        );
 
         const handleToggleAiPanel = () => {
             setShowAiPanel((value) => !value);
         };
-        document.addEventListener("mindzj:toggle-ai-panel", handleToggleAiPanel);
-        onCleanup(() => document.removeEventListener("mindzj:toggle-ai-panel", handleToggleAiPanel));
+        document.addEventListener(
+            "mindzj:toggle-ai-panel",
+            handleToggleAiPanel,
+        );
+        onCleanup(() =>
+            document.removeEventListener(
+                "mindzj:toggle-ai-panel",
+                handleToggleAiPanel,
+            ),
+        );
 
         // ── Reveal-in-tree: triggered from tab context menu ──
         const handleRevealInTree = () => {
@@ -1107,18 +1283,33 @@ const App: Component = () => {
             setSidebarCollapsed(false);
         };
         document.addEventListener("mindzj:reveal-in-tree", handleRevealInTree);
-        onCleanup(() => document.removeEventListener("mindzj:reveal-in-tree", handleRevealInTree));
+        onCleanup(() =>
+            document.removeEventListener(
+                "mindzj:reveal-in-tree",
+                handleRevealInTree,
+            ),
+        );
 
         const handleAppCommand = (e: Event) => {
             const command = (e as CustomEvent).detail?.command;
-            if (command === "toggle-left-sidebar" || command === "toggle-right-sidebar") {
-                setSidebarCollapsed(v => !v);
+            if (
+                command === "toggle-left-sidebar" ||
+                command === "toggle-right-sidebar"
+            ) {
+                setSidebarCollapsed((v) => !v);
             }
         };
         document.addEventListener("mindzj:app-command", handleAppCommand);
-        onCleanup(() => document.removeEventListener("mindzj:app-command", handleAppCommand));
+        onCleanup(() =>
+            document.removeEventListener(
+                "mindzj:app-command",
+                handleAppCommand,
+            ),
+        );
         onCleanup(() => {
-            if ((window as any).__mindzj_flush_workspace === flushWorkspaceNow) {
+            if (
+                (window as any).__mindzj_flush_workspace === flushWorkspaceNow
+            ) {
                 delete (window as any).__mindzj_flush_workspace;
             }
         });
@@ -1136,7 +1327,9 @@ const App: Component = () => {
                 const minimized = await _aw.isMinimized();
                 // Don't save position/size when maximized — restore the pre-maximized geometry
                 if (maximized) {
-                    await invoke("save_window_state", { windowState: { maximized: true } });
+                    await invoke("save_window_state", {
+                        windowState: { maximized: true },
+                    });
                     return;
                 }
                 if (minimized) {
@@ -1174,28 +1367,36 @@ const App: Component = () => {
         // request event entirely. The debounced move/resize saves above
         // already keep the window geometry up-to-date, so we never lose
         // more than 500ms of movement on the hard-close path.
-        onCleanup(() => { unlistenResize(); unlistenMove(); });
+        onCleanup(() => {
+            unlistenResize();
+            unlistenMove();
+        });
 
         // Listen for file system watcher events from Rust backend
-        listen<{ kind: string; path?: string; from?: string; to?: string }>("file-changed", async (event) => {
-            const e = event.payload;
-            if (e.kind === "Modified" && e.path) {
-                // Skip reload if a plugin is currently saving this file.
-                // Re-loading would reset in-memory plugin state (e.g., node selection
-                // after pressing Tab to add a child node in the mindmap plugin).
-                if (!isPluginSaving(e.path)) {
-                    // Use reloadFile so that a background save on tab A
-                    // (or an external editor change) never yanks the user
-                    // off whatever tab they currently have focused.
-                    const openFile = vaultStore.openFiles().find(f => f.path === e.path);
-                    if (openFile) {
-                        await vaultStore.reloadFile(e.path!);
+        listen<{ kind: string; path?: string; from?: string; to?: string }>(
+            "file-changed",
+            async (event) => {
+                const e = event.payload;
+                if (e.kind === "Modified" && e.path) {
+                    // Skip reload if a plugin is currently saving this file.
+                    // Re-loading would reset in-memory plugin state (e.g., node selection
+                    // after pressing Tab to add a child node in the mindmap plugin).
+                    if (!isPluginSaving(e.path)) {
+                        // Use reloadFile so that a background save on tab A
+                        // (or an external editor change) never yanks the user
+                        // off whatever tab they currently have focused.
+                        const openFile = vaultStore
+                            .openFiles()
+                            .find((f) => f.path === e.path);
+                        if (openFile) {
+                            await vaultStore.reloadFile(e.path!);
+                        }
                     }
                 }
-            }
-            // Refresh file tree for any change
-            await vaultStore.refreshFileTree();
-        });
+                // Refresh file tree for any change
+                await vaultStore.refreshFileTree();
+            },
+        );
 
         // Auto-open vault from URL params (for new-window vault opening)
         if (startupVaultPath && startupVaultName) {
@@ -1211,10 +1412,15 @@ const App: Component = () => {
                 const savedVaults = localStorage.getItem("mindzj-vault-list");
                 if (last) {
                     const { name, path } = JSON.parse(last);
-                    const parsedVaults = savedVaults ? JSON.parse(savedVaults) : [];
-                    const stillListed = Array.isArray(parsedVaults)
-                        && parsedVaults.some((vault: { path?: string }) =>
-                            normalizeVaultPath(vault.path) === normalizeVaultPath(path),
+                    const parsedVaults = savedVaults
+                        ? JSON.parse(savedVaults)
+                        : [];
+                    const stillListed =
+                        Array.isArray(parsedVaults) &&
+                        parsedVaults.some(
+                            (vault: { path?: string }) =>
+                                normalizeVaultPath(vault.path) ===
+                                normalizeVaultPath(path),
                         );
                     if (name && path && stillListed) {
                         await vaultStore.openVault(path, name);
@@ -1275,7 +1481,9 @@ const App: Component = () => {
             // concurrently.
             pending = pending.then(async () => {
                 if (previousCombo) {
-                    try { await unregister(previousCombo); } catch {}
+                    try {
+                        await unregister(previousCombo);
+                    } catch {}
                 }
                 try {
                     await register(nextCombo, (event) => {
@@ -1337,14 +1545,19 @@ const App: Component = () => {
     //    succeeded. If it didn't, the most likely cause is another
     //    application (or OS component) already claiming the key.
     onMount(async () => {
-        const tryRegister = async (combo: string, direction: "prev" | "next") => {
+        const tryRegister = async (
+            combo: string,
+            direction: "prev" | "next",
+        ) => {
             try {
                 await register(combo, (event) => {
                     if (event.state === "Pressed") switchOpenTab(direction);
                 });
                 const ok = await isRegistered(combo).catch(() => false);
                 // eslint-disable-next-line no-console
-                console.log(`[GlobalShortcut] register('${combo}') success=${ok}`);
+                console.log(
+                    `[GlobalShortcut] register('${combo}') success=${ok}`,
+                );
             } catch (err) {
                 console.warn(
                     `[GlobalShortcut] register('${combo}') failed:`,
@@ -1378,7 +1591,9 @@ const App: Component = () => {
         onCleanup(() => {
             unregister("CommandOrControl+Alt+Left").catch(() => {});
             unregister("CommandOrControl+Alt+Right").catch(() => {});
-            try { unlistenTabSwitch(); } catch {}
+            try {
+                unlistenTabSwitch();
+            } catch {}
         });
     });
 
@@ -1388,7 +1603,10 @@ const App: Component = () => {
         if (info) {
             document.title = `MindZJ — ${info.name}`;
             // Record last opened vault
-            localStorage.setItem("mindzj-last-vault", JSON.stringify({ name: info.name, path: info.path }));
+            localStorage.setItem(
+                "mindzj-last-vault",
+                JSON.stringify({ name: info.name, path: info.path }),
+            );
         } else {
             document.title = "MindZJ";
         }
@@ -1404,160 +1622,210 @@ const App: Component = () => {
     // the real vault loads. With `defer: true`, the effect only runs
     // when vaultInfo() ACTUALLY transitions (null → vault, or
     // vault → null). The initial null state is silently skipped.
-    createEffect(on(() => vaultStore.vaultInfo()?.path ?? null, async () => {
-        const info = vaultStore.vaultInfo();
-        resetFolderVisibilityState();
-        editorStore.resetWorkspaceState();
-        if (info) {
-            workspaceRestoreInProgress = true;
-            const loadedSettings = await settingsStore.loadSettings();
-            // If the user picked a language on the welcome screen before
-            // this vault existed, apply it now so the new vault's
-            // settings.json persists the right locale. This is a
-            // one-shot override — we delete the key after consuming it
-            // so later vault switches use the vault's own locale.
-            try {
-                const pendingLocale = localStorage.getItem("mindzj-pending-locale");
-                if (pendingLocale && pendingLocale !== loadedSettings.locale) {
-                    await settingsStore.updateSetting("locale", pendingLocale);
-                }
-                if (pendingLocale) {
-                    localStorage.removeItem("mindzj-pending-locale");
-                }
-            } catch (e) {
-                console.warn("[vault-open] pending locale apply failed:", e);
-            }
-            editorStore.setDefaultViewMode(
-                isViewMode(startupViewMode)
-                    ? startupViewMode
-                    : resolveDefaultViewMode(loadedSettings.default_view_mode),
-            );
-            if (!isTransientWindow()) {
-                const ws = await workspaceStore.loadWorkspace();
-                editorStore.restoreWorkspaceState(ws);
-                // Restore sidebar state
-                if (ws.sidebar_tab) setSidebarTab(ws.sidebar_tab as SidebarTab);
-                setSidebarCollapsed(!!ws.sidebar_collapsed);
-                if (ws.sidebar_width) setSidebarWidth(ws.sidebar_width);
-                const defaultTabs = buildDefaultSidebarTabs();
-                if (ws.sidebar_tab_order?.length) {
-                    const reordered = ws.sidebar_tab_order
-                        .map((id) => defaultTabs.find((tab) => tab.id === id))
-                        .filter(Boolean) as typeof defaultTabs;
-                    for (const tab of defaultTabs) {
-                        if (!reordered.find((item) => item.id === tab.id)) {
-                            reordered.push(tab);
+    createEffect(
+        on(
+            () => vaultStore.vaultInfo()?.path ?? null,
+            async () => {
+                const info = vaultStore.vaultInfo();
+                resetFolderVisibilityState();
+                editorStore.resetWorkspaceState();
+                if (info) {
+                    workspaceRestoreInProgress = true;
+                    const loadedSettings = await settingsStore.loadSettings();
+                    // If the user picked a language on the welcome screen before
+                    // this vault existed, apply it now so the new vault's
+                    // settings.json persists the right locale. This is a
+                    // one-shot override — we delete the key after consuming it
+                    // so later vault switches use the vault's own locale.
+                    try {
+                        const pendingLocale = localStorage.getItem(
+                            "mindzj-pending-locale",
+                        );
+                        if (
+                            pendingLocale &&
+                            pendingLocale !== loadedSettings.locale
+                        ) {
+                            await settingsStore.updateSetting(
+                                "locale",
+                                pendingLocale,
+                            );
+                        }
+                        if (pendingLocale) {
+                            localStorage.removeItem("mindzj-pending-locale");
+                        }
+                    } catch (e) {
+                        console.warn(
+                            "[vault-open] pending locale apply failed:",
+                            e,
+                        );
+                    }
+                    editorStore.setDefaultViewMode(
+                        isViewMode(startupViewMode)
+                            ? startupViewMode
+                            : resolveDefaultViewMode(
+                                  loadedSettings.default_view_mode,
+                              ),
+                    );
+                    if (!isTransientWindow()) {
+                        const ws = await workspaceStore.loadWorkspace();
+                        editorStore.restoreWorkspaceState(ws);
+                        // Restore sidebar state
+                        if (ws.sidebar_tab)
+                            setSidebarTab(ws.sidebar_tab as SidebarTab);
+                        setSidebarCollapsed(!!ws.sidebar_collapsed);
+                        if (ws.sidebar_width) setSidebarWidth(ws.sidebar_width);
+                        const defaultTabs = buildDefaultSidebarTabs();
+                        if (ws.sidebar_tab_order?.length) {
+                            const reordered = ws.sidebar_tab_order
+                                .map((id) =>
+                                    defaultTabs.find((tab) => tab.id === id),
+                                )
+                                .filter(Boolean) as typeof defaultTabs;
+                            for (const tab of defaultTabs) {
+                                if (
+                                    !reordered.find(
+                                        (item) => item.id === tab.id,
+                                    )
+                                ) {
+                                    reordered.push(tab);
+                                }
+                            }
+                            setSidebarTabs(reordered);
+                        } else {
+                            setSidebarTabs(defaultTabs);
+                        }
+                        // Window geometry is restored from global database on app start
+                        // (not per-vault) — see onMount above. No override here.
+                        // Restore open files
+                        const filesToOpen = [...ws.open_files];
+                        if (
+                            ws.active_file &&
+                            !filesToOpen.includes(ws.active_file)
+                        ) {
+                            filesToOpen.push(ws.active_file);
+                        }
+                        for (const filePath of filesToOpen) {
+                            try {
+                                await openFileRouted(filePath);
+                            } catch {
+                                /* skip missing files */
+                            }
+                        }
+                        const openPaths = new Set(
+                            vaultStore.openFiles().map((file) => file.path),
+                        );
+                        const restoredPrimary =
+                            ws.primary_pane_path &&
+                            openPaths.has(ws.primary_pane_path)
+                                ? ws.primary_pane_path
+                                : ws.active_file &&
+                                    openPaths.has(ws.active_file)
+                                  ? ws.active_file
+                                  : (vaultStore.openFiles()[0]?.path ?? null);
+                        const restoredSecondary =
+                            ws.secondary_pane_path &&
+                            openPaths.has(ws.secondary_pane_path)
+                                ? ws.secondary_pane_path
+                                : null;
+
+                        setPrimaryPanePath(restoredPrimary);
+                        setSecondaryPanePath(restoredSecondary);
+                        if (isSplitDirection(ws.split_direction)) {
+                            setSplitDirection(ws.split_direction);
+                        }
+                        setSplitRatio(normalizeSplitRatio(ws.split_ratio));
+
+                        const restoredActiveSlot =
+                            isPaneSlot(ws.active_pane_slot) &&
+                            (ws.active_pane_slot !== "secondary" ||
+                                restoredSecondary)
+                                ? ws.active_pane_slot
+                                : "primary";
+                        setActivePaneSlot(restoredActiveSlot);
+
+                        const activePath =
+                            restoredActiveSlot === "secondary"
+                                ? restoredSecondary
+                                : restoredPrimary;
+                        if (activePath) {
+                            try {
+                                vaultStore.switchToFile(activePath);
+                            } catch {
+                                /* skip */
+                            }
                         }
                     }
-                    setSidebarTabs(reordered);
-                } else {
-                    setSidebarTabs(defaultTabs);
-                }
-                // Window geometry is restored from global database on app start
-                // (not per-vault) — see onMount above. No override here.
-                // Restore open files
-                const filesToOpen = [...ws.open_files];
-                if (ws.active_file && !filesToOpen.includes(ws.active_file)) {
-                    filesToOpen.push(ws.active_file);
-                }
-                for (const filePath of filesToOpen) {
-                    try { await openFileRouted(filePath); } catch { /* skip missing files */ }
-                }
-                const openPaths = new Set(vaultStore.openFiles().map((file) => file.path));
-                const restoredPrimary =
-                    ws.primary_pane_path && openPaths.has(ws.primary_pane_path)
-                        ? ws.primary_pane_path
-                        : ws.active_file && openPaths.has(ws.active_file)
-                            ? ws.active_file
-                            : vaultStore.openFiles()[0]?.path ?? null;
-                const restoredSecondary =
-                    ws.secondary_pane_path && openPaths.has(ws.secondary_pane_path)
-                        ? ws.secondary_pane_path
-                        : null;
-
-                setPrimaryPanePath(restoredPrimary);
-                setSecondaryPanePath(restoredSecondary);
-                if (isSplitDirection(ws.split_direction)) {
-                    setSplitDirection(ws.split_direction);
-                }
-                setSplitRatio(normalizeSplitRatio(ws.split_ratio));
-
-                const restoredActiveSlot =
-                    isPaneSlot(ws.active_pane_slot) &&
-                    (ws.active_pane_slot !== "secondary" || restoredSecondary)
-                        ? ws.active_pane_slot
-                        : "primary";
-                setActivePaneSlot(restoredActiveSlot);
-
-                const activePath = restoredActiveSlot === "secondary"
-                    ? restoredSecondary
-                    : restoredPrimary;
-                if (activePath) {
-                    try { vaultStore.switchToFile(activePath); } catch { /* skip */ }
-                }
-            }
-            // Load persisted folder expand/collapse state BEFORE the
-            // sidebar becomes visible. Previously this ran in the
-            // FileTree component's own onMount which fires AFTER the
-            // bootstrapping gate drops — so for one frame the user
-            // saw every folder in the default "collapsed" state,
-            // then the saved state snapped in. Loading here keeps
-            // the folder tree visually stable from the first paint.
-            try {
-                await loadFolderState();
-            } catch (e) {
-                console.warn("[vault-open] loadFolderState failed:", e);
-            }
-            // Load enabled plugins
-            await pluginStore.loadAllPlugins();
-            if (!startupPayloadApplied() && (startupFilePath || isViewMode(startupViewMode))) {
-                if (startupFilePath) {
+                    // Load persisted folder expand/collapse state BEFORE the
+                    // sidebar becomes visible. Previously this ran in the
+                    // FileTree component's own onMount which fires AFTER the
+                    // bootstrapping gate drops — so for one frame the user
+                    // saw every folder in the default "collapsed" state,
+                    // then the saved state snapped in. Loading here keeps
+                    // the folder tree visually stable from the first paint.
                     try {
-                        await openFileRouted(startupFilePath);
+                        await loadFolderState();
                     } catch (e) {
-                        console.warn("Failed to open startup file from URL params:", e);
+                        console.warn("[vault-open] loadFolderState failed:", e);
                     }
-                }
-                if (isViewMode(startupViewMode)) {
-                    editorStore.setViewMode(startupViewMode);
-                }
-                setStartupPayloadApplied(true);
-            }
-            // Workspace fully restored: tabs are open, the active
-            // tab is selected, plugins are loaded. Drop the
-            // bootstrapping gate so the UI becomes visible. We
-            // wait two animation frames first because:
-            //   1. Solid still has pending effects to flush
-            //      (PluginViewHost's mount effect, Editor's scroll
-            //      restoration createEffect, etc.).
-            //   2. The webview itself needs one paint to draw the
-            //      mounted DOM before we reveal it — otherwise the
-            //      user sees the dark canvas → flash of unstyled
-            //      content → settled state.
-            //
-            // Two RAFs is the minimum delay that guarantees both the
-            // microtask queue AND a full layout/paint cycle have
-            // completed. Total wait is ~32ms at 60 Hz which is
-            // imperceptible to the user.
-            requestAnimationFrame(() => {
-                requestAnimationFrame(() => {
+                    // Load enabled plugins
+                    await pluginStore.loadAllPlugins();
+                    if (
+                        !startupPayloadApplied() &&
+                        (startupFilePath || isViewMode(startupViewMode))
+                    ) {
+                        if (startupFilePath) {
+                            try {
+                                await openFileRouted(startupFilePath);
+                            } catch (e) {
+                                console.warn(
+                                    "Failed to open startup file from URL params:",
+                                    e,
+                                );
+                            }
+                        }
+                        if (isViewMode(startupViewMode)) {
+                            editorStore.setViewMode(startupViewMode);
+                        }
+                        setStartupPayloadApplied(true);
+                    }
+                    // Workspace fully restored: tabs are open, the active
+                    // tab is selected, plugins are loaded. Drop the
+                    // bootstrapping gate so the UI becomes visible. We
+                    // wait two animation frames first because:
+                    //   1. Solid still has pending effects to flush
+                    //      (PluginViewHost's mount effect, Editor's scroll
+                    //      restoration createEffect, etc.).
+                    //   2. The webview itself needs one paint to draw the
+                    //      mounted DOM before we reveal it — otherwise the
+                    //      user sees the dark canvas → flash of unstyled
+                    //      content → settled state.
+                    //
+                    // Two RAFs is the minimum delay that guarantees both the
+                    // microtask queue AND a full layout/paint cycle have
+                    // completed. Total wait is ~32ms at 60 Hz which is
+                    // imperceptible to the user.
+                    requestAnimationFrame(() => {
+                        requestAnimationFrame(() => {
+                            workspaceRestoreInProgress = false;
+                            setIsBootstrapping(false);
+                        });
+                    });
+                } else {
                     workspaceRestoreInProgress = false;
-                    setIsBootstrapping(false);
-                });
-            });
-        } else {
-            workspaceRestoreInProgress = false;
-            // Vault closed — unload all plugins. With defer: true on
-            // the on() above, this branch only ever runs when the
-            // user actively closes a vault (truthy → null transition),
-            // never on initial mount. So we DO NOT touch the
-            // bootstrapping gate here; it's handled exclusively by
-            // onMount (fail-safe path) and the truthy branch above.
-            settingsStore.resetSettings();
-            editorStore.resetWorkspaceState();
-            await pluginStore.unloadAllPlugins();
-        }
-    }, { defer: true }));
+                    // Vault closed — unload all plugins. With defer: true on
+                    // the on() above, this branch only ever runs when the
+                    // user actively closes a vault (truthy → null transition),
+                    // never on initial mount. So we DO NOT touch the
+                    // bootstrapping gate here; it's handled exclusively by
+                    // onMount (fail-safe path) and the truthy branch above.
+                    settingsStore.resetSettings();
+                    editorStore.resetWorkspaceState();
+                    await pluginStore.unloadAllPlugins();
+                }
+            },
+            { defer: true },
+        ),
+    );
 
     // Save workspace on changes (debounced)
     createEffect(() => {
@@ -1605,9 +1873,7 @@ const App: Component = () => {
         // On Mac, the Ctrl slot is satisfied by Cmd (metaKey). On
         // Windows/Linux it's strictly the real Ctrl key — holding
         // the Win key alone must NOT count as Ctrl.
-        const ctrlHeld = _isMacPlatform
-            ? e.ctrlKey || e.metaKey
-            : e.ctrlKey;
+        const ctrlHeld = _isMacPlatform ? e.ctrlKey || e.metaKey : e.ctrlKey;
         if (needCtrl !== ctrlHeld) return false;
         if (needShift !== e.shiftKey) return false;
         if (needAlt !== e.altKey) return false;
@@ -1671,7 +1937,10 @@ const App: Component = () => {
                 e.key === "Right" ||
                 (e.keyCode || e.which) === 37 ||
                 (e.keyCode || e.which) === 39;
-            if (isHorizontalArrow && document.activeElement?.closest(".cm-editor")) {
+            if (
+                isHorizontalArrow &&
+                document.activeElement?.closest(".cm-editor")
+            ) {
                 return false;
             }
             e.preventDefault();
@@ -1740,7 +2009,9 @@ const App: Component = () => {
         }
     }
 
-    function getTabSwitchDirectionFromEvent(e: KeyboardEvent): "prev" | "next" | null {
+    function getTabSwitchDirectionFromEvent(
+        e: KeyboardEvent,
+    ): "prev" | "next" | null {
         const keyCode = e.keyCode || e.which;
         const isLeft =
             e.code === "ArrowLeft" ||
@@ -1800,10 +2071,14 @@ const App: Component = () => {
 
         if (localStorage.getItem("mindzj-debug-tab-switch") === "1") {
             // eslint-disable-next-line no-console
-            console.debug(
-                "[tab-switch] Ctrl+Shift/Alt+Arrow caught",
-                { key: e.key, code: e.code, keyCode: e.keyCode, ctrl: e.ctrlKey, shift: e.shiftKey, alt: e.altKey },
-            );
+            console.debug("[tab-switch] Ctrl+Shift/Alt+Arrow caught", {
+                key: e.key,
+                code: e.code,
+                keyCode: e.keyCode,
+                ctrl: e.ctrlKey,
+                shift: e.shiftKey,
+                alt: e.altKey,
+            });
         }
         e.preventDefault();
         e.stopPropagation();
@@ -1819,10 +2094,13 @@ const App: Component = () => {
     // user is actually looking at, not the stale
     // `__mindzj_plugin_editor_api` global which only updates when an
     // editor mounts/unmounts.
-    function findActivePaneEditorView(paneWrap?: HTMLElement | null): EditorView | undefined {
+    function findActivePaneEditorView(
+        paneWrap?: HTMLElement | null,
+    ): EditorView | undefined {
         // 1. Whatever has document focus, if it's inside a cm-editor,
         //    is the most reliable signal.
-        const focusedInEditor = document.activeElement?.closest<HTMLElement>(".cm-editor");
+        const focusedInEditor =
+            document.activeElement?.closest<HTMLElement>(".cm-editor");
         if (focusedInEditor) {
             const v = EditorView.findFromDOM(focusedInEditor);
             if (v) return v;
@@ -1830,14 +2108,16 @@ const App: Component = () => {
         // 2. The active pane's wrapper → its cm-editor descendant.
         //    Handles e.g. Ctrl+F pressed while focus sits in the
         //    sidebar search input.
-        const wrap = paneWrap ?? (() => {
-            const slot = activePaneSlot();
-            return document.querySelector<HTMLElement>(
-                slot === "secondary"
-                    ? ".mz-pane-wrap-secondary"
-                    : ".mz-pane-wrap-primary",
-            );
-        })();
+        const wrap =
+            paneWrap ??
+            (() => {
+                const slot = activePaneSlot();
+                return document.querySelector<HTMLElement>(
+                    slot === "secondary"
+                        ? ".mz-pane-wrap-secondary"
+                        : ".mz-pane-wrap-primary",
+                );
+            })();
         const cmEditor = wrap?.querySelector<HTMLElement>(".cm-editor");
         if (cmEditor) {
             const v = EditorView.findFromDOM(cmEditor);
@@ -1869,7 +2149,10 @@ const App: Component = () => {
         setAiQuestionHistory(trimmed);
         setAiHistoryCursor(null);
         try {
-            localStorage.setItem(aiQuestionHistoryKey(), JSON.stringify(trimmed));
+            localStorage.setItem(
+                aiQuestionHistoryKey(),
+                JSON.stringify(trimmed),
+            );
         } catch {
             // History is a convenience feature; storage failures should not block AI runs.
         }
@@ -1889,13 +2172,19 @@ const App: Component = () => {
     }
 
     function deleteAiHistoryEntry(id: string) {
-        saveAiQuestionHistory(aiQuestionHistory().filter((entry) => entry.id !== id));
+        saveAiQuestionHistory(
+            aiQuestionHistory().filter((entry) => entry.id !== id),
+        );
     }
 
     function clearAiHistoryForSelectedDate() {
         const date = aiHistoryDate();
         if (!date) return;
-        saveAiQuestionHistory(aiQuestionHistory().filter((entry) => aiHistoryDateKey(entry.createdAt) !== date));
+        saveAiQuestionHistory(
+            aiQuestionHistory().filter(
+                (entry) => aiHistoryDateKey(entry.createdAt) !== date,
+            ),
+        );
     }
 
     function clearAllAiHistory() {
@@ -1912,7 +2201,10 @@ const App: Component = () => {
         if (!history.length || aiPanelBusy()) return;
         const current = aiHistoryCursor();
         if (direction === "prev") {
-            const nextIndex = current === null ? history.length - 1 : Math.max(0, current - 1);
+            const nextIndex =
+                current === null
+                    ? history.length - 1
+                    : Math.max(0, current - 1);
             setAiHistoryCursor(nextIndex);
             setAiPanelInput(history[nextIndex].text);
             return;
@@ -1966,8 +2258,10 @@ const App: Component = () => {
         try {
             const stream = await mediaDevices.getUserMedia({ audio: true });
             aiVoiceStream = stream;
-            const AudioContextCtor = window.AudioContext || (window as any).webkitAudioContext;
-            if (!AudioContextCtor) throw new Error(t("aiPanel.voiceUnsupported"));
+            const AudioContextCtor =
+                window.AudioContext || (window as any).webkitAudioContext;
+            if (!AudioContextCtor)
+                throw new Error(t("aiPanel.voiceUnsupported"));
             const audioContext = new AudioContextCtor({ sampleRate: 48000 });
             const source = audioContext.createMediaStreamSource(stream);
             const processor = audioContext.createScriptProcessor(4096, 1, 1);
@@ -2017,7 +2311,9 @@ const App: Component = () => {
             }
             setAiHistoryCursor(null);
             setAiPanelInput((current) => {
-                const prefix = current.trim() ? `${current}${current.endsWith("\n") ? "" : "\n"}` : "";
+                const prefix = current.trim()
+                    ? `${current}${current.endsWith("\n") ? "" : "\n"}`
+                    : "";
                 return `${prefix}${text}`;
             });
             pushAiPanelStatus(t("aiPanel.voiceInserted"));
@@ -2038,7 +2334,8 @@ const App: Component = () => {
 
     async function synthesizeAiPanelInput() {
         const text = aiPanelInput().trim();
-        if (!text || aiPanelBusy() || aiVoiceBusy() || aiVoiceRecording()) return;
+        if (!text || aiPanelBusy() || aiVoiceBusy() || aiVoiceRecording())
+            return;
         setAiVoiceBusy(true);
         pushAiPanelStatus(t("aiPanel.ttsWorking"));
         try {
@@ -2054,7 +2351,13 @@ const App: Component = () => {
     onCleanup(() => disposeAiVoiceCapture());
 
     function clampAiPanelHeight(value: number): number {
-        const max = Math.max(AI_PANEL_MIN_HEIGHT, Math.min(Math.floor(window.innerHeight * 0.72), window.innerHeight - 96));
+        const max = Math.max(
+            AI_PANEL_MIN_HEIGHT,
+            Math.min(
+                Math.floor(window.innerHeight * 0.72),
+                window.innerHeight - 96,
+            ),
+        );
         return Math.max(AI_PANEL_MIN_HEIGHT, Math.min(max, Math.round(value)));
     }
 
@@ -2107,7 +2410,9 @@ const App: Component = () => {
                 done: "完成",
                 error: "错误",
             };
-            progressLines.push(`[${stamp}] ${labels[phase] ?? phase}: ${message}`);
+            progressLines.push(
+                `[${stamp}] ${labels[phase] ?? phase}: ${message}`,
+            );
             setAiPanelOutput(progressLines.join("\n"));
         };
         pushProgress("message", t("aiPanel.working"));
@@ -2130,7 +2435,9 @@ const App: Component = () => {
     }
 
     function selectAiPanelModel(value: string) {
-        const option = aiPanelModelOptions().find((item) => item.value === value);
+        const option = aiPanelModelOptions().find(
+            (item) => item.value === value,
+        );
         if (!option) return;
         void settingsStore.updateSetting("ai_provider", { ...option.config });
     }
@@ -2147,24 +2454,39 @@ const App: Component = () => {
             return;
         }
 
-        const moveLineCommand = matchesHotkey(e, getHotkey("move-line-up", "Alt+Up"))
+        const moveLineCommand = matchesHotkey(
+            e,
+            getHotkey("move-line-up", "Alt+Up"),
+        )
             ? "move-line-up"
             : matchesHotkey(e, getHotkey("move-line-down", "Alt+Down"))
-                ? "move-line-down"
-                : null;
-        const focusedEditorContent = document.activeElement?.closest(".cm-content");
+              ? "move-line-down"
+              : null;
+        const focusedEditorContent =
+            document.activeElement?.closest(".cm-content");
         if (moveLineCommand && focusedEditorContent?.closest(".cm-editor")) {
             e.preventDefault();
             e.stopPropagation();
             e.stopImmediatePropagation();
-            document.dispatchEvent(new CustomEvent("mindzj:editor-command", {
-                detail: { command: moveLineCommand },
-            }));
+            document.dispatchEvent(
+                new CustomEvent("mindzj:editor-command", {
+                    detail: { command: moveLineCommand },
+                }),
+            );
             return;
         }
 
-        const aiInputFocused = (document.activeElement as HTMLElement | null)?.dataset?.mzAiInput === "true";
-        if (aiInputFocused && e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
+        const aiInputFocused =
+            (document.activeElement as HTMLElement | null)?.dataset
+                ?.mzAiInput === "true";
+        if (
+            aiInputFocused &&
+            e.altKey &&
+            !e.ctrlKey &&
+            !e.metaKey &&
+            !e.shiftKey &&
+            (e.key === "ArrowUp" || e.key === "ArrowDown")
+        ) {
             e.preventDefault();
             e.stopPropagation();
             e.stopImmediatePropagation();
@@ -2188,7 +2510,7 @@ const App: Component = () => {
         }
 
         // Check if the editor (CodeMirror) is focused
-        const editorFocused = !!(document.activeElement?.closest(".cm-editor"));
+        const editorFocused = !!document.activeElement?.closest(".cm-editor");
 
         // Ctrl+F (NOT Ctrl+Shift+F, NOT with Alt) → open the CM6
         // in-editor find panel. We intercept this GLOBALLY rather
@@ -2223,7 +2545,8 @@ const App: Component = () => {
             // Ctrl+F is a TOGGLE: if a find panel is already open
             // anywhere in the active pane, close it; otherwise open
             // the mode-appropriate one and focus its input.
-            const activePath = activePanePath() ?? vaultStore.activeFile()?.path ?? null;
+            const activePath =
+                activePanePath() ?? vaultStore.activeFile()?.path ?? null;
             const activeMode = editorStore.getViewModeForFile(activePath);
 
             // Find the DOM element that wraps ONLY the active pane's
@@ -2236,9 +2559,10 @@ const App: Component = () => {
             // only act on the focused pane.
             const activePaneWrap: HTMLElement | null = (() => {
                 const slot = activePaneSlot();
-                const selector = slot === "secondary"
-                    ? ".mz-pane-wrap-secondary"
-                    : ".mz-pane-wrap-primary";
+                const selector =
+                    slot === "secondary"
+                        ? ".mz-pane-wrap-secondary"
+                        : ".mz-pane-wrap-primary";
                 return document.querySelector<HTMLElement>(selector);
             })();
 
@@ -2247,8 +2571,8 @@ const App: Component = () => {
             // ACTIVE pane to tell if it's currently open. Scoping
             // this to the active pane's wrapper keeps split-mode
             // Ctrl+F from latching onto a panel in the other pane.
-            const readingPanelOpen = !!(activePaneWrap
-                ?? document
+            const readingPanelOpen = !!(
+                activePaneWrap ?? document
             ).querySelector(".mz-reading-find-panel");
 
             // Ctrl+F is no longer a toggle. If the panel is already
@@ -2264,9 +2588,10 @@ const App: Component = () => {
                 // in-input selection would clobber its own query).
                 const node = sel.anchorNode;
                 if (!node) return "";
-                const el = node.nodeType === Node.ELEMENT_NODE
-                    ? (node as Element)
-                    : node.parentElement;
+                const el =
+                    node.nodeType === Node.ELEMENT_NODE
+                        ? (node as Element)
+                        : node.parentElement;
                 if (!el?.closest(".mz-reading-view")) return "";
                 if (el?.closest(".mz-reading-find-panel")) return "";
                 return sel.toString();
@@ -2329,9 +2654,9 @@ const App: Component = () => {
                         const selectionText = selectionRange.empty
                             ? ""
                             : cmView.state.sliceDoc(
-                                selectionRange.from,
-                                selectionRange.to,
-                            );
+                                  selectionRange.from,
+                                  selectionRange.to,
+                              );
                         const input =
                             cmView.dom.querySelector<HTMLInputElement>(
                                 ".mz-search-panel .mz-search-input",
@@ -2341,7 +2666,9 @@ const App: Component = () => {
                             // Trigger the panel's own `commit()` so
                             // the CM6 search state picks up the new
                             // query and the match counter refreshes.
-                            input.dispatchEvent(new Event("input", { bubbles: true }));
+                            input.dispatchEvent(
+                                new Event("input", { bubbles: true }),
+                            );
                         }
                         queueMicrotask(() => {
                             if (input) {
@@ -2415,7 +2742,12 @@ const App: Component = () => {
             }
         }
 
-        if (isCtrlHeld(e) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "r") {
+        if (
+            isCtrlHeld(e) &&
+            !e.altKey &&
+            !e.shiftKey &&
+            e.key.toLowerCase() === "r"
+        ) {
             e.preventDefault();
             e.stopPropagation();
             return;
@@ -2527,7 +2859,12 @@ const App: Component = () => {
         // and each attached copy re-ran the callback. We now call
         // `pluginStore.executeCommandById` directly. One call per
         // press, one insert per command.
-        if (matchesHotkey(e, getHotkey("plugin:timestamp-header:insert-timestamp", "Alt+F"))) {
+        if (
+            matchesHotkey(
+                e,
+                getHotkey("plugin:timestamp-header:insert-timestamp", "Alt+F"),
+            )
+        ) {
             e.preventDefault();
             e.stopPropagation();
             e.stopImmediatePropagation();
@@ -2536,7 +2873,12 @@ const App: Component = () => {
             );
             return;
         }
-        if (matchesHotkey(e, getHotkey("plugin:timestamp-header:insert-separator", "Alt+A"))) {
+        if (
+            matchesHotkey(
+                e,
+                getHotkey("plugin:timestamp-header:insert-separator", "Alt+A"),
+            )
+        ) {
             e.preventDefault();
             e.stopPropagation();
             e.stopImmediatePropagation();
@@ -2559,7 +2901,7 @@ const App: Component = () => {
         ) {
             e.preventDefault();
             e.stopPropagation();
-            setShowGotoLine(v => !v);
+            setShowGotoLine((v) => !v);
             return;
         }
         // Ctrl+P → commands-only palette ("Select a command…").
@@ -2575,7 +2917,7 @@ const App: Component = () => {
                 setCommandPaletteMode("commands");
             } else {
                 setCommandPaletteMode("commands");
-                setShowCommandPalette(v => !v);
+                setShowCommandPalette((v) => !v);
             }
             return;
         }
@@ -2589,7 +2931,7 @@ const App: Component = () => {
                 setCommandPaletteMode("files");
             } else {
                 setCommandPaletteMode("files");
-                setShowCommandPalette(v => !v);
+                setShowCommandPalette((v) => !v);
             }
             return;
         }
@@ -2614,9 +2956,11 @@ const App: Component = () => {
         if (matchesHotkey(e, getHotkey("code-block", "Ctrl+Shift+C"))) {
             e.preventDefault();
             e.stopPropagation();
-            document.dispatchEvent(new CustomEvent("mindzj:editor-command", {
-                detail: { command: "codeblock" },
-            }));
+            document.dispatchEvent(
+                new CustomEvent("mindzj:editor-command", {
+                    detail: { command: "codeblock" },
+                }),
+            );
             return;
         }
         // Ctrl+Alt+C / Ctrl+Alt+V are NOT intercepted here. The
@@ -2641,7 +2985,8 @@ const App: Component = () => {
         if (matchesHotkey(e, getHotkey("close-tab", "Ctrl+W"))) {
             e.preventDefault();
             e.stopPropagation();
-            const path = activePanePath() ?? vaultStore.activeFile()?.path ?? null;
+            const path =
+                activePanePath() ?? vaultStore.activeFile()?.path ?? null;
             if (path) {
                 document.dispatchEvent(new CustomEvent("mindzj:force-save"));
                 handleTabClose(path);
@@ -2666,9 +3011,11 @@ const App: Component = () => {
         if (matchesHotkey(e, getHotkey("task-list", "Ctrl+L"))) {
             e.preventDefault();
             e.stopPropagation();
-            document.dispatchEvent(new CustomEvent("mindzj:editor-command", {
-                detail: { command: "task-list" },
-            }));
+            document.dispatchEvent(
+                new CustomEvent("mindzj:editor-command", {
+                    detail: { command: "task-list" },
+                }),
+            );
             return;
         }
         if (matchesHotkey(e, getHotkey("toggle-view-mode", "Ctrl+E"))) {
@@ -2680,13 +3027,13 @@ const App: Component = () => {
         if (matchesHotkey(e, getHotkey("toggle-sidebar", "Ctrl+`"))) {
             e.preventDefault();
             e.stopPropagation();
-            setSidebarCollapsed(v => !v);
+            setSidebarCollapsed((v) => !v);
             return;
         }
         if (matchesHotkey(e, getHotkey("settings", "Ctrl+,"))) {
             e.preventDefault();
             e.stopPropagation();
-            setShowSettings(v => !v);
+            setShowSettings((v) => !v);
             return;
         }
         if (matchesHotkey(e, getHotkey("zoom-in", "Ctrl+="))) {
@@ -2702,7 +3049,10 @@ const App: Component = () => {
             return;
         }
         // Ctrl+0: only zoom reset when editor is NOT focused (Ctrl+0 = normal text in editor)
-        if (matchesHotkey(e, getHotkey("zoom-reset", "Ctrl+0")) && !editorFocused) {
+        if (
+            matchesHotkey(e, getHotkey("zoom-reset", "Ctrl+0")) &&
+            !editorFocused
+        ) {
             e.preventDefault();
             e.stopPropagation();
             editorStore.zoomUI(100 - editorStore.uiZoom());
@@ -2716,7 +3066,9 @@ const App: Component = () => {
             if (active) {
                 e.preventDefault();
                 e.stopPropagation();
-                document.dispatchEvent(new CustomEvent("mindzj:rename-active-file"));
+                document.dispatchEvent(
+                    new CustomEvent("mindzj:rename-active-file"),
+                );
             }
             return;
         }
@@ -2725,7 +3077,7 @@ const App: Component = () => {
         // has text selected in the active editor (or reading view),
         // pre-populate the global search with that selection and kick
         // off a search immediately — the "select text, Ctrl+Shift+F"
-        // flow users expect from VS Code / Obsidian.
+        // flow users expect from .
         if (isCtrlHeld(e) && e.shiftKey && !e.altKey && e.key === "F") {
             e.preventDefault();
             e.stopPropagation();
@@ -2747,9 +3099,10 @@ const App: Component = () => {
                     const domSel = window.getSelection?.();
                     if (domSel && domSel.rangeCount > 0) {
                         const anchor = domSel.anchorNode;
-                        const container = anchor?.nodeType === Node.ELEMENT_NODE
-                            ? (anchor as Element)
-                            : anchor?.parentElement;
+                        const container =
+                            anchor?.nodeType === Node.ELEMENT_NODE
+                                ? (anchor as Element)
+                                : anchor?.parentElement;
                         // Only accept a DOM selection inside the
                         // reading view. Selections in the sidebar or
                         // title bar aren't meaningful search queries.
@@ -2802,13 +3155,21 @@ const App: Component = () => {
         }
 
         // Alt+3: always switch to sidebar search (regardless of tab order)
-        if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && e.key === "3") {
+        if (
+            e.altKey &&
+            !e.ctrlKey &&
+            !e.metaKey &&
+            !e.shiftKey &&
+            e.key === "3"
+        ) {
             e.preventDefault();
             e.stopPropagation();
             setSidebarTab("search");
             if (sidebarCollapsed()) setSidebarCollapsed(false);
             setTimeout(() => {
-                const searchInput = document.querySelector('.mz-sidebar-search-input') as HTMLInputElement;
+                const searchInput = document.querySelector(
+                    ".mz-sidebar-search-input",
+                ) as HTMLInputElement;
                 if (searchInput) searchInput.focus();
             }, 100);
             return;
@@ -2833,7 +3194,9 @@ const App: Component = () => {
     }
 
     // Sidebar icon tabs config (signal so they can be reordered via drag)
-    const [sidebarTabs, setSidebarTabs] = createSignal(buildDefaultSidebarTabs());
+    const [sidebarTabs, setSidebarTabs] = createSignal(
+        buildDefaultSidebarTabs(),
+    );
     function reorderSidebarTab(fromIdx: number, toIdx: number) {
         const tabs = [...sidebarTabs()];
         const [moved] = tabs.splice(fromIdx, 1);
@@ -2842,7 +3205,10 @@ const App: Component = () => {
     }
 
     async function handleNewTab() {
-        const n = await promptDialog(t("app.noteNamePrompt"), t("app.newNoteDefault"));
+        const n = await promptDialog(
+            t("app.noteNamePrompt"),
+            t("app.newNoteDefault"),
+        );
         if (!n) return;
         const fileName = n.endsWith(".md") ? n : `${n}.md`;
         await vaultStore.createFile(fileName, "");
@@ -2854,18 +3220,19 @@ const App: Component = () => {
     }
 
     return (
-        <div style={{
-            display: "flex",
-            "flex-direction": "column",
-            position: "fixed",
-            inset: "0",
-            width: `${100 / uiScale()}%`,
-            height: `${100 / uiScale()}%`,
-            transform: `scale(${uiScale()})`,
-            "transform-origin": "top left",
-            overflow: "hidden",
-            background: "var(--mz-bg-primary)",
-        }}>
+        <div
+            style={{
+                display: "flex",
+                "flex-direction": "column",
+                position: "fixed",
+                inset: "0",
+                width: `${100 / uiScale()}%`,
+                height: `${100 / uiScale()}%`,
+                transform: `scale(${uiScale()})`,
+                "transform-origin": "top left",
+                overflow: "hidden",
+                background: "var(--mz-bg-primary)",
+            }}>
             {/*
                 Bootstrapping gate (OUTER level).
 
@@ -2888,434 +3255,773 @@ const App: Component = () => {
             <Show
                 when={!isBootstrapping()}
                 fallback={
-                    <div style={{
-                        flex: "1",
-                        background: "var(--mz-bg-primary)",
-                    }} />
-                }
-            >
-            <div style={{ display: "flex", flex: "1", overflow: "hidden" }}>
-                {/* ===== SIDEBAR ===== */}
-                <Show when={vaultStore.vaultInfo()}>
-                    <aside style={{
-                        width: sidebarCollapsed() ? "0px" : `${sidebarWidth()}px`,
-                        "min-width": sidebarCollapsed() ? "0px" : "160px",
-                        "max-width": sidebarCollapsed() ? "0px" : "600px",
-                        background: "var(--mz-bg-secondary)",
-                        "border-right": sidebarCollapsed() ? "none" : "1px solid var(--mz-border)",
-                        display: "flex", "flex-direction": "column", overflow: "hidden",
-                        transition: sidebarCollapsed() ? "width 200ms ease, min-width 200ms ease" : "none",
-                        "flex-shrink": "0",
-                        position: "relative",
-                    }}>
-                        {/* Top icon bar (also drag region) */}
-                        <div data-tauri-drag-region style={{
-                            display: "flex", "align-items": "center",
-                            "justify-content": "space-between",
-                            padding: "6px 4px",
-                            "border-bottom": "1px solid var(--mz-border)",
-                            "min-height": "36px",
-                        }}>
-                            {/* Left: tab icons (draggable to reorder) */}
-                            <div style={{ display: "flex", gap: "2px" }}>
-                                <For each={sidebarTabs()}>
-                                    {(tab, idx) => (
-                                    <button
-                                        draggable={true}
-                                        onDragStart={(e) => { e.dataTransfer!.setData("text/sidebar-idx", String(idx())); e.dataTransfer!.effectAllowed = "move"; }}
-                                        onDragOver={(e) => { e.preventDefault(); e.dataTransfer!.dropEffect = "move"; }}
-                                        onDragLeave={(e) => { e.currentTarget.style.outline = ""; e.currentTarget.style.outlineOffset = ""; }}
-                                        onDrop={(e) => { e.preventDefault(); e.currentTarget.style.outline = ""; e.currentTarget.style.outlineOffset = ""; const from = parseInt(e.dataTransfer!.getData("text/sidebar-idx")); if (!isNaN(from) && from !== idx()) reorderSidebarTab(from, idx()); }}
-                                        onClick={() => setSidebarTab(tab.id)}
-                                        title={t(`sidebar.${tab.id}`)}
-                                        style={{
-                                            width: "30px", height: "30px",
-                                            display: "flex", "align-items": "center", "justify-content": "center",
-                                            border: "none", "border-radius": "var(--mz-radius-sm)",
-                                            background: sidebarTab() === tab.id ? "var(--mz-bg-active)" : "transparent",
-                                            color: sidebarTab() === tab.id ? "var(--mz-accent)" : "var(--mz-text-muted)",
-                                            cursor: "pointer", transition: "all 100ms",
-                                        }}
-                                        onMouseEnter={e => { if (sidebarTab() !== tab.id) e.currentTarget.style.background = "var(--mz-bg-hover)"; }}
-                                        onMouseLeave={e => { if (sidebarTab() !== tab.id) e.currentTarget.style.background = "transparent"; }}
-                                    >
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                            <path d={tab.icon} />
-                                        </svg>
-                                    </button>
-                                    )}
-                                </For>
-                            </div>
-
-                            {/* Right: collapse button */}
-                            <button
-                                onClick={() => setSidebarCollapsed(true)}
-                                title={t("app.collapseSidebar")}
-                                style={{
-                                    width: "30px", height: "30px",
-                                    display: "flex", "align-items": "center", "justify-content": "center",
-                                    border: "none", "border-radius": "var(--mz-radius-sm)",
-                                    background: "transparent", color: "var(--mz-text-muted)",
-                                    cursor: "pointer",
-                                }}
-                                onMouseEnter={e => { e.currentTarget.style.background = "var(--mz-bg-hover)"; }}
-                                onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
-                            >
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M11 19l-7-7 7-7M18 19l-7-7 7-7" />
-                                </svg>
-                            </button>
-                        </div>
-
-                        {/* File action bar (only for files tab) */}
-                        <Show when={sidebarTab() === "files"}>
-                            <div style={{
-                                display: "flex", "align-items": "center", "justify-content": "space-between",
-                                gap: "2px", padding: "4px",
-                                "border-bottom": "1px solid var(--mz-border)",
-                            }}>
-                                <div style={{ display: "flex", gap: "2px" }}>
-                                    {[
-                                        { title: t("app.newNote"), icon: "M12 5v14M5 12h14", action: () => handleNewTab() },
-                                        { title: t("app.newFolder"), icon: "M12 10v6M9 13h6M3 7.5A2.5 2.5 0 015.5 5H10l2 2h6.5A2.5 2.5 0 0121 9.5v7a2.5 2.5 0 01-2.5 2.5h-13A2.5 2.5 0 013 16.5z", action: async () => {
-                                            const name = await promptDialog(t("app.folderNamePrompt"));
-                                            if (name) await vaultStore.createDir(name);
-                                        }},
-                                        {
-                                            title: allFoldersCollapsed()
-                                                ? t("app.expandAllFolders")
-                                                : t("app.collapseAllFolders"),
-                                            icon: "M7 9l5-5 5 5M7 15l5 5 5-5",
-                                            action: () => toggleAllFolders(),
-                                        },
-                                    ].map(btn => (
-                                        <button
-                                            onClick={btn.action}
-                                            title={btn.title}
-                                            style={{
-                                                width: "28px", height: "28px",
-                                                display: "flex", "align-items": "center", "justify-content": "center",
-                                                border: "none", "border-radius": "var(--mz-radius-sm)",
-                                                background: "transparent", color: "var(--mz-text-muted)",
-                                                cursor: "pointer",
-                                            }}
-                                            onMouseEnter={e => { e.currentTarget.style.background = "var(--mz-bg-hover)"; e.currentTarget.style.color = "var(--mz-text-primary)"; }}
-                                            onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--mz-text-muted)"; }}
-                                        >
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                <path d={btn.icon} />
-                                            </svg>
-                                        </button>
-                                    ))}
-                                </div>
-                                <SortBar
-                                    mode={sortMode()}
-                                    order={sortOrder()}
-                                    onModeChange={setSortMode}
-                                    onOrderChange={setSortOrder}
-                                />
-                            </div>
-                        </Show>
-
-                        {/* Sidebar content — each panel fills the available space */}
-                        <div style={{ flex: "1", overflow: "hidden", "min-height": "0", display: "flex", "flex-direction": "column" }}>
-                            <Show when={sidebarTab() === "files"}>
-                                <div style={{ flex: "1", "min-height": "0", overflow: "auto" }}>
-                                    <FileTree
-                                        entries={vaultStore.fileTree()}
-                                        onFileClick={(p: string) => { void handleSidebarFileClick(p); }}
-                                        onOpenSplit={handleOpenSplitInPane}
-                                        activePath={vaultStore.activeFile()?.path ?? null}
-                                        sortMode={sortMode()}
-                                        sortOrder={sortOrder()}
-                                    />
-                                </div>
-                            </Show>
-                            <Show when={sidebarTab() === "outline"}><Outline /></Show>
-                            <Show when={sidebarTab() === "search"}>
-                                <div style={{ flex: "1", "min-height": "0", overflow: "auto" }}>
-                                    <SearchPanel />
-                                </div>
-                            </Show>
-                            <Show when={sidebarTab() === "calendar"}><Calendar /></Show>
-                        </div>
-
-                        {/* Bottom: vault name + settings */}
-                        <div style={{
-                            display: "flex", "align-items": "center",
-                            "justify-content": "space-between",
-                            padding: "4px 12px",
-                            "border-top": "1px solid var(--mz-border)",
-                            position: "relative",
-                        }}>
-                            <button
-                                onClick={() => setShowVaultMenu(v => !v)}
-                                // Hovering the vault name reveals the
-                                // full filesystem path via the native
-                                // browser tooltip. Native `title` is
-                                // used over a custom hover widget so
-                                // the tooltip doesn't interfere with
-                                // the vault-switcher popup that opens
-                                // on click.
-                                title={vaultStore.vaultInfo()?.path ?? ""}
-                                style={{
-                                    border: "none", background: "transparent",
-                                    color: "var(--mz-text-primary)",
-                                    "font-size": "var(--mz-font-size-sm)", "font-weight": "500",
-                                    "font-family": "var(--mz-font-sans)",
-                                    cursor: "pointer", padding: "4px 0",
-                                    display: "flex", "align-items": "center", gap: "4px",
-                                }}
-                            >
-                                {vaultStore.vaultInfo()?.name ?? "Vault"}
-                                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4L5 7L8 4" /></svg>
-                            </button>
-
-                            {/* Settings button */}
-                            <button
-                                onClick={() => setShowSettings(true)}
-                                title={t("app.settings")}
-                                style={{
-                                    width: "28px", height: "28px",
-                                    display: "flex", "align-items": "center", "justify-content": "center",
-                                    border: "none", "border-radius": "var(--mz-radius-sm)",
-                                    background: "transparent", color: "var(--mz-text-muted)", cursor: "pointer",
-                                }}
-                                onMouseEnter={e => { e.currentTarget.style.background = "var(--mz-bg-hover)"; }}
-                                onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
-                            >
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <circle cx="12" cy="12" r="3" />
-                                    <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
-                                </svg>
-                            </button>
-
-                            {/* Vault switcher popup */}
-                            <Show when={showVaultMenu()}>
-                                <VaultSwitcher
-                                    onClose={() => setShowVaultMenu(false)}
-                                    onCloseVault={closeCurrentVault}
-                                />
-                            </Show>
-                        </div>
-                    </aside>
-                    {/* Sidebar resize handle */}
-                    <Show when={!sidebarCollapsed()}>
-                        <div
+                    <div
+                        style={{
+                            flex: "1",
+                            background: "var(--mz-bg-primary)",
+                        }}
+                    />
+                }>
+                <div style={{ display: "flex", flex: "1", overflow: "hidden" }}>
+                    {/* ===== SIDEBAR ===== */}
+                    <Show when={vaultStore.vaultInfo()}>
+                        <aside
                             style={{
-                                width: "4px",
-                                cursor: "col-resize",
-                                background: "transparent",
-                                "flex-shrink": "0",
-                                "z-index": "10",
-                                "margin-left": "-2px",
-                                "margin-right": "-2px",
-                                transition: "background 150ms ease",
-                            }}
-                            onMouseEnter={() => {}}
-                            onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
-                            onMouseDown={(e: MouseEvent) => {
-                                e.preventDefault();
-                                const startX = e.clientX;
-                                const startW = sidebarWidth();
-                                const onMove = (me: MouseEvent) => {
-                                    const newW = Math.max(160, Math.min(600, startW + me.clientX - startX));
-                                    setSidebarWidth(newW);
-                                };
-                                const onUp = () => {
-                                    document.removeEventListener("mousemove", onMove);
-                                    document.removeEventListener("mouseup", onUp);
-                                };
-                                document.addEventListener("mousemove", onMove);
-                                document.addEventListener("mouseup", onUp);
-                            }}
-                        />
-                    </Show>
-                </Show>
-
-                {/* ===== MAIN AREA ===== */}
-                <main style={{ flex: "1", "min-width": "0", "min-height": "0", display: "flex", "flex-direction": "column", overflow: "hidden", background: "var(--mz-bg-primary)" }}>
-                    <Show when={vaultStore.vaultInfo()} fallback={
-                        // Bootstrapping is gated at the OUTER level (right
-                        // after the root <div> opens), so by the time we
-                        // hit this fallback we already know we want to
-                        // show the welcome screen — no inner gate needed.
-                        <>
-                            {/* Drag region + window controls for welcome screen */}
-                            <div data-tauri-drag-region style={{
-                                display: "flex", "align-items": "center", "justify-content": "flex-end",
-                                height: "var(--mz-tab-height)", background: "var(--mz-bg-secondary)",
-                                "border-bottom": "1px solid var(--mz-border)",
-                                "-webkit-app-region": "drag",
-                            }}>
-                                <div style={{ "-webkit-app-region": "no-drag" }}>
-                                    <WindowControls />
-                                </div>
-                            </div>
-                            <WelcomeScreen />
-                        </>
-                    }>
-                        {/* Tab bar (also acts as drag region for frameless window).
-                            Use -webkit-app-region: drag on the bar itself so clicking ANY
-                            empty space allows window dragging. Interactive children use no-drag. */}
-                        <div
-                            data-tauri-drag-region
-                            style={{
-                                display: "flex", "align-items": "center",
+                                width: sidebarCollapsed()
+                                    ? "0px"
+                                    : `${sidebarWidth()}px`,
+                                "min-width": sidebarCollapsed()
+                                    ? "0px"
+                                    : "160px",
+                                "max-width": sidebarCollapsed()
+                                    ? "0px"
+                                    : "600px",
                                 background: "var(--mz-bg-secondary)",
-                                "border-bottom": "1px solid var(--mz-border)",
-                                "-webkit-app-region": "drag",
-                            }}
-                        >
-                            {/* Expand sidebar button (when collapsed) */}
-                            <Show when={sidebarCollapsed()}>
-                                <button
-                                    onClick={() => setSidebarCollapsed(false)}
-                                    title={t("app.expandSidebar")}
-                                    style={{
-                                        width: "36px", height: "var(--mz-tab-height)",
-                                        display: "flex", "align-items": "center", "justify-content": "center",
-                                        border: "none", "border-right": "1px solid var(--mz-border)",
-                                        background: "transparent", color: "var(--mz-text-muted)", cursor: "pointer",
-                                        "-webkit-app-region": "no-drag",
-                                    }}
-                                    onMouseEnter={e => { e.currentTarget.style.color = "var(--mz-text-primary)"; }}
-                                    onMouseLeave={e => { e.currentTarget.style.color = "var(--mz-text-muted)"; }}
-                                >
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M13 5l7 7-7 7M6 5l7 7-7 7" />
-                                    </svg>
-                                </button>
-                            </Show>
-
-                            {/* Tab area: takes remaining space but CAN shrink so window controls stay visible */}
-                            <div style={{ flex: "1 1 0px", "min-width": "0", overflow: "hidden", "-webkit-app-region": "no-drag" }}>
-                                <TabBar
-                                    files={vaultStore.openFiles()}
-                                    activeFile={vaultStore.activeFile()}
-                                    onSelect={handleTabSelect}
-                                    onClose={handleTabClose}
-                                    onSetViewMode={(path, mode) => editorStore.setViewMode(mode, path)}
-                                    onOpenSplit={handleOpenSplitInPane}
-                                    onReorder={(from: number, to: number) => vaultStore.reorderOpenFiles(from, to)}
-                                    onRevealInTree={(path: string) => {
-                                        // Ensure the Files panel is showing and the
-                                        // sidebar is expanded before revealFileInTree
-                                        // scrolls — the tree DOM only exists when
-                                        // `sidebarTab === "files"` and the sidebar
-                                        // isn't collapsed.
-                                        setSidebarTab("files");
-                                        if (sidebarCollapsed()) setSidebarCollapsed(false);
-                                        revealFileInTree(path);
-                                    }}
-                                />
-                            </div>
-
-                            {/* New tab + (never shrinks) */}
-                            <button
-                                onClick={handleNewTab}
-                                title={t("app.newTab")}
-                                style={{
-                                    "flex-shrink": "0",
-                                    width: "32px", height: "var(--mz-tab-height)",
-                                    display: "flex", "align-items": "center", "justify-content": "center",
-                                    border: "none", "border-left": "1px solid var(--mz-border)",
-                                    background: "transparent", color: "var(--mz-text-muted)", cursor: "pointer",
-                                    "font-size": "16px",
-                                    "-webkit-app-region": "no-drag",
-                                }}
-                                onMouseEnter={e => { e.currentTarget.style.color = "var(--mz-text-primary)"; }}
-                                onMouseLeave={e => { e.currentTarget.style.color = "var(--mz-text-muted)"; }}
-                            >
-                                +
-                            </button>
-
-                            {/* Drag spacer (never shrinks) */}
+                                "border-right": sidebarCollapsed()
+                                    ? "none"
+                                    : "1px solid var(--mz-border)",
+                                display: "flex",
+                                "flex-direction": "column",
+                                overflow: "hidden",
+                                transition: sidebarCollapsed()
+                                    ? "width 200ms ease, min-width 200ms ease"
+                                    : "none",
+                                "flex-shrink": "0",
+                                position: "relative",
+                            }}>
+                            {/* Top icon bar (also drag region) */}
                             <div
                                 data-tauri-drag-region
                                 style={{
-                                    "flex-shrink": "0",
-                                    width: "40px",
-                                    height: "var(--mz-tab-height)",
-                                    "border-left": "1px solid var(--mz-border)",
-                                    "-webkit-app-region": "drag",
-                                }}
-                            />
+                                    display: "flex",
+                                    "align-items": "center",
+                                    "justify-content": "space-between",
+                                    padding: "6px 4px",
+                                    "border-bottom":
+                                        "1px solid var(--mz-border)",
+                                    "min-height": "36px",
+                                }}>
+                                {/* Left: tab icons (draggable to reorder) */}
+                                <div style={{ display: "flex", gap: "2px" }}>
+                                    <For each={sidebarTabs()}>
+                                        {(tab, idx) => (
+                                            <button
+                                                draggable={true}
+                                                onDragStart={(e) => {
+                                                    e.dataTransfer!.setData(
+                                                        "text/sidebar-idx",
+                                                        String(idx()),
+                                                    );
+                                                    e.dataTransfer!.effectAllowed =
+                                                        "move";
+                                                }}
+                                                onDragOver={(e) => {
+                                                    e.preventDefault();
+                                                    e.dataTransfer!.dropEffect =
+                                                        "move";
+                                                }}
+                                                onDragLeave={(e) => {
+                                                    e.currentTarget.style.outline =
+                                                        "";
+                                                    e.currentTarget.style.outlineOffset =
+                                                        "";
+                                                }}
+                                                onDrop={(e) => {
+                                                    e.preventDefault();
+                                                    e.currentTarget.style.outline =
+                                                        "";
+                                                    e.currentTarget.style.outlineOffset =
+                                                        "";
+                                                    const from = parseInt(
+                                                        e.dataTransfer!.getData(
+                                                            "text/sidebar-idx",
+                                                        ),
+                                                    );
+                                                    if (
+                                                        !isNaN(from) &&
+                                                        from !== idx()
+                                                    )
+                                                        reorderSidebarTab(
+                                                            from,
+                                                            idx(),
+                                                        );
+                                                }}
+                                                onClick={() =>
+                                                    setSidebarTab(tab.id)
+                                                }
+                                                title={t(`sidebar.${tab.id}`)}
+                                                style={{
+                                                    width: "30px",
+                                                    height: "30px",
+                                                    display: "flex",
+                                                    "align-items": "center",
+                                                    "justify-content": "center",
+                                                    border: "none",
+                                                    "border-radius":
+                                                        "var(--mz-radius-sm)",
+                                                    background:
+                                                        sidebarTab() === tab.id
+                                                            ? "var(--mz-bg-active)"
+                                                            : "transparent",
+                                                    color:
+                                                        sidebarTab() === tab.id
+                                                            ? "var(--mz-accent)"
+                                                            : "var(--mz-text-muted)",
+                                                    cursor: "pointer",
+                                                    transition: "all 100ms",
+                                                }}
+                                                onMouseEnter={(e) => {
+                                                    if (sidebarTab() !== tab.id)
+                                                        e.currentTarget.style.background =
+                                                            "var(--mz-bg-hover)";
+                                                }}
+                                                onMouseLeave={(e) => {
+                                                    if (sidebarTab() !== tab.id)
+                                                        e.currentTarget.style.background =
+                                                            "transparent";
+                                                }}>
+                                                <svg
+                                                    width="16"
+                                                    height="16"
+                                                    viewBox="0 0 24 24"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    stroke-width="2"
+                                                    stroke-linecap="round"
+                                                    stroke-linejoin="round">
+                                                    <path d={tab.icon} />
+                                                </svg>
+                                            </button>
+                                        )}
+                                    </For>
+                                </div>
 
-                            {/* Window controls: minimize, maximize, close (never shrinks, always visible) */}
-                            <div style={{ "flex-shrink": "0", "-webkit-app-region": "no-drag" }}>
-                                <WindowControls />
+                                {/* Right: collapse button */}
+                                <button
+                                    onClick={() => setSidebarCollapsed(true)}
+                                    title={t("app.collapseSidebar")}
+                                    style={{
+                                        width: "30px",
+                                        height: "30px",
+                                        display: "flex",
+                                        "align-items": "center",
+                                        "justify-content": "center",
+                                        border: "none",
+                                        "border-radius": "var(--mz-radius-sm)",
+                                        background: "transparent",
+                                        color: "var(--mz-text-muted)",
+                                        cursor: "pointer",
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.currentTarget.style.background =
+                                            "var(--mz-bg-hover)";
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.currentTarget.style.background =
+                                            "transparent";
+                                    }}>
+                                    <svg
+                                        width="16"
+                                        height="16"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round">
+                                        <path d="M11 19l-7-7 7-7M18 19l-7-7 7-7" />
+                                    </svg>
+                                </button>
                             </div>
-                        </div>
 
-                        {/* Editor area — uses createMemo to derive stable values so
-                            PluginViewHost is NOT destroyed/recreated on every save. */}
-                        <Show when={vaultStore.activeFile()} fallback={
-                            <div style={{ flex: "1", display: "flex", "align-items": "center", "justify-content": "center", color: "var(--mz-text-muted)", "font-size": "var(--mz-font-size-sm)" }}>
-                                {t("app.openFileOrSearch")}
-                            </div>
-                        }>
-                            <Show
-                                when={
-                                    settingsStore.settings().show_markdown_toolbar &&
-                                    !hasPluginViewForExtension(
-                                        (vaultStore.activeFile()?.path ?? "").split(".").pop()?.toLowerCase() ?? "",
-                                    )
-                                }
-                            >
-                                <Toolbar />
+                            {/* File action bar (only for files tab) */}
+                            <Show when={sidebarTab() === "files"}>
+                                <div
+                                    style={{
+                                        display: "flex",
+                                        "align-items": "center",
+                                        "justify-content": "space-between",
+                                        gap: "2px",
+                                        padding: "4px",
+                                        "border-bottom":
+                                            "1px solid var(--mz-border)",
+                                    }}>
+                                    <div
+                                        style={{ display: "flex", gap: "2px" }}>
+                                        {[
+                                            {
+                                                title: t("app.newNote"),
+                                                icon: "M12 5v14M5 12h14",
+                                                action: () => handleNewTab(),
+                                            },
+                                            {
+                                                title: t("app.newFolder"),
+                                                icon: "M12 10v6M9 13h6M3 7.5A2.5 2.5 0 015.5 5H10l2 2h6.5A2.5 2.5 0 0121 9.5v7a2.5 2.5 0 01-2.5 2.5h-13A2.5 2.5 0 013 16.5z",
+                                                action: async () => {
+                                                    const name =
+                                                        await promptDialog(
+                                                            t(
+                                                                "app.folderNamePrompt",
+                                                            ),
+                                                        );
+                                                    if (name)
+                                                        await vaultStore.createDir(
+                                                            name,
+                                                        );
+                                                },
+                                            },
+                                            {
+                                                title: allFoldersCollapsed()
+                                                    ? t("app.expandAllFolders")
+                                                    : t(
+                                                          "app.collapseAllFolders",
+                                                      ),
+                                                icon: "M7 9l5-5 5 5M7 15l5 5 5-5",
+                                                action: () =>
+                                                    toggleAllFolders(),
+                                            },
+                                        ].map((btn) => (
+                                            <button
+                                                onClick={btn.action}
+                                                title={btn.title}
+                                                style={{
+                                                    width: "28px",
+                                                    height: "28px",
+                                                    display: "flex",
+                                                    "align-items": "center",
+                                                    "justify-content": "center",
+                                                    border: "none",
+                                                    "border-radius":
+                                                        "var(--mz-radius-sm)",
+                                                    background: "transparent",
+                                                    color: "var(--mz-text-muted)",
+                                                    cursor: "pointer",
+                                                }}
+                                                onMouseEnter={(e) => {
+                                                    e.currentTarget.style.background =
+                                                        "var(--mz-bg-hover)";
+                                                    e.currentTarget.style.color =
+                                                        "var(--mz-text-primary)";
+                                                }}
+                                                onMouseLeave={(e) => {
+                                                    e.currentTarget.style.background =
+                                                        "transparent";
+                                                    e.currentTarget.style.color =
+                                                        "var(--mz-text-muted)";
+                                                }}>
+                                                <svg
+                                                    width="14"
+                                                    height="14"
+                                                    viewBox="0 0 24 24"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    stroke-width="2"
+                                                    stroke-linecap="round"
+                                                    stroke-linejoin="round">
+                                                    <path d={btn.icon} />
+                                                </svg>
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <SortBar
+                                        mode={sortMode()}
+                                        order={sortOrder()}
+                                        onModeChange={setSortMode}
+                                        onOrderChange={setSortOrder}
+                                    />
+                                </div>
                             </Show>
-                            <SplitWorkspaceView
-                                primaryPath={primaryPanePath() ?? vaultStore.activeFile()?.path ?? null}
-                                secondaryPath={secondaryPanePath()}
-                                activeSlot={activePaneSlot()}
-                                direction={splitDirection()}
-                                splitRatio={splitRatio()}
-                                onActivatePane={activatePane}
-                                onClosePane={closeSplitPane}
-                                onSplitRatioChange={setSplitRatio}
-                            />
-                        </Show>
-                        <Show when={showAiPanel()}>
-                            <AiBottomPanel
-                                input={aiPanelInput()}
-                                output={aiPanelOutput()}
-                                busy={aiPanelBusy()}
-                                voiceRecording={aiVoiceRecording()}
-                                voiceBusy={aiVoiceBusy()}
-                                height={aiPanelHeight()}
-                                activePath={activePanePath() ?? vaultStore.activeFile()?.path ?? null}
-                                modelLabel={currentAiModelLabel()}
-                                modelOptions={aiPanelModelOptions()}
-                                activeModelValue={currentAiModelOptionValue()}
-                                historyOpen={showAiHistory()}
-                                historyPosition={aiHistoryPosition()}
-                                historyDates={aiHistoryDates()}
-                                historyDate={aiHistoryDate()}
-                                historyEntries={selectedAiHistoryEntries()}
-                                onHeightChange={(height) => setAiPanelHeight(clampAiPanelHeight(height))}
-                                onSelectModel={selectAiPanelModel}
-                                onInput={handleAiPanelInput}
-                                onRun={() => void runAiPanelInstruction()}
-                                onToggleVoiceInput={toggleAiVoiceRecording}
-                                onSpeakInput={() => void synthesizeAiPanelInput()}
-                                onToggleHistory={toggleAiHistoryDialog}
-                                onCloseHistory={closeAiHistoryDialog}
-                                onMoveHistory={setAiHistoryPosition}
-                                onSelectHistoryDate={setAiHistoryDate}
-                                onDeleteHistoryEntry={deleteAiHistoryEntry}
-                                onClearHistoryDate={clearAiHistoryForSelectedDate}
-                                onClearAllHistory={clearAllAiHistory}
-                                onCopyHistoryEntry={copyAiHistoryQuestion}
-                                onNavigateHistory={navigateAiQuestionHistory}
-                                onClose={closeAiPanel}
+
+                            {/* Sidebar content — each panel fills the available space */}
+                            <div
+                                style={{
+                                    flex: "1",
+                                    overflow: "hidden",
+                                    "min-height": "0",
+                                    display: "flex",
+                                    "flex-direction": "column",
+                                }}>
+                                <Show when={sidebarTab() === "files"}>
+                                    <div
+                                        style={{
+                                            flex: "1",
+                                            "min-height": "0",
+                                            overflow: "auto",
+                                        }}>
+                                        <FileTree
+                                            entries={vaultStore.fileTree()}
+                                            onFileClick={(p: string) => {
+                                                void handleSidebarFileClick(p);
+                                            }}
+                                            onOpenSplit={handleOpenSplitInPane}
+                                            activePath={
+                                                vaultStore.activeFile()?.path ??
+                                                null
+                                            }
+                                            sortMode={sortMode()}
+                                            sortOrder={sortOrder()}
+                                        />
+                                    </div>
+                                </Show>
+                                <Show when={sidebarTab() === "outline"}>
+                                    <Outline />
+                                </Show>
+                                <Show when={sidebarTab() === "search"}>
+                                    <div
+                                        style={{
+                                            flex: "1",
+                                            "min-height": "0",
+                                            overflow: "auto",
+                                        }}>
+                                        <SearchPanel />
+                                    </div>
+                                </Show>
+                                <Show when={sidebarTab() === "calendar"}>
+                                    <Calendar />
+                                </Show>
+                            </div>
+
+                            {/* Bottom: vault name + settings */}
+                            <div
+                                style={{
+                                    display: "flex",
+                                    "align-items": "center",
+                                    "justify-content": "space-between",
+                                    padding: "4px 12px",
+                                    "border-top": "1px solid var(--mz-border)",
+                                    position: "relative",
+                                }}>
+                                <button
+                                    onClick={() => setShowVaultMenu((v) => !v)}
+                                    // Hovering the vault name reveals the
+                                    // full filesystem path via the native
+                                    // browser tooltip. Native `title` is
+                                    // used over a custom hover widget so
+                                    // the tooltip doesn't interfere with
+                                    // the vault-switcher popup that opens
+                                    // on click.
+                                    title={vaultStore.vaultInfo()?.path ?? ""}
+                                    style={{
+                                        border: "none",
+                                        background: "transparent",
+                                        color: "var(--mz-text-primary)",
+                                        "font-size": "var(--mz-font-size-sm)",
+                                        "font-weight": "500",
+                                        "font-family": "var(--mz-font-sans)",
+                                        cursor: "pointer",
+                                        padding: "4px 0",
+                                        display: "flex",
+                                        "align-items": "center",
+                                        gap: "4px",
+                                    }}>
+                                    {vaultStore.vaultInfo()?.name ?? "Vault"}
+                                    <svg
+                                        width="10"
+                                        height="10"
+                                        viewBox="0 0 10 10"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="1.5">
+                                        <path d="M2 4L5 7L8 4" />
+                                    </svg>
+                                </button>
+
+                                {/* Settings button */}
+                                <button
+                                    onClick={() => setShowSettings(true)}
+                                    title={t("app.settings")}
+                                    style={{
+                                        width: "28px",
+                                        height: "28px",
+                                        display: "flex",
+                                        "align-items": "center",
+                                        "justify-content": "center",
+                                        border: "none",
+                                        "border-radius": "var(--mz-radius-sm)",
+                                        background: "transparent",
+                                        color: "var(--mz-text-muted)",
+                                        cursor: "pointer",
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.currentTarget.style.background =
+                                            "var(--mz-bg-hover)";
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.currentTarget.style.background =
+                                            "transparent";
+                                    }}>
+                                    <svg
+                                        width="16"
+                                        height="16"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round">
+                                        <circle
+                                            cx="12"
+                                            cy="12"
+                                            r="3"
+                                        />
+                                        <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
+                                    </svg>
+                                </button>
+
+                                {/* Vault switcher popup */}
+                                <Show when={showVaultMenu()}>
+                                    <VaultSwitcher
+                                        onClose={() => setShowVaultMenu(false)}
+                                        onCloseVault={closeCurrentVault}
+                                    />
+                                </Show>
+                            </div>
+                        </aside>
+                        {/* Sidebar resize handle */}
+                        <Show when={!sidebarCollapsed()}>
+                            <div
+                                style={{
+                                    width: "4px",
+                                    cursor: "col-resize",
+                                    background: "transparent",
+                                    "flex-shrink": "0",
+                                    "z-index": "10",
+                                    "margin-left": "-2px",
+                                    "margin-right": "-2px",
+                                    transition: "background 150ms ease",
+                                }}
+                                onMouseEnter={() => {}}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.background =
+                                        "transparent";
+                                }}
+                                onMouseDown={(e: MouseEvent) => {
+                                    e.preventDefault();
+                                    const startX = e.clientX;
+                                    const startW = sidebarWidth();
+                                    const onMove = (me: MouseEvent) => {
+                                        const newW = Math.max(
+                                            160,
+                                            Math.min(
+                                                600,
+                                                startW + me.clientX - startX,
+                                            ),
+                                        );
+                                        setSidebarWidth(newW);
+                                    };
+                                    const onUp = () => {
+                                        document.removeEventListener(
+                                            "mousemove",
+                                            onMove,
+                                        );
+                                        document.removeEventListener(
+                                            "mouseup",
+                                            onUp,
+                                        );
+                                    };
+                                    document.addEventListener(
+                                        "mousemove",
+                                        onMove,
+                                    );
+                                    document.addEventListener("mouseup", onUp);
+                                }}
                             />
                         </Show>
                     </Show>
-                </main>
-            </div>
 
-            <StatusBar />
+                    {/* ===== MAIN AREA ===== */}
+                    <main
+                        style={{
+                            flex: "1",
+                            "min-width": "0",
+                            "min-height": "0",
+                            display: "flex",
+                            "flex-direction": "column",
+                            overflow: "hidden",
+                            background: "var(--mz-bg-primary)",
+                        }}>
+                        <Show
+                            when={vaultStore.vaultInfo()}
+                            fallback={
+                                // Bootstrapping is gated at the OUTER level (right
+                                // after the root <div> opens), so by the time we
+                                // hit this fallback we already know we want to
+                                // show the welcome screen — no inner gate needed.
+                                <>
+                                    {/* Drag region + window controls for welcome screen */}
+                                    <div
+                                        data-tauri-drag-region
+                                        style={{
+                                            display: "flex",
+                                            "align-items": "center",
+                                            "justify-content": "flex-end",
+                                            height: "var(--mz-tab-height)",
+                                            background:
+                                                "var(--mz-bg-secondary)",
+                                            "border-bottom":
+                                                "1px solid var(--mz-border)",
+                                            "-webkit-app-region": "drag",
+                                        }}>
+                                        <div
+                                            style={{
+                                                "-webkit-app-region": "no-drag",
+                                            }}>
+                                            <WindowControls />
+                                        </div>
+                                    </div>
+                                    <WelcomeScreen />
+                                </>
+                            }>
+                            {/* Tab bar (also acts as drag region for frameless window).
+                            Use -webkit-app-region: drag on the bar itself so clicking ANY
+                            empty space allows window dragging. Interactive children use no-drag. */}
+                            <div
+                                data-tauri-drag-region
+                                style={{
+                                    display: "flex",
+                                    "align-items": "center",
+                                    background: "var(--mz-bg-secondary)",
+                                    "border-bottom":
+                                        "1px solid var(--mz-border)",
+                                    "-webkit-app-region": "drag",
+                                }}>
+                                {/* Expand sidebar button (when collapsed) */}
+                                <Show when={sidebarCollapsed()}>
+                                    <button
+                                        onClick={() =>
+                                            setSidebarCollapsed(false)
+                                        }
+                                        title={t("app.expandSidebar")}
+                                        style={{
+                                            width: "36px",
+                                            height: "var(--mz-tab-height)",
+                                            display: "flex",
+                                            "align-items": "center",
+                                            "justify-content": "center",
+                                            border: "none",
+                                            "border-right":
+                                                "1px solid var(--mz-border)",
+                                            background: "transparent",
+                                            color: "var(--mz-text-muted)",
+                                            cursor: "pointer",
+                                            "-webkit-app-region": "no-drag",
+                                        }}
+                                        onMouseEnter={(e) => {
+                                            e.currentTarget.style.color =
+                                                "var(--mz-text-primary)";
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            e.currentTarget.style.color =
+                                                "var(--mz-text-muted)";
+                                        }}>
+                                        <svg
+                                            width="14"
+                                            height="14"
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            stroke-width="2"
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round">
+                                            <path d="M13 5l7 7-7 7M6 5l7 7-7 7" />
+                                        </svg>
+                                    </button>
+                                </Show>
+
+                                {/* Tab area: takes remaining space but CAN shrink so window controls stay visible */}
+                                <div
+                                    style={{
+                                        flex: "1 1 0px",
+                                        "min-width": "0",
+                                        overflow: "hidden",
+                                        "-webkit-app-region": "no-drag",
+                                    }}>
+                                    <TabBar
+                                        files={vaultStore.openFiles()}
+                                        activeFile={vaultStore.activeFile()}
+                                        onSelect={handleTabSelect}
+                                        onClose={handleTabClose}
+                                        onSetViewMode={(path, mode) =>
+                                            editorStore.setViewMode(mode, path)
+                                        }
+                                        onOpenSplit={handleOpenSplitInPane}
+                                        onReorder={(from: number, to: number) =>
+                                            vaultStore.reorderOpenFiles(
+                                                from,
+                                                to,
+                                            )
+                                        }
+                                        onRevealInTree={(path: string) => {
+                                            // Ensure the Files panel is showing and the
+                                            // sidebar is expanded before revealFileInTree
+                                            // scrolls — the tree DOM only exists when
+                                            // `sidebarTab === "files"` and the sidebar
+                                            // isn't collapsed.
+                                            setSidebarTab("files");
+                                            if (sidebarCollapsed())
+                                                setSidebarCollapsed(false);
+                                            revealFileInTree(path);
+                                        }}
+                                    />
+                                </div>
+
+                                {/* New tab + (never shrinks) */}
+                                <button
+                                    onClick={handleNewTab}
+                                    title={t("app.newTab")}
+                                    style={{
+                                        "flex-shrink": "0",
+                                        width: "32px",
+                                        height: "var(--mz-tab-height)",
+                                        display: "flex",
+                                        "align-items": "center",
+                                        "justify-content": "center",
+                                        border: "none",
+                                        "border-left":
+                                            "1px solid var(--mz-border)",
+                                        background: "transparent",
+                                        color: "var(--mz-text-muted)",
+                                        cursor: "pointer",
+                                        "font-size": "16px",
+                                        "-webkit-app-region": "no-drag",
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.currentTarget.style.color =
+                                            "var(--mz-text-primary)";
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.currentTarget.style.color =
+                                            "var(--mz-text-muted)";
+                                    }}>
+                                    +
+                                </button>
+
+                                {/* Drag spacer (never shrinks) */}
+                                <div
+                                    data-tauri-drag-region
+                                    style={{
+                                        "flex-shrink": "0",
+                                        width: "40px",
+                                        height: "var(--mz-tab-height)",
+                                        "border-left":
+                                            "1px solid var(--mz-border)",
+                                        "-webkit-app-region": "drag",
+                                    }}
+                                />
+
+                                {/* Window controls: minimize, maximize, close (never shrinks, always visible) */}
+                                <div
+                                    style={{
+                                        "flex-shrink": "0",
+                                        "-webkit-app-region": "no-drag",
+                                    }}>
+                                    <WindowControls />
+                                </div>
+                            </div>
+
+                            {/* Editor area — uses createMemo to derive stable values so
+                            PluginViewHost is NOT destroyed/recreated on every save. */}
+                            <Show
+                                when={vaultStore.activeFile()}
+                                fallback={
+                                    <div
+                                        style={{
+                                            flex: "1",
+                                            display: "flex",
+                                            "align-items": "center",
+                                            "justify-content": "center",
+                                            color: "var(--mz-text-muted)",
+                                            "font-size":
+                                                "var(--mz-font-size-sm)",
+                                        }}>
+                                        {t("app.openFileOrSearch")}
+                                    </div>
+                                }>
+                                <Show
+                                    when={
+                                        settingsStore.settings()
+                                            .show_markdown_toolbar &&
+                                        !hasPluginViewForExtension(
+                                            (
+                                                vaultStore.activeFile()?.path ??
+                                                ""
+                                            )
+                                                .split(".")
+                                                .pop()
+                                                ?.toLowerCase() ?? "",
+                                        )
+                                    }>
+                                    <Toolbar />
+                                </Show>
+                                <SplitWorkspaceView
+                                    primaryPath={
+                                        primaryPanePath() ??
+                                        vaultStore.activeFile()?.path ??
+                                        null
+                                    }
+                                    secondaryPath={secondaryPanePath()}
+                                    activeSlot={activePaneSlot()}
+                                    direction={splitDirection()}
+                                    splitRatio={splitRatio()}
+                                    onActivatePane={activatePane}
+                                    onClosePane={closeSplitPane}
+                                    onSplitRatioChange={setSplitRatio}
+                                />
+                            </Show>
+                            <Show when={showAiPanel()}>
+                                <AiBottomPanel
+                                    input={aiPanelInput()}
+                                    output={aiPanelOutput()}
+                                    busy={aiPanelBusy()}
+                                    voiceRecording={aiVoiceRecording()}
+                                    voiceBusy={aiVoiceBusy()}
+                                    height={aiPanelHeight()}
+                                    activePath={
+                                        activePanePath() ??
+                                        vaultStore.activeFile()?.path ??
+                                        null
+                                    }
+                                    modelLabel={currentAiModelLabel()}
+                                    modelOptions={aiPanelModelOptions()}
+                                    activeModelValue={currentAiModelOptionValue()}
+                                    historyOpen={showAiHistory()}
+                                    historyPosition={aiHistoryPosition()}
+                                    historyDates={aiHistoryDates()}
+                                    historyDate={aiHistoryDate()}
+                                    historyEntries={selectedAiHistoryEntries()}
+                                    onHeightChange={(height) =>
+                                        setAiPanelHeight(
+                                            clampAiPanelHeight(height),
+                                        )
+                                    }
+                                    onSelectModel={selectAiPanelModel}
+                                    onInput={handleAiPanelInput}
+                                    onRun={() => void runAiPanelInstruction()}
+                                    onToggleVoiceInput={toggleAiVoiceRecording}
+                                    onSpeakInput={() =>
+                                        void synthesizeAiPanelInput()
+                                    }
+                                    onToggleHistory={toggleAiHistoryDialog}
+                                    onCloseHistory={closeAiHistoryDialog}
+                                    onMoveHistory={setAiHistoryPosition}
+                                    onSelectHistoryDate={setAiHistoryDate}
+                                    onDeleteHistoryEntry={deleteAiHistoryEntry}
+                                    onClearHistoryDate={
+                                        clearAiHistoryForSelectedDate
+                                    }
+                                    onClearAllHistory={clearAllAiHistory}
+                                    onCopyHistoryEntry={copyAiHistoryQuestion}
+                                    onNavigateHistory={
+                                        navigateAiQuestionHistory
+                                    }
+                                    onClose={closeAiPanel}
+                                />
+                            </Show>
+                        </Show>
+                    </main>
+                </div>
+
+                <StatusBar />
             </Show>
             <Show when={showCommandPalette()}>
                 <CommandPalette
@@ -3351,7 +4057,8 @@ const App: Component = () => {
                         left: "50%",
                         transform: "translateX(-50%)",
                         padding: "6px 14px",
-                        background: "var(--mz-bg-secondary, rgba(30, 30, 30, 0.92))",
+                        background:
+                            "var(--mz-bg-secondary, rgba(30, 30, 30, 0.92))",
                         color: "var(--mz-text-primary, #ffffff)",
                         border: "1px solid var(--mz-border, rgba(255, 255, 255, 0.15))",
                         "border-radius": "6px",
@@ -3361,8 +4068,7 @@ const App: Component = () => {
                         "z-index": "100000",
                         "box-shadow": "0 4px 12px rgba(0, 0, 0, 0.35)",
                         "white-space": "nowrap",
-                    }}
-                >
+                    }}>
                     {shortcutToast()}
                 </div>
             </Show>
@@ -3444,489 +4150,724 @@ const AiBottomPanel: Component<{
 
     return (
         <>
-        <div
-            style={{
-                height: `${props.height}px`,
-                "min-height": "220px",
-                width: "100%",
-                "flex-shrink": "0",
-                display: "flex",
-                "flex-direction": "column",
-                position: "relative",
-                background: "var(--mz-bg-secondary)",
-                border: "1px solid var(--mz-border)",
-                "border-left": "none",
-                "border-right": "none",
-                "box-shadow": "0 -6px 18px rgba(0,0,0,0.18)",
-                color: "var(--mz-text-primary)",
-            }}
-        >
-            <div
-                onMouseDown={startPanelResize}
-                style={{
-                    position: "absolute",
-                    top: "-4px",
-                    left: "0",
-                    right: "0",
-                    height: "8px",
-                    cursor: "ns-resize",
-                    "z-index": "3",
-                }}
-            />
             <div
                 style={{
+                    height: `${props.height}px`,
+                    "min-height": "220px",
+                    width: "100%",
+                    "flex-shrink": "0",
                     display: "flex",
-                    "align-items": "center",
-                    "justify-content": "space-between",
-                    height: "36px",
-                    padding: "0 12px",
-                    "border-bottom": "1px solid var(--mz-border)",
-                    "font-size": "var(--mz-font-size-sm)",
-                    "font-family": "var(--mz-font-sans)",
-                }}
-            >
-                <div style={{ display: "flex", "align-items": "center", gap: "10px", "min-width": "0" }}>
-                    <div style={{ display: "flex", "align-items": "center", gap: "6px", position: "relative", "flex-shrink": "0" }}>
-                        <strong>{t("aiPanel.title")}</strong>
-                        <button
-                            type="button"
-                            onClick={props.onToggleHistory}
-                            title={t("aiPanel.history")}
-                            aria-label={t("aiPanel.history")}
+                    "flex-direction": "column",
+                    position: "relative",
+                    background: "var(--mz-bg-secondary)",
+                    border: "1px solid var(--mz-border)",
+                    "border-left": "none",
+                    "border-right": "none",
+                    "box-shadow": "0 -6px 18px rgba(0,0,0,0.18)",
+                    color: "var(--mz-text-primary)",
+                }}>
+                <div
+                    onMouseDown={startPanelResize}
+                    style={{
+                        position: "absolute",
+                        top: "-4px",
+                        left: "0",
+                        right: "0",
+                        height: "8px",
+                        cursor: "ns-resize",
+                        "z-index": "3",
+                    }}
+                />
+                <div
+                    style={{
+                        display: "flex",
+                        "align-items": "center",
+                        "justify-content": "space-between",
+                        height: "36px",
+                        padding: "0 12px",
+                        "border-bottom": "1px solid var(--mz-border)",
+                        "font-size": "var(--mz-font-size-sm)",
+                        "font-family": "var(--mz-font-sans)",
+                    }}>
+                    <div
+                        style={{
+                            display: "flex",
+                            "align-items": "center",
+                            gap: "10px",
+                            "min-width": "0",
+                        }}>
+                        <div
                             style={{
-                                width: "26px",
-                                height: "26px",
-                                display: "inline-flex",
+                                display: "flex",
                                 "align-items": "center",
-                                "justify-content": "center",
-                                border: props.historyOpen ? "1px solid var(--mz-accent)" : "1px solid var(--mz-border)",
-                                "border-radius": "var(--mz-radius-sm)",
-                                background: props.historyOpen ? "var(--mz-accent-subtle)" : "transparent",
-                                color: props.historyOpen ? "var(--mz-accent)" : "var(--mz-text-muted)",
-                                cursor: "pointer",
-                                padding: "0",
-                            }}
-                            onMouseEnter={hoverAiActionButton}
-                            onMouseDown={pressAiActionButton}
-                            onMouseUp={hoverAiActionButton}
-                            onMouseLeave={(event) => resetAiActionButton(event, props.historyOpen)}
-                        >
-                            <History size={15} strokeWidth={1.8} />
-                        </button>
-                        <Show when={false}>
+                                gap: "6px",
+                                position: "relative",
+                                "flex-shrink": "0",
+                            }}>
+                            <strong>{t("aiPanel.title")}</strong>
                             <button
                                 type="button"
-                                onClick={props.onToggleVoiceInput}
-                                disabled={props.busy || props.voiceBusy}
-                                title={props.voiceRecording ? t("aiPanel.voiceStop") : t("aiPanel.voiceStart")}
-                                aria-label={props.voiceRecording ? t("aiPanel.voiceStop") : t("aiPanel.voiceStart")}
+                                onClick={props.onToggleHistory}
+                                title={t("aiPanel.history")}
+                                aria-label={t("aiPanel.history")}
                                 style={{
                                     width: "26px",
                                     height: "26px",
                                     display: "inline-flex",
                                     "align-items": "center",
                                     "justify-content": "center",
-                                    border: "1px solid var(--mz-border)",
+                                    border: props.historyOpen
+                                        ? "1px solid var(--mz-accent)"
+                                        : "1px solid var(--mz-border)",
                                     "border-radius": "var(--mz-radius-sm)",
-                                    background: props.voiceRecording ? "var(--mz-bg-hover)" : "transparent",
-                                    color: props.voiceRecording ? "var(--mz-accent)" : "var(--mz-text-muted)",
-                                    cursor: props.busy || props.voiceBusy ? "default" : "pointer",
-                                    opacity: props.busy || props.voiceBusy ? "0.55" : "1",
+                                    background: props.historyOpen
+                                        ? "var(--mz-accent-subtle)"
+                                        : "transparent",
+                                    color: props.historyOpen
+                                        ? "var(--mz-accent)"
+                                        : "var(--mz-text-muted)",
+                                    cursor: "pointer",
                                     padding: "0",
                                 }}
-                            >
-                                <Show when={props.voiceRecording} fallback={<Mic size={15} strokeWidth={1.8} />}>
-                                    <MicOff size={15} strokeWidth={1.8} />
-                                </Show>
+                                onMouseEnter={hoverAiActionButton}
+                                onMouseDown={pressAiActionButton}
+                                onMouseUp={hoverAiActionButton}
+                                onMouseLeave={(event) =>
+                                    resetAiActionButton(
+                                        event,
+                                        props.historyOpen,
+                                    )
+                                }>
+                                <History
+                                    size={15}
+                                    strokeWidth={1.8}
+                                />
                             </button>
-                            <button
-                                type="button"
-                                onClick={props.onSpeakInput}
-                                disabled={props.busy || props.voiceBusy || props.voiceRecording || !props.input.trim()}
-                                title={t("aiPanel.ttsInput")}
-                                aria-label={t("aiPanel.ttsInput")}
-                                style={{
-                                    width: "26px",
-                                    height: "26px",
-                                    display: "inline-flex",
-                                    "align-items": "center",
-                                    "justify-content": "center",
-                                    border: "1px solid var(--mz-border)",
-                                    "border-radius": "var(--mz-radius-sm)",
-                                    background: "transparent",
-                                    color: "var(--mz-text-muted)",
-                                    cursor: props.busy || props.voiceBusy || props.voiceRecording || !props.input.trim() ? "default" : "pointer",
-                                    opacity: props.busy || props.voiceBusy || props.voiceRecording || !props.input.trim() ? "0.55" : "1",
-                                    padding: "0",
-                                }}
-                            >
-                                <Volume2 size={15} strokeWidth={1.8} />
-                            </button>
-                        </Show>
-                        <Show when={false}>
-                            <div
-                                style={{
-                                    position: "absolute",
-                                    top: "30px",
-                                    left: "0",
-                                    width: "min(430px, calc(100vw - 32px))",
-                                    "max-height": "250px",
-                                    display: "flex",
-                                    "flex-direction": "column",
-                                    gap: "8px",
-                                    padding: "10px",
-                                    background: "var(--mz-bg-secondary)",
-                                    border: "1px solid var(--mz-border)",
-                                    "border-radius": "var(--mz-radius-sm)",
-                                    "box-shadow": "0 10px 28px rgba(0,0,0,0.32)",
-                                    "z-index": "1000",
-                                    color: "var(--mz-text-primary)",
-                                }}
-                            >
-                                <div style={{ display: "flex", "align-items": "center", gap: "6px", "min-width": "0" }}>
-                                    <select
-                                        aria-label={t("aiPanel.historyDate")}
-                                        value={props.historyDate}
-                                        disabled={props.historyDates.length === 0}
-                                        onChange={(event) => props.onSelectHistoryDate(event.currentTarget.value)}
-                                        style={{
-                                            flex: "1",
-                                            "min-width": "0",
-                                            height: "26px",
-                                            border: "1px solid var(--mz-border)",
-                                            "border-radius": "var(--mz-radius-sm)",
-                                            background: "var(--mz-bg-primary)",
-                                            color: "var(--mz-text-primary)",
-                                            "font-size": "var(--mz-font-size-xs)",
-                                            "font-family": "var(--mz-font-sans)",
-                                        }}
-                                    >
-                                        <Show
-                                            when={props.historyDates.length > 0}
-                                            fallback={<option value="">{t("aiPanel.historyNoDate")}</option>}
-                                        >
-                                            <For each={props.historyDates}>
-                                                {(date) => <option value={date}>{formatAiHistoryDate(date)}</option>}
-                                            </For>
-                                        </Show>
-                                    </select>
-                                    <button
-                                        type="button"
-                                        onClick={props.onClearHistoryDate}
-                                        disabled={!props.historyDate}
-                                        title={t("aiPanel.historyClearDate")}
-                                        style={{
-                                            border: "1px solid var(--mz-border)",
-                                            "border-radius": "var(--mz-radius-sm)",
-                                            background: "transparent",
-                                            color: "var(--mz-text-muted)",
-                                            cursor: props.historyDate ? "pointer" : "default",
-                                            opacity: props.historyDate ? "1" : "0.5",
-                                            padding: "4px 8px",
-                                            "font-size": "var(--mz-font-size-xs)",
-                                            "white-space": "nowrap",
-                                        }}
-                                    >
-                                        {t("aiPanel.historyClearDate")}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={props.onClearAllHistory}
-                                        disabled={props.historyDates.length === 0}
-                                        title={t("aiPanel.historyClearAll")}
-                                        style={{
-                                            border: "1px solid var(--mz-border)",
-                                            "border-radius": "var(--mz-radius-sm)",
-                                            background: "transparent",
-                                            color: "var(--mz-text-muted)",
-                                            cursor: props.historyDates.length ? "pointer" : "default",
-                                            opacity: props.historyDates.length ? "1" : "0.5",
-                                            padding: "4px 8px",
-                                            "font-size": "var(--mz-font-size-xs)",
-                                            "white-space": "nowrap",
-                                        }}
-                                    >
-                                        {t("aiPanel.historyClearAll")}
-                                    </button>
-                                </div>
-                                <Show
-                                    when={props.historyEntries.length > 0}
-                                    fallback={
-                                        <div style={{ color: "var(--mz-text-muted)", "font-size": "var(--mz-font-size-xs)", padding: "14px 2px" }}>
-                                            {t("aiPanel.historyEmpty")}
-                                        </div>
+                            <Show when={false}>
+                                <button
+                                    type="button"
+                                    onClick={props.onToggleVoiceInput}
+                                    disabled={props.busy || props.voiceBusy}
+                                    title={
+                                        props.voiceRecording
+                                            ? t("aiPanel.voiceStop")
+                                            : t("aiPanel.voiceStart")
                                     }
-                                >
+                                    aria-label={
+                                        props.voiceRecording
+                                            ? t("aiPanel.voiceStop")
+                                            : t("aiPanel.voiceStart")
+                                    }
+                                    style={{
+                                        width: "26px",
+                                        height: "26px",
+                                        display: "inline-flex",
+                                        "align-items": "center",
+                                        "justify-content": "center",
+                                        border: "1px solid var(--mz-border)",
+                                        "border-radius": "var(--mz-radius-sm)",
+                                        background: props.voiceRecording
+                                            ? "var(--mz-bg-hover)"
+                                            : "transparent",
+                                        color: props.voiceRecording
+                                            ? "var(--mz-accent)"
+                                            : "var(--mz-text-muted)",
+                                        cursor:
+                                            props.busy || props.voiceBusy
+                                                ? "default"
+                                                : "pointer",
+                                        opacity:
+                                            props.busy || props.voiceBusy
+                                                ? "0.55"
+                                                : "1",
+                                        padding: "0",
+                                    }}>
+                                    <Show
+                                        when={props.voiceRecording}
+                                        fallback={
+                                            <Mic
+                                                size={15}
+                                                strokeWidth={1.8}
+                                            />
+                                        }>
+                                        <MicOff
+                                            size={15}
+                                            strokeWidth={1.8}
+                                        />
+                                    </Show>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={props.onSpeakInput}
+                                    disabled={
+                                        props.busy ||
+                                        props.voiceBusy ||
+                                        props.voiceRecording ||
+                                        !props.input.trim()
+                                    }
+                                    title={t("aiPanel.ttsInput")}
+                                    aria-label={t("aiPanel.ttsInput")}
+                                    style={{
+                                        width: "26px",
+                                        height: "26px",
+                                        display: "inline-flex",
+                                        "align-items": "center",
+                                        "justify-content": "center",
+                                        border: "1px solid var(--mz-border)",
+                                        "border-radius": "var(--mz-radius-sm)",
+                                        background: "transparent",
+                                        color: "var(--mz-text-muted)",
+                                        cursor:
+                                            props.busy ||
+                                            props.voiceBusy ||
+                                            props.voiceRecording ||
+                                            !props.input.trim()
+                                                ? "default"
+                                                : "pointer",
+                                        opacity:
+                                            props.busy ||
+                                            props.voiceBusy ||
+                                            props.voiceRecording ||
+                                            !props.input.trim()
+                                                ? "0.55"
+                                                : "1",
+                                        padding: "0",
+                                    }}>
+                                    <Volume2
+                                        size={15}
+                                        strokeWidth={1.8}
+                                    />
+                                </button>
+                            </Show>
+                            <Show when={false}>
+                                <div
+                                    style={{
+                                        position: "absolute",
+                                        top: "30px",
+                                        left: "0",
+                                        width: "min(430px, calc(100vw - 32px))",
+                                        "max-height": "250px",
+                                        display: "flex",
+                                        "flex-direction": "column",
+                                        gap: "8px",
+                                        padding: "10px",
+                                        background: "var(--mz-bg-secondary)",
+                                        border: "1px solid var(--mz-border)",
+                                        "border-radius": "var(--mz-radius-sm)",
+                                        "box-shadow":
+                                            "0 10px 28px rgba(0,0,0,0.32)",
+                                        "z-index": "1000",
+                                        color: "var(--mz-text-primary)",
+                                    }}>
                                     <div
                                         style={{
                                             display: "flex",
-                                            "flex-direction": "column",
+                                            "align-items": "center",
                                             gap: "6px",
-                                            overflow: "auto",
-                                            "min-height": "0",
-                                            "max-height": "188px",
-                                        }}
-                                    >
-                                        <For each={props.historyEntries}>
-                                            {(entry) => (
-                                                <div
-                                                    style={{
-                                                        display: "grid",
-                                                        "grid-template-columns": "1fr auto auto",
-                                                        gap: "6px",
-                                                        "align-items": "center",
-                                                        padding: "7px",
-                                                        border: "1px solid var(--mz-border)",
-                                                        "border-radius": "var(--mz-radius-sm)",
-                                                        background: "var(--mz-bg-primary)",
-                                                    }}
-                                                >
-                                                    <div style={{ "min-width": "0" }}>
-                                                        <div style={{ color: "var(--mz-text-muted)", "font-size": "11px", "margin-bottom": "4px" }}>
-                                                            {formatAiHistoryTimestamp(entry.createdAt)}
-                                                        </div>
+                                            "min-width": "0",
+                                        }}>
+                                        <select
+                                            aria-label={t(
+                                                "aiPanel.historyDate",
+                                            )}
+                                            value={props.historyDate}
+                                            disabled={
+                                                props.historyDates.length === 0
+                                            }
+                                            onChange={(event) =>
+                                                props.onSelectHistoryDate(
+                                                    event.currentTarget.value,
+                                                )
+                                            }
+                                            style={{
+                                                flex: "1",
+                                                "min-width": "0",
+                                                height: "26px",
+                                                border: "1px solid var(--mz-border)",
+                                                "border-radius":
+                                                    "var(--mz-radius-sm)",
+                                                background:
+                                                    "var(--mz-bg-primary)",
+                                                color: "var(--mz-text-primary)",
+                                                "font-size":
+                                                    "var(--mz-font-size-xs)",
+                                                "font-family":
+                                                    "var(--mz-font-sans)",
+                                            }}>
+                                            <Show
+                                                when={
+                                                    props.historyDates.length >
+                                                    0
+                                                }
+                                                fallback={
+                                                    <option value="">
+                                                        {t(
+                                                            "aiPanel.historyNoDate",
+                                                        )}
+                                                    </option>
+                                                }>
+                                                <For each={props.historyDates}>
+                                                    {(date) => (
+                                                        <option value={date}>
+                                                            {formatAiHistoryDate(
+                                                                date,
+                                                            )}
+                                                        </option>
+                                                    )}
+                                                </For>
+                                            </Show>
+                                        </select>
+                                        <button
+                                            type="button"
+                                            onClick={props.onClearHistoryDate}
+                                            disabled={!props.historyDate}
+                                            title={t(
+                                                "aiPanel.historyClearDate",
+                                            )}
+                                            style={{
+                                                border: "1px solid var(--mz-border)",
+                                                "border-radius":
+                                                    "var(--mz-radius-sm)",
+                                                background: "transparent",
+                                                color: "var(--mz-text-muted)",
+                                                cursor: props.historyDate
+                                                    ? "pointer"
+                                                    : "default",
+                                                opacity: props.historyDate
+                                                    ? "1"
+                                                    : "0.5",
+                                                padding: "4px 8px",
+                                                "font-size":
+                                                    "var(--mz-font-size-xs)",
+                                                "white-space": "nowrap",
+                                            }}>
+                                            {t("aiPanel.historyClearDate")}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={props.onClearAllHistory}
+                                            disabled={
+                                                props.historyDates.length === 0
+                                            }
+                                            title={t("aiPanel.historyClearAll")}
+                                            style={{
+                                                border: "1px solid var(--mz-border)",
+                                                "border-radius":
+                                                    "var(--mz-radius-sm)",
+                                                background: "transparent",
+                                                color: "var(--mz-text-muted)",
+                                                cursor: props.historyDates
+                                                    .length
+                                                    ? "pointer"
+                                                    : "default",
+                                                opacity: props.historyDates
+                                                    .length
+                                                    ? "1"
+                                                    : "0.5",
+                                                padding: "4px 8px",
+                                                "font-size":
+                                                    "var(--mz-font-size-xs)",
+                                                "white-space": "nowrap",
+                                            }}>
+                                            {t("aiPanel.historyClearAll")}
+                                        </button>
+                                    </div>
+                                    <Show
+                                        when={props.historyEntries.length > 0}
+                                        fallback={
+                                            <div
+                                                style={{
+                                                    color: "var(--mz-text-muted)",
+                                                    "font-size":
+                                                        "var(--mz-font-size-xs)",
+                                                    padding: "14px 2px",
+                                                }}>
+                                                {t("aiPanel.historyEmpty")}
+                                            </div>
+                                        }>
+                                        <div
+                                            style={{
+                                                display: "flex",
+                                                "flex-direction": "column",
+                                                gap: "6px",
+                                                overflow: "auto",
+                                                "min-height": "0",
+                                                "max-height": "188px",
+                                            }}>
+                                            <For each={props.historyEntries}>
+                                                {(entry) => (
+                                                    <div
+                                                        style={{
+                                                            display: "grid",
+                                                            "grid-template-columns":
+                                                                "1fr auto auto",
+                                                            gap: "6px",
+                                                            "align-items":
+                                                                "center",
+                                                            padding: "7px",
+                                                            border: "1px solid var(--mz-border)",
+                                                            "border-radius":
+                                                                "var(--mz-radius-sm)",
+                                                            background:
+                                                                "var(--mz-bg-primary)",
+                                                        }}>
                                                         <div
                                                             style={{
-                                                                color: "var(--mz-text-secondary)",
-                                                                "font-size": "var(--mz-font-size-xs)",
-                                                                "line-height": "1.45",
-                                                                "white-space": "pre-wrap",
-                                                                "word-break": "break-word",
-                                                                "user-select": "text",
-                                                                "-webkit-user-select": "text",
-                                                            }}
-                                                        >
-                                                            {entry.text}
+                                                                "min-width":
+                                                                    "0",
+                                                            }}>
+                                                            <div
+                                                                style={{
+                                                                    color: "var(--mz-text-muted)",
+                                                                    "font-size":
+                                                                        "11px",
+                                                                    "margin-bottom":
+                                                                        "4px",
+                                                                }}>
+                                                                {formatAiHistoryTimestamp(
+                                                                    entry.createdAt,
+                                                                )}
+                                                            </div>
+                                                            <div
+                                                                style={{
+                                                                    color: "var(--mz-text-secondary)",
+                                                                    "font-size":
+                                                                        "var(--mz-font-size-xs)",
+                                                                    "line-height":
+                                                                        "1.45",
+                                                                    "white-space":
+                                                                        "pre-wrap",
+                                                                    "word-break":
+                                                                        "break-word",
+                                                                    "user-select":
+                                                                        "text",
+                                                                    "-webkit-user-select":
+                                                                        "text",
+                                                                }}>
+                                                                {entry.text}
+                                                            </div>
                                                         </div>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() =>
+                                                                props.onCopyHistoryEntry(
+                                                                    entry.text,
+                                                                )
+                                                            }
+                                                            title={t(
+                                                                "common.copy",
+                                                            )}
+                                                            aria-label={t(
+                                                                "common.copy",
+                                                            )}
+                                                            style={{
+                                                                width: "26px",
+                                                                height: "26px",
+                                                                display:
+                                                                    "inline-flex",
+                                                                "align-items":
+                                                                    "center",
+                                                                "justify-content":
+                                                                    "center",
+                                                                border: "1px solid var(--mz-border)",
+                                                                "border-radius":
+                                                                    "var(--mz-radius-sm)",
+                                                                background:
+                                                                    "transparent",
+                                                                color: "var(--mz-text-muted)",
+                                                                cursor: "pointer",
+                                                                padding: "0",
+                                                            }}>
+                                                            <Copy
+                                                                size={14}
+                                                                strokeWidth={
+                                                                    1.8
+                                                                }
+                                                            />
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() =>
+                                                                props.onDeleteHistoryEntry(
+                                                                    entry.id,
+                                                                )
+                                                            }
+                                                            title={t(
+                                                                "common.delete",
+                                                            )}
+                                                            aria-label={t(
+                                                                "common.delete",
+                                                            )}
+                                                            style={{
+                                                                width: "26px",
+                                                                height: "26px",
+                                                                display:
+                                                                    "inline-flex",
+                                                                "align-items":
+                                                                    "center",
+                                                                "justify-content":
+                                                                    "center",
+                                                                border: "1px solid var(--mz-border)",
+                                                                "border-radius":
+                                                                    "var(--mz-radius-sm)",
+                                                                background:
+                                                                    "transparent",
+                                                                color: "var(--mz-text-muted)",
+                                                                cursor: "pointer",
+                                                                padding: "0",
+                                                            }}>
+                                                            <Trash2
+                                                                size={14}
+                                                                strokeWidth={
+                                                                    1.8
+                                                                }
+                                                            />
+                                                        </button>
                                                     </div>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => props.onCopyHistoryEntry(entry.text)}
-                                                        title={t("common.copy")}
-                                                        aria-label={t("common.copy")}
-                                                        style={{
-                                                            width: "26px",
-                                                            height: "26px",
-                                                            display: "inline-flex",
-                                                            "align-items": "center",
-                                                            "justify-content": "center",
-                                                            border: "1px solid var(--mz-border)",
-                                                            "border-radius": "var(--mz-radius-sm)",
-                                                            background: "transparent",
-                                                            color: "var(--mz-text-muted)",
-                                                            cursor: "pointer",
-                                                            padding: "0",
-                                                        }}
-                                                    >
-                                                        <Copy size={14} strokeWidth={1.8} />
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => props.onDeleteHistoryEntry(entry.id)}
-                                                        title={t("common.delete")}
-                                                        aria-label={t("common.delete")}
-                                                        style={{
-                                                            width: "26px",
-                                                            height: "26px",
-                                                            display: "inline-flex",
-                                                            "align-items": "center",
-                                                            "justify-content": "center",
-                                                            border: "1px solid var(--mz-border)",
-                                                            "border-radius": "var(--mz-radius-sm)",
-                                                            background: "transparent",
-                                                            color: "var(--mz-text-muted)",
-                                                            cursor: "pointer",
-                                                            padding: "0",
-                                                        }}
-                                                    >
-                                                        <Trash2 size={14} strokeWidth={1.8} />
-                                                    </button>
-                                                </div>
-                                            )}
-                                        </For>
-                                    </div>
-                                </Show>
-                            </div>
+                                                )}
+                                            </For>
+                                        </div>
+                                    </Show>
+                                </div>
+                            </Show>
+                        </div>
+                        <Show
+                            when={props.modelOptions.length > 0}
+                            fallback={
+                                <span
+                                    style={{
+                                        color: "var(--mz-accent)",
+                                        overflow: "hidden",
+                                        "text-overflow": "ellipsis",
+                                        "white-space": "nowrap",
+                                        "min-width": "0",
+                                    }}>
+                                    {props.modelLabel}
+                                </span>
+                            }>
+                            <select
+                                aria-label={t("settings.aiProviderSection")}
+                                value={props.activeModelValue}
+                                disabled={props.busy}
+                                onChange={(event) =>
+                                    props.onSelectModel(
+                                        event.currentTarget.value,
+                                    )
+                                }
+                                style={{
+                                    "max-width": "220px",
+                                    "min-width": "60px",
+                                    height: "26px",
+                                    padding: "2px 16px 2px 8px",
+                                    border: "1px solid var(--mz-border)",
+                                    "border-radius": "var(--mz-radius-sm)",
+                                    background: "var(--mz-bg-primary)",
+                                    color: "var(--mz-accent)",
+                                    cursor: props.busy ? "default" : "pointer",
+                                    opacity: props.busy ? "0.7" : "1",
+                                    overflow: "hidden",
+                                    "text-overflow": "ellipsis",
+                                    "white-space": "nowrap",
+                                    "font-size": "var(--mz-font-size-xs)",
+                                    "font-family": "var(--mz-font-sans)",
+                                    "flex-shrink": "1",
+                                }}>
+                                <For each={props.modelOptions}>
+                                    {(option) => (
+                                        <option value={option.value}>
+                                            {option.label}
+                                        </option>
+                                    )}
+                                </For>
+                            </select>
                         </Show>
-                    </div>
-                    <Show
-                        when={props.modelOptions.length > 0}
-                        fallback={
-                            <span style={{ color: "var(--mz-accent)", overflow: "hidden", "text-overflow": "ellipsis", "white-space": "nowrap", "min-width": "0" }}>
-                                {props.modelLabel}
-                            </span>
-                        }
-                    >
-                        <select
-                            aria-label={t("settings.aiProviderSection")}
-                            value={props.activeModelValue}
-                            disabled={props.busy}
-                            onChange={(event) => props.onSelectModel(event.currentTarget.value)}
+                        <span
                             style={{
-                                "max-width": "220px",
-                                "min-width": "60px",
-                                height: "26px",
-                                padding: "2px 16px 2px 8px",
-                                border: "1px solid var(--mz-border)",
-                                "border-radius": "var(--mz-radius-sm)",
-                                background: "var(--mz-bg-primary)",
-                                color: "var(--mz-accent)",
-                                cursor: props.busy ? "default" : "pointer",
-                                opacity: props.busy ? "0.7" : "1",
+                                color: "var(--mz-text-muted)",
                                 overflow: "hidden",
                                 "text-overflow": "ellipsis",
                                 "white-space": "nowrap",
-                                "font-size": "var(--mz-font-size-xs)",
-                                "font-family": "var(--mz-font-sans)",
-                                "flex-shrink": "1",
-                            }}
-                        >
-                            <For each={props.modelOptions}>
-                                {(option) => (
-                                    <option value={option.value}>
-                                        {option.label}
-                                    </option>
-                                )}
-                            </For>
-                        </select>
-                    </Show>
-                    <span
+                                "user-select": "text",
+                                "-webkit-user-select": "text",
+                                cursor: "text",
+                            }}>
+                            {props.activePath || t("aiPanel.noActiveFile")}
+                        </span>
+                    </div>
+                    <button
+                        onClick={props.onClose}
+                        title={t("common.close")}
                         style={{
+                            width: "28px",
+                            height: "28px",
+                            border: "none",
+                            "border-radius": "var(--mz-radius-sm)",
+                            background: "transparent",
                             color: "var(--mz-text-muted)",
-                            overflow: "hidden",
-                            "text-overflow": "ellipsis",
-                            "white-space": "nowrap",
-                            "user-select": "text",
-                            "-webkit-user-select": "text",
-                            cursor: "text",
+                            cursor: "pointer",
+                            "font-size": "18px",
+                            "line-height": "1",
                         }}
-                    >
-                        {props.activePath || t("aiPanel.noActiveFile")}
-                    </span>
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.background =
+                                "var(--mz-bg-hover)";
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.background = "transparent";
+                        }}>
+                        <X
+                            size={16}
+                            strokeWidth={1.8}
+                        />
+                    </button>
                 </div>
-                <button
-                    onClick={props.onClose}
-                    title={t("common.close")}
+                <div
                     style={{
-                        width: "28px",
-                        height: "28px",
-                        border: "none",
-                        "border-radius": "var(--mz-radius-sm)",
-                        background: "transparent",
-                        color: "var(--mz-text-muted)",
-                        cursor: "pointer",
-                        "font-size": "18px",
-                        "line-height": "1",
-                    }}
-                    onMouseEnter={(e) => { e.currentTarget.style.background = "var(--mz-bg-hover)"; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
-                >
-                    <X size={16} strokeWidth={1.8} />
-                </button>
-            </div>
-            <div
-                style={{
-                    flex: "1",
-                    display: "grid",
-                    "grid-template-columns": "repeat(auto-fit, minmax(260px, 1fr))",
-                    gap: "12px",
-                    padding: "12px",
-                    "min-height": "0",
-                }}
-            >
-                <div style={{ display: "flex", "flex-direction": "column", gap: "8px", "min-width": "0", "min-height": "0" }}>
-                    <textarea
-                        ref={textareaRef}
-                        data-mz-ai-input="true"
-                        value={props.input}
-                        placeholder={t("aiPanel.placeholder")}
-                        disabled={props.busy}
-                        onInput={(e) => props.onInput(e.currentTarget.value)}
-                        onKeyDown={(e) => {
-                            if (e.altKey && !e.ctrlKey && !e.metaKey && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                props.onNavigateHistory(e.key === "ArrowUp" ? "prev" : "next");
-                                return;
-                            }
-                            if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-                                e.preventDefault();
-                                props.onRun();
-                            }
-                        }}
+                        flex: "1",
+                        display: "grid",
+                        "grid-template-columns":
+                            "repeat(auto-fit, minmax(260px, 1fr))",
+                        gap: "12px",
+                        padding: "12px",
+                        "min-height": "0",
+                    }}>
+                    <div
                         style={{
-                            flex: "1",
-                            resize: "none",
+                            display: "flex",
+                            "flex-direction": "column",
+                            gap: "8px",
+                            "min-width": "0",
+                            "min-height": "0",
+                        }}>
+                        <textarea
+                            ref={textareaRef}
+                            data-mz-ai-input="true"
+                            value={props.input}
+                            placeholder={t("aiPanel.placeholder")}
+                            disabled={props.busy}
+                            onInput={(e) =>
+                                props.onInput(e.currentTarget.value)
+                            }
+                            onKeyDown={(e) => {
+                                if (
+                                    e.altKey &&
+                                    !e.ctrlKey &&
+                                    !e.metaKey &&
+                                    (e.key === "ArrowUp" ||
+                                        e.key === "ArrowDown")
+                                ) {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    props.onNavigateHistory(
+                                        e.key === "ArrowUp" ? "prev" : "next",
+                                    );
+                                    return;
+                                }
+                                if (
+                                    (e.ctrlKey || e.metaKey) &&
+                                    e.key === "Enter"
+                                ) {
+                                    e.preventDefault();
+                                    props.onRun();
+                                }
+                            }}
+                            style={{
+                                flex: "1",
+                                resize: "none",
+                                border: "1px solid var(--mz-border)",
+                                "border-radius": "var(--mz-radius-sm)",
+                                background: "var(--mz-bg-primary)",
+                                color: "var(--mz-text-primary)",
+                                padding: "10px",
+                                "font-family": "var(--mz-font-sans)",
+                                "font-size": "var(--mz-font-size-sm)",
+                                outline: "none",
+                                "min-height": "0",
+                            }}
+                        />
+                        <div
+                            style={{
+                                display: "flex",
+                                "justify-content": "flex-end",
+                                gap: "8px",
+                            }}>
+                            <button
+                                onClick={props.onRun}
+                                disabled={
+                                    props.busy ||
+                                    props.voiceBusy ||
+                                    props.voiceRecording ||
+                                    !props.input.trim()
+                                }
+                                style={{
+                                    border: "1px solid var(--mz-accent)",
+                                    background: "transparent",
+                                    color: "var(--mz-accent)",
+                                    "border-radius": "var(--mz-radius-sm)",
+                                    padding: "6px 16px",
+                                    cursor:
+                                        props.busy ||
+                                        props.voiceBusy ||
+                                        props.voiceRecording ||
+                                        !props.input.trim()
+                                            ? "default"
+                                            : "pointer",
+                                    opacity:
+                                        props.busy ||
+                                        props.voiceBusy ||
+                                        props.voiceRecording ||
+                                        !props.input.trim()
+                                            ? "0.55"
+                                            : "1",
+                                    "font-size": "var(--mz-font-size-sm)",
+                                    "font-family": "var(--mz-font-sans)",
+                                }}>
+                                {props.busy || props.voiceBusy
+                                    ? t("aiPanel.working")
+                                    : t("aiPanel.run")}
+                            </button>
+                        </div>
+                    </div>
+                    <pre
+                        ref={outputRef}
+                        style={{
+                            margin: "0",
+                            overflow: "auto",
+                            "white-space": "pre-wrap",
+                            "word-break": "break-word",
                             border: "1px solid var(--mz-border)",
                             "border-radius": "var(--mz-radius-sm)",
                             background: "var(--mz-bg-primary)",
-                            color: "var(--mz-text-primary)",
+                            color: props.output
+                                ? "var(--mz-text-secondary)"
+                                : "var(--mz-text-muted)",
                             padding: "10px",
-                            "font-family": "var(--mz-font-sans)",
-                            "font-size": "var(--mz-font-size-sm)",
-                            outline: "none",
+                            "font-family": "var(--mz-font-mono, monospace)",
+                            "font-size": "var(--mz-font-size-xs)",
                             "min-height": "0",
-                        }}
-                    />
-                    <div style={{ display: "flex", "justify-content": "flex-end", gap: "8px" }}>
-                        <button
-                            onClick={props.onRun}
-                            disabled={props.busy || props.voiceBusy || props.voiceRecording || !props.input.trim()}
-                            style={{
-                                border: "1px solid var(--mz-accent)",
-                                background: "transparent",
-                                color: "var(--mz-accent)",
-                                "border-radius": "var(--mz-radius-sm)",
-                                padding: "6px 16px",
-                                cursor: props.busy || props.voiceBusy || props.voiceRecording || !props.input.trim() ? "default" : "pointer",
-                                opacity: props.busy || props.voiceBusy || props.voiceRecording || !props.input.trim() ? "0.55" : "1",
-                                "font-size": "var(--mz-font-size-sm)",
-                                "font-family": "var(--mz-font-sans)",
-                            }}
-                        >
-                            {props.busy || props.voiceBusy ? t("aiPanel.working") : t("aiPanel.run")}
-                        </button>
-                    </div>
+                            "user-select": "text",
+                            "-webkit-user-select": "text",
+                            cursor: "text",
+                        }}>
+                        {props.output || t("aiPanel.empty")}
+                    </pre>
                 </div>
-                <pre
-                    ref={outputRef}
-                    style={{
-                        margin: "0",
-                        overflow: "auto",
-                        "white-space": "pre-wrap",
-                        "word-break": "break-word",
-                        border: "1px solid var(--mz-border)",
-                        "border-radius": "var(--mz-radius-sm)",
-                        background: "var(--mz-bg-primary)",
-                        color: props.output ? "var(--mz-text-secondary)" : "var(--mz-text-muted)",
-                        padding: "10px",
-                        "font-family": "var(--mz-font-mono, monospace)",
-                        "font-size": "var(--mz-font-size-xs)",
-                        "min-height": "0",
-                        "user-select": "text",
-                        "-webkit-user-select": "text",
-                        cursor: "text",
-                    }}
-                >
-                    {props.output || t("aiPanel.empty")}
-                </pre>
             </div>
-        </div>
-        <Show when={props.historyOpen}>
-            <AiHistoryDialog
-                position={props.historyPosition}
-                dates={props.historyDates}
-                selectedDate={props.historyDate}
-                entries={props.historyEntries}
-                onMove={props.onMoveHistory}
-                onClose={props.onCloseHistory}
-                onSelectDate={props.onSelectHistoryDate}
-                onDeleteEntry={props.onDeleteHistoryEntry}
-                onClearDate={props.onClearHistoryDate}
-                onClearAll={props.onClearAllHistory}
-                onCopyEntry={props.onCopyHistoryEntry}
-            />
-        </Show>
+            <Show when={props.historyOpen}>
+                <AiHistoryDialog
+                    position={props.historyPosition}
+                    dates={props.historyDates}
+                    selectedDate={props.historyDate}
+                    entries={props.historyEntries}
+                    onMove={props.onMoveHistory}
+                    onClose={props.onCloseHistory}
+                    onSelectDate={props.onSelectHistoryDate}
+                    onDeleteEntry={props.onDeleteHistoryEntry}
+                    onClearDate={props.onClearHistoryDate}
+                    onClearAll={props.onClearAllHistory}
+                    onCopyEntry={props.onCopyHistoryEntry}
+                />
+            </Show>
         </>
     );
 };
@@ -3947,7 +4888,9 @@ function pressAiActionButton(event: MouseEvent) {
 
 function resetAiActionButton(event: MouseEvent, active = false) {
     const target = event.currentTarget as HTMLElement;
-    target.style.background = active ? "var(--mz-accent-subtle)" : "transparent";
+    target.style.background = active
+        ? "var(--mz-accent-subtle)"
+        : "transparent";
     target.style.borderColor = active ? "var(--mz-accent)" : "var(--mz-border)";
     target.style.color = active ? "var(--mz-accent)" : "var(--mz-text-muted)";
 }
@@ -3985,7 +4928,10 @@ const AiHistoryDialog: Component<{
         const height = dialogRef?.offsetHeight ?? 420;
         return {
             x: Math.max(8, Math.min(window.innerWidth - width - 8, position.x)),
-            y: Math.max(8, Math.min(window.innerHeight - height - 8, position.y)),
+            y: Math.max(
+                8,
+                Math.min(window.innerHeight - height - 8, position.y),
+            ),
         };
     };
 
@@ -4004,10 +4950,12 @@ const AiHistoryDialog: Component<{
         document.body.style.userSelect = "none";
 
         const onMove = (moveEvent: MouseEvent) => {
-            props.onMove(clampPosition({
-                x: startPosition.x + moveEvent.clientX - startX,
-                y: startPosition.y + moveEvent.clientY - startY,
-            }));
+            props.onMove(
+                clampPosition({
+                    x: startPosition.x + moveEvent.clientX - startX,
+                    y: startPosition.y + moveEvent.clientY - startY,
+                }),
+            );
         };
         const onUp = () => {
             document.removeEventListener("mousemove", onMove);
@@ -4039,8 +4987,7 @@ const AiHistoryDialog: Component<{
                 color: "var(--mz-text-primary)",
                 overflow: "hidden",
                 "font-family": "var(--mz-font-sans)",
-            }}
-        >
+            }}>
             <div
                 onMouseDown={startDrag}
                 style={{
@@ -4054,9 +5001,10 @@ const AiHistoryDialog: Component<{
                     "border-bottom-width": "1px",
                     cursor: "move",
                     "user-select": "none",
-                }}
-            >
-                <strong style={{ "font-size": "var(--mz-font-size-sm)" }}>{t("aiPanel.history")}</strong>
+                }}>
+                <strong style={{ "font-size": "var(--mz-font-size-sm)" }}>
+                    {t("aiPanel.history")}
+                </strong>
                 <button
                     type="button"
                     onMouseDown={(event) => event.stopPropagation()}
@@ -4075,17 +5023,29 @@ const AiHistoryDialog: Component<{
                         color: "var(--mz-text-muted)",
                         cursor: "pointer",
                         padding: "0",
-                    }}
-                >
-                    <X size={16} strokeWidth={1.8} />
+                    }}>
+                    <X
+                        size={16}
+                        strokeWidth={1.8}
+                    />
                 </button>
             </div>
-            <div style={{ display: "flex", "align-items": "center", gap: "8px", padding: "10px", border: "0 solid var(--mz-border)", "border-bottom-width": "1px" }}>
+            <div
+                style={{
+                    display: "flex",
+                    "align-items": "center",
+                    gap: "8px",
+                    padding: "10px",
+                    border: "0 solid var(--mz-border)",
+                    "border-bottom-width": "1px",
+                }}>
                 <select
                     aria-label={t("aiPanel.historyDate")}
                     value={props.selectedDate}
                     disabled={props.dates.length === 0}
-                    onChange={(event) => props.onSelectDate(event.currentTarget.value)}
+                    onChange={(event) =>
+                        props.onSelectDate(event.currentTarget.value)
+                    }
                     style={{
                         flex: "1",
                         "min-width": "0",
@@ -4095,14 +5055,20 @@ const AiHistoryDialog: Component<{
                         background: "var(--mz-bg-primary)",
                         color: "var(--mz-text-primary)",
                         "font-size": "var(--mz-font-size-xs)",
-                    }}
-                >
+                    }}>
                     <Show
                         when={props.dates.length > 0}
-                        fallback={<option value="">{t("aiPanel.historyNoDate")}</option>}
-                    >
+                        fallback={
+                            <option value="">
+                                {t("aiPanel.historyNoDate")}
+                            </option>
+                        }>
                         <For each={props.dates}>
-                            {(date) => <option value={date}>{formatAiHistoryDate(date)}</option>}
+                            {(date) => (
+                                <option value={date}>
+                                    {formatAiHistoryDate(date)}
+                                </option>
+                            )}
                         </For>
                     </Show>
                 </select>
@@ -4125,8 +5091,7 @@ const AiHistoryDialog: Component<{
                         padding: "5px 10px",
                         "font-size": "var(--mz-font-size-xs)",
                         "white-space": "nowrap",
-                    }}
-                >
+                    }}>
                     {t("aiPanel.historyClearDate")}
                 </button>
                 <button
@@ -4148,20 +5113,32 @@ const AiHistoryDialog: Component<{
                         padding: "5px 10px",
                         "font-size": "var(--mz-font-size-xs)",
                         "white-space": "nowrap",
-                    }}
-                >
+                    }}>
                     {t("aiPanel.historyClearAll")}
                 </button>
             </div>
             <Show
                 when={props.entries.length > 0}
                 fallback={
-                    <div style={{ color: "var(--mz-text-muted)", "font-size": "var(--mz-font-size-sm)", padding: "18px" }}>
+                    <div
+                        style={{
+                            color: "var(--mz-text-muted)",
+                            "font-size": "var(--mz-font-size-sm)",
+                            padding: "18px",
+                        }}>
                         {t("aiPanel.historyEmpty")}
                     </div>
-                }
-            >
-                <div style={{ flex: "1", overflow: "auto", padding: "10px", display: "flex", "flex-direction": "column", gap: "8px", "min-height": "0" }}>
+                }>
+                <div
+                    style={{
+                        flex: "1",
+                        overflow: "auto",
+                        padding: "10px",
+                        display: "flex",
+                        "flex-direction": "column",
+                        gap: "8px",
+                        "min-height": "0",
+                    }}>
                     <For each={props.entries}>
                         {(entry) => (
                             <div
@@ -4174,30 +5151,38 @@ const AiHistoryDialog: Component<{
                                     border: "1px solid var(--mz-border)",
                                     "border-radius": "var(--mz-radius-sm)",
                                     background: "var(--mz-bg-primary)",
-                                }}
-                            >
+                                }}>
                                 <div style={{ "min-width": "0" }}>
-                                    <div style={{ color: "var(--mz-text-muted)", "font-size": "11px", "margin-bottom": "5px" }}>
-                                        {formatAiHistoryTimestamp(entry.createdAt)}
+                                    <div
+                                        style={{
+                                            color: "var(--mz-text-muted)",
+                                            "font-size": "11px",
+                                            "margin-bottom": "5px",
+                                        }}>
+                                        {formatAiHistoryTimestamp(
+                                            entry.createdAt,
+                                        )}
                                     </div>
                                     <div
                                         style={{
                                             color: "var(--mz-text-secondary)",
-                                            "font-size": "var(--mz-font-size-xs)",
+                                            "font-size":
+                                                "var(--mz-font-size-xs)",
                                             "line-height": "1.5",
                                             "white-space": "pre-wrap",
                                             "word-break": "break-word",
                                             "user-select": "text",
                                             "-webkit-user-select": "text",
                                             cursor: "text",
-                                        }}
-                                    >
+                                        }}>
                                         {entry.text}
                                     </div>
                                 </div>
                                 <button
                                     type="button"
-                                    onClick={() => props.onCopyEntry(entry.text)}
+                                    onClick={() =>
+                                        props.onCopyEntry(entry.text)
+                                    }
                                     title={t("common.copy")}
                                     aria-label={t("common.copy")}
                                     onMouseEnter={hoverAiActionButton}
@@ -4216,13 +5201,17 @@ const AiHistoryDialog: Component<{
                                         color: "var(--mz-text-muted)",
                                         cursor: "pointer",
                                         padding: "0",
-                                    }}
-                                >
-                                    <Copy size={14} strokeWidth={1.8} />
+                                    }}>
+                                    <Copy
+                                        size={14}
+                                        strokeWidth={1.8}
+                                    />
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={() => props.onDeleteEntry(entry.id)}
+                                    onClick={() =>
+                                        props.onDeleteEntry(entry.id)
+                                    }
                                     title={t("common.delete")}
                                     aria-label={t("common.delete")}
                                     onMouseEnter={hoverAiActionButton}
@@ -4241,9 +5230,11 @@ const AiHistoryDialog: Component<{
                                         color: "var(--mz-text-muted)",
                                         cursor: "pointer",
                                         padding: "0",
-                                    }}
-                                >
-                                    <Trash2 size={14} strokeWidth={1.8} />
+                                    }}>
+                                    <Trash2
+                                        size={14}
+                                        strokeWidth={1.8}
+                                    />
                                 </button>
                             </div>
                         )}
@@ -4267,14 +5258,24 @@ const SplitWorkspaceView: Component<{
     let containerRef: HTMLDivElement | undefined;
     const isSplit = createMemo(() => !!props.secondaryPath);
     const flexDirection = createMemo(() =>
-        props.direction === "up" || props.direction === "down" ? "column" : "row",
+        props.direction === "up" || props.direction === "down"
+            ? "column"
+            : "row",
     );
     const isHorizontalSplit = createMemo(() => flexDirection() === "row");
     const dividerThickness = 6;
     const dividerStyle = createMemo(() =>
         isHorizontalSplit()
-            ? { width: `${dividerThickness}px`, height: "100%", cursor: "col-resize" }
-            : { width: "100%", height: `${dividerThickness}px`, cursor: "row-resize" },
+            ? {
+                  width: `${dividerThickness}px`,
+                  height: "100%",
+                  cursor: "col-resize",
+              }
+            : {
+                  width: "100%",
+                  height: `${dividerThickness}px`,
+                  cursor: "row-resize",
+              },
     );
     // When non-split, the primary pane absorbs the whole container so
     // the fallback layout (single pane at 100%) looks identical to the
@@ -4326,7 +5327,9 @@ const SplitWorkspaceView: Component<{
 
         updateRatio(event.clientX, event.clientY);
         const previousCursor = document.body.style.cursor;
-        document.body.style.cursor = isHorizontalSplit() ? "col-resize" : "row-resize";
+        document.body.style.cursor = isHorizontalSplit()
+            ? "col-resize"
+            : "row-resize";
         document.body.style.userSelect = "none";
 
         const onMove = (moveEvent: MouseEvent) => {
@@ -4355,12 +5358,10 @@ const SplitWorkspaceView: Component<{
                         "justify-content": "center",
                         color: "var(--mz-text-muted)",
                         "font-size": "var(--mz-font-size-sm)",
-                    }}
-                >
+                    }}>
                     {t("app.openFileOrSearch")}
                 </div>
-            }
-        >
+            }>
             {/* Always-mounted split container. The primary PaneFileView
                 lives inside it regardless of whether the user is in
                 split mode — toggling `isSplit()` only adds/removes the
@@ -4378,12 +5379,14 @@ const SplitWorkspaceView: Component<{
                     "min-height": "0",
                     overflow: "hidden",
                     background: "var(--mz-bg-primary)",
-                }}
-            >
+                }}>
                 <div
-                    class={isSplit() ? "mz-pane-wrap mz-pane-wrap-primary" : "mz-pane-wrap mz-pane-wrap-primary mz-pane-wrap-solo"}
-                    style={paneStyle("primary")}
-                >
+                    class={
+                        isSplit()
+                            ? "mz-pane-wrap mz-pane-wrap-primary"
+                            : "mz-pane-wrap mz-pane-wrap-primary mz-pane-wrap-solo"
+                    }
+                    style={paneStyle("primary")}>
                     <PaneFileView
                         filePath={props.primaryPath!}
                         active={!isSplit() || props.activeSlot === "primary"}
@@ -4401,7 +5404,9 @@ const SplitWorkspaceView: Component<{
                             position: "relative",
                         }}
                     />
-                    <div class="mz-pane-wrap mz-pane-wrap-secondary" style={paneStyle("secondary")}>
+                    <div
+                        class="mz-pane-wrap mz-pane-wrap-secondary"
+                        style={paneStyle("secondary")}>
                         <PaneFileView
                             filePath={props.secondaryPath!}
                             active={props.activeSlot === "secondary"}
@@ -4425,13 +5430,23 @@ const PaneFileView: Component<{
 }> = (props) => {
     const file = createMemo(
         () =>
-            vaultStore.openFiles().find((entry) => entry.path === props.filePath) ??
-            (vaultStore.activeFile()?.path === props.filePath ? vaultStore.activeFile() : null),
+            vaultStore
+                .openFiles()
+                .find((entry) => entry.path === props.filePath) ??
+            (vaultStore.activeFile()?.path === props.filePath
+                ? vaultStore.activeFile()
+                : null),
     );
-    const fileExt = createMemo(() => props.filePath.split(".").pop()?.toLowerCase() ?? "");
+    const fileExt = createMemo(
+        () => props.filePath.split(".").pop()?.toLowerCase() ?? "",
+    );
     const isPluginView = createMemo(() => hasPluginViewForExtension(fileExt()));
-    const viewMode = createMemo(() => editorStore.getViewModeForFile(props.filePath));
-    const title = createMemo(() => props.filePath.split("/").pop() ?? props.filePath);
+    const viewMode = createMemo(() =>
+        editorStore.getViewModeForFile(props.filePath),
+    );
+    const title = createMemo(
+        () => props.filePath.split("/").pop() ?? props.filePath,
+    );
     const previewKind = createMemo<"image" | "document" | null>(() => {
         if (file()?.kind === "image") return "image";
         if (file()?.kind === "document") return "document";
@@ -4451,9 +5466,11 @@ const PaneFileView: Component<{
                 "min-height": "0",
                 overflow: "hidden",
                 background: "var(--mz-bg-primary)",
-                "box-shadow": props.split && props.active ? "inset 0 0 0 1px var(--mz-accent)" : "none",
-            }}
-        >
+                "box-shadow":
+                    props.split && props.active
+                        ? "inset 0 0 0 1px var(--mz-accent)"
+                        : "none",
+            }}>
             <Show when={props.split}>
                 <div
                     style={{
@@ -4462,21 +5479,23 @@ const PaneFileView: Component<{
                         gap: "8px",
                         height: "30px",
                         padding: "0 10px",
-                        background: props.active ? "var(--mz-bg-secondary)" : "var(--mz-bg-tertiary)",
+                        background: props.active
+                            ? "var(--mz-bg-secondary)"
+                            : "var(--mz-bg-tertiary)",
                         "border-bottom": "1px solid var(--mz-border)",
                         "flex-shrink": "0",
-                        color: props.active ? "var(--mz-text-primary)" : "var(--mz-text-secondary)",
+                        color: props.active
+                            ? "var(--mz-text-primary)"
+                            : "var(--mz-text-secondary)",
                         "font-size": "var(--mz-font-size-xs)",
-                    }}
-                >
+                    }}>
                     <span
                         style={{
                             flex: "1",
                             overflow: "hidden",
                             "text-overflow": "ellipsis",
                             "white-space": "nowrap",
-                        }}
-                    >
+                        }}>
                         {title()}
                     </span>
                     <Show when={props.onClose}>
@@ -4498,14 +5517,17 @@ const PaneFileView: Component<{
                                 "flex-shrink": "0",
                             }}
                             onMouseEnter={(event) => {
-                                event.currentTarget.style.background = "var(--mz-bg-hover)";
-                                event.currentTarget.style.color = "var(--mz-text-primary)";
+                                event.currentTarget.style.background =
+                                    "var(--mz-bg-hover)";
+                                event.currentTarget.style.color =
+                                    "var(--mz-text-primary)";
                             }}
                             onMouseLeave={(event) => {
-                                event.currentTarget.style.background = "transparent";
-                                event.currentTarget.style.color = "var(--mz-text-muted)";
-                            }}
-                        >
+                                event.currentTarget.style.background =
+                                    "transparent";
+                                event.currentTarget.style.color =
+                                    "var(--mz-text-muted)";
+                            }}>
                             ×
                         </button>
                     </Show>
@@ -4523,12 +5545,10 @@ const PaneFileView: Component<{
                             "justify-content": "center",
                             color: "var(--mz-text-muted)",
                             "font-size": "var(--mz-font-size-sm)",
-                        }}
-                    >
+                        }}>
                         {t("app.openFileOrSearch")}
                     </div>
-                }
-            >
+                }>
                 <Show
                     when={previewKind()}
                     fallback={
@@ -4544,24 +5564,21 @@ const PaneFileView: Component<{
                                             isActive={props.active}
                                             onActivate={props.onActivate}
                                         />
-                                    }
-                                >
+                                    }>
                                     <ReadingView
                                         file={file()}
                                         isActive={props.active}
                                         onActivate={props.onActivate}
                                     />
                                 </Show>
-                            }
-                        >
+                            }>
                             <PluginViewHost
                                 filePath={props.filePath}
                                 content={file()!.content}
                                 extension={fileExt()}
                             />
                         </Show>
-                    }
-                >
+                    }>
                     <FilePreview
                         filePath={props.filePath}
                         kind={previewKind()!}
@@ -4577,7 +5594,11 @@ const PaneFileView: Component<{
 // Plugin View Host — renders plugin-managed views for registered extensions
 // ============================================================================
 
-const PluginViewHost: Component<{ filePath: string; content: string; extension: string }> = (props) => {
+const PluginViewHost: Component<{
+    filePath: string;
+    content: string;
+    extension: string;
+}> = (props) => {
     let containerRef: HTMLDivElement | undefined;
     // Each PluginViewHost instance owns its OWN mount handle returned
     // from mountPluginView. Destroying by handle (instead of file path)
@@ -4586,34 +5607,37 @@ const PluginViewHost: Component<{ filePath: string; content: string; extension: 
     let currentPath: string | null = null;
     let currentHandle: string | null = null;
     const isMindzjInternalFile = () =>
-        props.filePath.startsWith(".mindzj/") || props.filePath.includes("/.mindzj/");
+        props.filePath.startsWith(".mindzj/") ||
+        props.filePath.includes("/.mindzj/");
 
     // Only track path changes — ignore content changes.
     // Content changes from plugin saves must NOT trigger re-mount, because
     // setViewData(data, true) resets the plugin's selection to the root node.
-    createEffect(on(
-        () => props.filePath,
-        async (path) => {
-            if (!containerRef || !path) return;
-            if (path !== currentPath) {
-                // Destroy THIS pane's previous view (if any) — by handle,
-                // so a sibling pane showing the same file is unaffected.
-                if (currentHandle) destroyPluginView(currentHandle);
-                // Clear container
-                containerRef.innerHTML = "";
-                currentPath = path;
-                currentHandle = null;
-                // Use current content from props at mount time
-                const mounted = await mountPluginView(
-                    props.extension,
-                    path,
-                    props.content,
-                    containerRef,
-                );
-                if (mounted) currentHandle = mounted.handle;
-            }
-        },
-    ));
+    createEffect(
+        on(
+            () => props.filePath,
+            async (path) => {
+                if (!containerRef || !path) return;
+                if (path !== currentPath) {
+                    // Destroy THIS pane's previous view (if any) — by handle,
+                    // so a sibling pane showing the same file is unaffected.
+                    if (currentHandle) destroyPluginView(currentHandle);
+                    // Clear container
+                    containerRef.innerHTML = "";
+                    currentPath = path;
+                    currentHandle = null;
+                    // Use current content from props at mount time
+                    const mounted = await mountPluginView(
+                        props.extension,
+                        path,
+                        props.content,
+                        containerRef,
+                    );
+                    if (mounted) currentHandle = mounted.handle;
+                }
+            },
+        ),
+    );
 
     onCleanup(() => {
         if (currentHandle) destroyPluginView(currentHandle);
@@ -4657,12 +5681,17 @@ const VaultSwitcher: Component<{
     onClose: () => void;
     onCloseVault: () => Promise<void>;
 }> = (props) => {
-    const [vaults, setVaults] = createSignal<{ name: string; path: string }[]>([]);
+    const [vaults, setVaults] = createSignal<{ name: string; path: string }[]>(
+        [],
+    );
 
     // Normalize path for comparison (handle Windows \\?\ prefix and slash differences)
     function normalizePath(p: string | undefined): string {
         if (!p) return "";
-        return p.replace(/^\\\\?\?\\/i, "").replace(/\\/g, "/").toLowerCase();
+        return p
+            .replace(/^\\\\?\?\\/i, "")
+            .replace(/\\/g, "/")
+            .toLowerCase();
     }
 
     onMount(() => {
@@ -4682,7 +5711,10 @@ const VaultSwitcher: Component<{
     async function openVaultInNewWindow(path: string, name: string) {
         try {
             const { invoke } = await import("@tauri-apps/api/core");
-            await invoke("open_vault_window", { vaultPath: path, vaultName: name });
+            await invoke("open_vault_window", {
+                vaultPath: path,
+                vaultName: name,
+            });
         } catch (e) {
             console.error("Failed to open vault in new window:", e);
             // Fallback: open in current window
@@ -4691,19 +5723,29 @@ const VaultSwitcher: Component<{
     }
 
     return (
-        <div class="mz-vault-switcher" style={{
-            position: "absolute", bottom: "100%", left: "0",
-            "min-width": "220px", "margin-bottom": "4px",
-            background: "var(--mz-bg-secondary)",
-            border: "1px solid var(--mz-border-strong)",
-            "border-radius": "var(--mz-radius-md)",
-            "box-shadow": "0 8px 24px rgba(0,0,0,0.25)",
-            padding: "4px 0", "z-index": "1000",
-        }}>
+        <div
+            class="mz-vault-switcher"
+            style={{
+                position: "absolute",
+                bottom: "100%",
+                left: "0",
+                "min-width": "220px",
+                "margin-bottom": "4px",
+                background: "var(--mz-bg-secondary)",
+                border: "1px solid var(--mz-border-strong)",
+                "border-radius": "var(--mz-radius-md)",
+                "box-shadow": "0 8px 24px rgba(0,0,0,0.25)",
+                padding: "4px 0",
+                "z-index": "1000",
+            }}>
             {/* Vault list */}
             <For each={vaults()}>
                 {(v) => {
-                    const isCurrent = normalizePath(v.path) === normalizePath(vaultStore.vaultInfo()?.path as unknown as string);
+                    const isCurrent =
+                        normalizePath(v.path) ===
+                        normalizePath(
+                            vaultStore.vaultInfo()?.path as unknown as string,
+                        );
                     return (
                         <button
                             onClick={async () => {
@@ -4713,28 +5755,95 @@ const VaultSwitcher: Component<{
                                 props.onClose();
                             }}
                             style={{
-                                display: "flex", "align-items": "center", "justify-content": "space-between",
-                                width: "100%", padding: "8px 12px", border: "none",
-                                background: "transparent", color: "var(--mz-text-primary)",
-                                cursor: "pointer", "font-size": "var(--mz-font-size-sm)",
-                                "font-family": "var(--mz-font-sans)", "text-align": "left",
+                                display: "flex",
+                                "align-items": "center",
+                                "justify-content": "space-between",
+                                width: "100%",
+                                padding: "8px 12px",
+                                border: "none",
+                                background: "transparent",
+                                color: "var(--mz-text-primary)",
+                                cursor: "pointer",
+                                "font-size": "var(--mz-font-size-sm)",
+                                "font-family": "var(--mz-font-sans)",
+                                "text-align": "left",
                                 gap: "8px",
                             }}
-                            onMouseEnter={e => { e.currentTarget.style.background = "var(--mz-bg-hover)"; }}
-                            onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
-                        >
-                            <svg width="14" height="14" viewBox="0 0 20 20" fill="none" style={{ "flex-shrink": "0" }}>
-                                <rect x="2" y="4" width="16" height="13" rx="2" stroke={isCurrent ? "var(--mz-accent)" : "var(--mz-text-muted)"} stroke-width="1.5" fill="none" />
-                                <path d="M2 7H18" stroke={isCurrent ? "var(--mz-accent)" : "var(--mz-text-muted)"} stroke-width="1.5" />
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.background =
+                                    "var(--mz-bg-hover)";
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.background =
+                                    "transparent";
+                            }}>
+                            <svg
+                                width="14"
+                                height="14"
+                                viewBox="0 0 20 20"
+                                fill="none"
+                                style={{ "flex-shrink": "0" }}>
+                                <rect
+                                    x="2"
+                                    y="4"
+                                    width="16"
+                                    height="13"
+                                    rx="2"
+                                    stroke={
+                                        isCurrent
+                                            ? "var(--mz-accent)"
+                                            : "var(--mz-text-muted)"
+                                    }
+                                    stroke-width="1.5"
+                                    fill="none"
+                                />
+                                <path
+                                    d="M2 7H18"
+                                    stroke={
+                                        isCurrent
+                                            ? "var(--mz-accent)"
+                                            : "var(--mz-text-muted)"
+                                    }
+                                    stroke-width="1.5"
+                                />
                             </svg>
-                            <span style={{ overflow: "hidden", "text-overflow": "ellipsis", "white-space": "nowrap", flex: "1" }}>{v.name}</span>
+                            <span
+                                style={{
+                                    overflow: "hidden",
+                                    "text-overflow": "ellipsis",
+                                    "white-space": "nowrap",
+                                    flex: "1",
+                                }}>
+                                {v.name}
+                            </span>
                             <Show when={isCurrent}>
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--mz-accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style={{ "flex-shrink": "0" }}>
+                                <svg
+                                    width="14"
+                                    height="14"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="var(--mz-accent)"
+                                    stroke-width="2.5"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    style={{ "flex-shrink": "0" }}>
                                     <path d="M20 6L9 17l-5-5" />
                                 </svg>
                             </Show>
                             <Show when={!isCurrent}>
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--mz-text-muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style={{ "flex-shrink": "0", opacity: "0.5" }}>
+                                <svg
+                                    width="12"
+                                    height="12"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="var(--mz-text-muted)"
+                                    stroke-width="2"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    style={{
+                                        "flex-shrink": "0",
+                                        opacity: "0.5",
+                                    }}>
                                     <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" />
                                 </svg>
                             </Show>
@@ -4745,7 +5854,13 @@ const VaultSwitcher: Component<{
 
             {/* Divider */}
             <Show when={vaults().length > 0}>
-                <div style={{ height: "1px", background: "var(--mz-border)", margin: "4px 8px" }} />
+                <div
+                    style={{
+                        height: "1px",
+                        background: "var(--mz-border)",
+                        margin: "4px 8px",
+                    }}
+                />
             </Show>
 
             {/* Manage vaults */}
@@ -4755,16 +5870,34 @@ const VaultSwitcher: Component<{
                     await props.onCloseVault();
                 }}
                 style={{
-                    display: "flex", "align-items": "center", gap: "8px",
-                    width: "100%", padding: "8px 12px", border: "none",
-                    background: "transparent", color: "var(--mz-text-secondary)",
-                    cursor: "pointer", "font-size": "var(--mz-font-size-sm)",
-                    "font-family": "var(--mz-font-sans)", "text-align": "left",
+                    display: "flex",
+                    "align-items": "center",
+                    gap: "8px",
+                    width: "100%",
+                    padding: "8px 12px",
+                    border: "none",
+                    background: "transparent",
+                    color: "var(--mz-text-secondary)",
+                    cursor: "pointer",
+                    "font-size": "var(--mz-font-size-sm)",
+                    "font-family": "var(--mz-font-sans)",
+                    "text-align": "left",
                 }}
-                onMouseEnter={e => { e.currentTarget.style.background = "var(--mz-bg-hover)"; }}
-                onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
-            >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "var(--mz-bg-hover)";
+                }}
+                onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "transparent";
+                }}>
+                <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round">
                     <path d="M12 3h7a2 2 0 012 2v14a2 2 0 01-2 2h-7M19 12H5M5 12l4-4M5 12l4 4" />
                 </svg>
                 {t("common.manageVaults")}

@@ -4,7 +4,7 @@
 </h1>
 
 <p align="center">
-  <em>一款完全开源的本地笔记软件，借鉴 <a href="https://obsidian.md">Obsidian</a> 的核心理念，在 AI 集成、CLI 操作和插件安全方面做出差异化突破。</em>
+  <em>一款完全开源的本地笔记软件，借鉴 Obsidian 的核心理念，在 AI 集成、CLI 操作和插件安全方面做出差异化突破。</em>
 </p>
 
 <p align="center">

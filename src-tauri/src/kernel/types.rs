@@ -236,7 +236,7 @@ pub struct AppSettings {
     /// Names of enabled CSS snippet files under `.mindzj/snippets/`.
     /// The snippet contents themselves live as `.css` files on disk —
     /// this array just tracks which ones are currently applied.
-    /// Matches Obsidian's appearance.json snippet model.
+    /// Matches appearance.json snippet model.
     #[serde(default)]
     pub enabled_css_snippets: Vec<String>,
     // Files & Links

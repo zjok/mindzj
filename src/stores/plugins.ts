@@ -26,7 +26,7 @@ function installObsidianDomExtensions() {
     (globalThis as any).activeDocument = document;
 
     // Global Obsidian helper functions — create DETACHED elements (not appended).
-    // Obsidian's global createEl/createDiv/createSpan return free-floating elements.
+    //  global createEl/createDiv/createSpan return free-floating elements.
     // This is different from HTMLElement.prototype.createEl which appends to `this`.
     function _globalCreateEl(tag: string, o?: any): HTMLElement {
         const el = document.createElement(tag);
@@ -48,7 +48,8 @@ function installObsidianDomExtensions() {
                 if (o.value !== undefined) (el as any).value = o.value;
                 if (o.type) el.setAttribute("type", o.type);
                 if (o.href) el.setAttribute("href", o.href);
-                if (o.placeholder) el.setAttribute("placeholder", o.placeholder);
+                if (o.placeholder)
+                    el.setAttribute("placeholder", o.placeholder);
                 if (o.parent && o.parent instanceof HTMLElement) {
                     o.parent.appendChild(el);
                 }
@@ -63,10 +64,12 @@ function installObsidianDomExtensions() {
         (globalThis as any).createDiv = (o?: any) => _globalCreateEl("div", o);
     }
     if (!(globalThis as any).createSpan) {
-        (globalThis as any).createSpan = (o?: any) => _globalCreateEl("span", o);
+        (globalThis as any).createSpan = (o?: any) =>
+            _globalCreateEl("span", o);
     }
     if (!(globalThis as any).createFragment) {
-        (globalThis as any).createFragment = () => document.createDocumentFragment();
+        (globalThis as any).createFragment = () =>
+            document.createDocumentFragment();
     }
 
     const proto = HTMLElement.prototype as any;
@@ -88,7 +91,8 @@ function installObsidianDomExtensions() {
                     el.className = o;
                 } else {
                     if (o.cls) {
-                        if (Array.isArray(o.cls)) el.className = o.cls.join(" ");
+                        if (Array.isArray(o.cls))
+                            el.className = o.cls.join(" ");
                         else el.className = o.cls;
                     }
                     if (o.text) el.textContent = o.text;
@@ -101,7 +105,8 @@ function installObsidianDomExtensions() {
                     if (o.value !== undefined) (el as any).value = o.value;
                     if (o.type) el.setAttribute("type", o.type);
                     if (o.href) el.setAttribute("href", o.href);
-                    if (o.placeholder) el.setAttribute("placeholder", o.placeholder);
+                    if (o.placeholder)
+                        el.setAttribute("placeholder", o.placeholder);
                     if (o.prepend) {
                         this.insertBefore(el, this.firstChild);
                         return el;
@@ -154,7 +159,11 @@ function installObsidianDomExtensions() {
 
     // .toggleClass(cls, value?)
     if (!proto.toggleClass) {
-        proto.toggleClass = function (this: HTMLElement, cls: string, value?: boolean) {
+        proto.toggleClass = function (
+            this: HTMLElement,
+            cls: string,
+            value?: boolean,
+        ) {
             if (value === undefined) {
                 this.classList.toggle(cls);
             } else {
@@ -178,7 +187,11 @@ function installObsidianDomExtensions() {
     // the settings panel (e.g. the MindZJ plugin's Keys / Scroll sections
     // never render because an About link calls setAttr before them).
     if (!proto.setAttr) {
-        proto.setAttr = function (this: HTMLElement, key: string, value: string | number | boolean | null) {
+        proto.setAttr = function (
+            this: HTMLElement,
+            key: string,
+            value: string | number | boolean | null,
+        ) {
             if (value === null || value === false) {
                 this.removeAttribute(key);
             } else if (value === true) {
@@ -189,7 +202,10 @@ function installObsidianDomExtensions() {
         };
     }
     if (!proto.setAttrs) {
-        proto.setAttrs = function (this: HTMLElement, attrs: Record<string, any>) {
+        proto.setAttrs = function (
+            this: HTMLElement,
+            attrs: Record<string, any>,
+        ) {
             for (const [k, v] of Object.entries(attrs)) {
                 (this as any).setAttr(k, v);
             }
@@ -237,22 +253,35 @@ function installObsidianDomExtensions() {
     const svgProto = SVGElement.prototype as any;
     if (!svgProto.addClass) {
         svgProto.addClass = function (this: SVGElement, ...cls: string[]) {
-            for (const c of cls) if (c) this.classList.add(...c.split(/\s+/).filter(Boolean));
+            for (const c of cls)
+                if (c) this.classList.add(...c.split(/\s+/).filter(Boolean));
         };
     }
     if (!svgProto.removeClass) {
         svgProto.removeClass = function (this: SVGElement, ...cls: string[]) {
-            for (const c of cls) if (c) this.classList.remove(...c.split(/\s+/).filter(Boolean));
+            for (const c of cls)
+                if (c) this.classList.remove(...c.split(/\s+/).filter(Boolean));
         };
     }
     if (!svgProto.toggleClass) {
-        svgProto.toggleClass = function (this: SVGElement, cls: string, value?: boolean) {
+        svgProto.toggleClass = function (
+            this: SVGElement,
+            cls: string,
+            value?: boolean,
+        ) {
             if (value === undefined) this.classList.toggle(cls);
-            else { if (value) this.classList.add(cls); else this.classList.remove(cls); }
+            else {
+                if (value) this.classList.add(cls);
+                else this.classList.remove(cls);
+            }
         };
     }
     if (!svgProto.setAttr) {
-        svgProto.setAttr = function (this: SVGElement, key: string, value: any) {
+        svgProto.setAttr = function (
+            this: SVGElement,
+            key: string,
+            value: any,
+        ) {
             if (value === null || value === false) this.removeAttribute(key);
             else if (value === true) this.setAttribute(key, "");
             else this.setAttribute(key, String(value));
@@ -541,8 +570,10 @@ function installObsidianDomExtensions() {
         pencil: '<path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>',
         copy: '<rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
         image: '<rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>',
-        settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>',
-        "external-link": '<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14 21 3"/>',
+        settings:
+            '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>',
+        "external-link":
+            '<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14 21 3"/>',
         info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>',
         search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
         plus: '<path d="M5 12h14M12 5v14"/>',
@@ -552,7 +583,8 @@ function installObsidianDomExtensions() {
         "chevron-down": '<path d="m6 9 6 6 6-6"/>',
         "chevron-right": '<path d="m9 18 6-6-6-6"/>',
         eye: '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>',
-        "eye-off": '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>',
+        "eye-off":
+            '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>',
         folder: '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>',
     };
     if (!(window as any).__mindzj_icons) (window as any).__mindzj_icons = {};
@@ -632,7 +664,8 @@ function renderMarkdownCompatInline(markdown: string): string {
     let html = escapeMarkdownCompatHtml(markdown);
     html = html.replace(
         /\[([^\]]+)\]\(([^)]+)\)/g,
-        (_match, text, href) => `<a href="${String(href)}" target="_blank" rel="noopener">${text}</a>`,
+        (_match, text, href) =>
+            `<a href="${String(href)}" target="_blank" rel="noopener">${text}</a>`,
     );
     html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
     html = html.replace(/\*(.+?)\*/g, "<em>$1</em>");
@@ -641,59 +674,331 @@ function renderMarkdownCompatInline(markdown: string): string {
 }
 
 function renderMarkdownCompat(markdown: string): string {
-    const blocks = markdown.split(/\n{2,}/).map((block) => block.trim()).filter(Boolean);
+    const blocks = markdown
+        .split(/\n{2,}/)
+        .map((block) => block.trim())
+        .filter(Boolean);
     if (!blocks.length) return "";
 
-    return blocks.map((block) => {
-        if (block.startsWith("### ")) {
-            return `<h3>${renderMarkdownCompatInline(block.slice(4))}</h3>`;
-        }
-        if (block.startsWith("## ")) {
-            return `<h2>${renderMarkdownCompatInline(block.slice(3))}</h2>`;
-        }
-        if (block.startsWith("# ")) {
-            return `<h1>${renderMarkdownCompatInline(block.slice(2))}</h1>`;
-        }
-        if (block.startsWith("- ")) {
-            const items = block.split("\n").filter((line) => line.startsWith("- "));
-            return `<ul>${items.map((line) => `<li>${renderMarkdownCompatInline(line.slice(2))}</li>`).join("")}</ul>`;
-        }
-        return `<p>${renderMarkdownCompatInline(block).replace(/\n/g, "<br />")}</p>`;
-    }).join("");
+    return blocks
+        .map((block) => {
+            if (block.startsWith("### ")) {
+                return `<h3>${renderMarkdownCompatInline(block.slice(4))}</h3>`;
+            }
+            if (block.startsWith("## ")) {
+                return `<h2>${renderMarkdownCompatInline(block.slice(3))}</h2>`;
+            }
+            if (block.startsWith("# ")) {
+                return `<h1>${renderMarkdownCompatInline(block.slice(2))}</h1>`;
+            }
+            if (block.startsWith("- ")) {
+                const items = block
+                    .split("\n")
+                    .filter((line) => line.startsWith("- "));
+                return `<ul>${items.map((line) => `<li>${renderMarkdownCompatInline(line.slice(2))}</li>`).join("")}</ul>`;
+            }
+            return `<p>${renderMarkdownCompatInline(block).replace(/\n/g, "<br />")}</p>`;
+        })
+        .join("");
 }
 
 function getBuiltinCommands(): CommandEntry[] {
     return [
-        { id: "editor:focus", name: "Focus editor", callback: () => getCurrentEditorCompat()?.focus?.() },
-        { id: "editor:toggle-bold", name: "Bold", callback: () => document.dispatchEvent(new CustomEvent("mindzj:editor-command", { detail: { command: "bold" } })) },
-        { id: "editor:toggle-italics", name: "Italic", callback: () => document.dispatchEvent(new CustomEvent("mindzj:editor-command", { detail: { command: "italic" } })) },
-        { id: "editor:toggle-strikethrough", name: "Strikethrough", callback: () => document.dispatchEvent(new CustomEvent("mindzj:editor-command", { detail: { command: "strikethrough" } })) },
-        { id: "editor:toggle-underline", name: "Underline", callback: () => document.dispatchEvent(new CustomEvent("mindzj:editor-command", { detail: { command: "underline" } })) },
-        { id: "editor:toggle-highlight", name: "Highlight", callback: () => document.dispatchEvent(new CustomEvent("mindzj:editor-command", { detail: { command: "highlight" } })) },
-        { id: "editor:toggle-code", name: "Inline code", callback: () => document.dispatchEvent(new CustomEvent("mindzj:editor-command", { detail: { command: "code" } })) },
-        { id: "editor:toggle-blockquote", name: "Blockquote", callback: () => document.dispatchEvent(new CustomEvent("mindzj:editor-command", { detail: { command: "quote" } })) },
-        { id: "editor:toggle-checklist-status", name: "Checklist status", callback: () => document.dispatchEvent(new CustomEvent("mindzj:editor-command", { detail: { command: "toggle-checklist-status" } })) },
-        { id: "editor:toggle-bullet-list", name: "Bullet list", callback: () => document.dispatchEvent(new CustomEvent("mindzj:editor-command", { detail: { command: "bullet-list" } })) },
-        { id: "editor:toggle-numbered-list", name: "Numbered list", callback: () => document.dispatchEvent(new CustomEvent("mindzj:editor-command", { detail: { command: "numbered-list" } })) },
-        { id: "editor:toggle-comments", name: "Comment", callback: () => document.dispatchEvent(new CustomEvent("mindzj:editor-command", { detail: { command: "toggle-comment" } })) },
-        { id: "editor:insert-link", name: "Insert link", callback: () => document.dispatchEvent(new CustomEvent("mindzj:editor-command", { detail: { command: "link" } })) },
-        { id: "editor:insert-tag", name: "Insert tag", callback: () => document.dispatchEvent(new CustomEvent("mindzj:editor-command", { detail: { command: "tag" } })) },
-        { id: "editor:insert-wikilink", name: "Insert wikilink", callback: () => document.dispatchEvent(new CustomEvent("mindzj:editor-command", { detail: { command: "wikilink" } })) },
-        { id: "editor:insert-embed", name: "Insert embed", callback: () => document.dispatchEvent(new CustomEvent("mindzj:editor-command", { detail: { command: "embed" } })) },
-        { id: "editor:insert-callout", name: "Insert callout", callback: () => document.dispatchEvent(new CustomEvent("mindzj:editor-command", { detail: { command: "callout" } })) },
-        { id: "editor:insert-mathblock", name: "Insert math block", callback: () => document.dispatchEvent(new CustomEvent("mindzj:editor-command", { detail: { command: "mathblock" } })) },
-        { id: "editor:insert-table", name: "Insert table", callback: () => document.dispatchEvent(new CustomEvent("mindzj:editor-command", { detail: { command: "table" } })) },
-        { id: "editor:swap-line-up", name: "Swap line up", callback: () => document.dispatchEvent(new CustomEvent("mindzj:editor-command", { detail: { command: "move-line-up" } })) },
-        { id: "editor:swap-line-down", name: "Swap line down", callback: () => document.dispatchEvent(new CustomEvent("mindzj:editor-command", { detail: { command: "move-line-down" } })) },
-        { id: "editor:clear-formatting", name: "Clear formatting", callback: () => document.dispatchEvent(new CustomEvent("mindzj:editor-command", { detail: { command: "clear-formatting" } })) },
-        { id: "editor:set-heading-1", name: "Heading 1", callback: () => document.dispatchEvent(new CustomEvent("mindzj:editor-command", { detail: { command: "heading", level: 1 } })) },
-        { id: "editor:set-heading-2", name: "Heading 2", callback: () => document.dispatchEvent(new CustomEvent("mindzj:editor-command", { detail: { command: "heading", level: 2 } })) },
-        { id: "editor:set-heading-3", name: "Heading 3", callback: () => document.dispatchEvent(new CustomEvent("mindzj:editor-command", { detail: { command: "heading", level: 3 } })) },
-        { id: "editor:set-heading-4", name: "Heading 4", callback: () => document.dispatchEvent(new CustomEvent("mindzj:editor-command", { detail: { command: "heading", level: 4 } })) },
-        { id: "editor:set-heading-5", name: "Heading 5", callback: () => document.dispatchEvent(new CustomEvent("mindzj:editor-command", { detail: { command: "heading", level: 5 } })) },
-        { id: "editor:set-heading-6", name: "Heading 6", callback: () => document.dispatchEvent(new CustomEvent("mindzj:editor-command", { detail: { command: "heading", level: 6 } })) },
-        { id: "app:toggle-left-sidebar", name: "Toggle left sidebar", callback: () => document.dispatchEvent(new CustomEvent("mindzj:app-command", { detail: { command: "toggle-left-sidebar" } })) },
-        { id: "app:toggle-right-sidebar", name: "Toggle right sidebar", callback: () => document.dispatchEvent(new CustomEvent("mindzj:app-command", { detail: { command: "toggle-right-sidebar" } })) },
+        {
+            id: "editor:focus",
+            name: "Focus editor",
+            callback: () => getCurrentEditorCompat()?.focus?.(),
+        },
+        {
+            id: "editor:toggle-bold",
+            name: "Bold",
+            callback: () =>
+                document.dispatchEvent(
+                    new CustomEvent("mindzj:editor-command", {
+                        detail: { command: "bold" },
+                    }),
+                ),
+        },
+        {
+            id: "editor:toggle-italics",
+            name: "Italic",
+            callback: () =>
+                document.dispatchEvent(
+                    new CustomEvent("mindzj:editor-command", {
+                        detail: { command: "italic" },
+                    }),
+                ),
+        },
+        {
+            id: "editor:toggle-strikethrough",
+            name: "Strikethrough",
+            callback: () =>
+                document.dispatchEvent(
+                    new CustomEvent("mindzj:editor-command", {
+                        detail: { command: "strikethrough" },
+                    }),
+                ),
+        },
+        {
+            id: "editor:toggle-underline",
+            name: "Underline",
+            callback: () =>
+                document.dispatchEvent(
+                    new CustomEvent("mindzj:editor-command", {
+                        detail: { command: "underline" },
+                    }),
+                ),
+        },
+        {
+            id: "editor:toggle-highlight",
+            name: "Highlight",
+            callback: () =>
+                document.dispatchEvent(
+                    new CustomEvent("mindzj:editor-command", {
+                        detail: { command: "highlight" },
+                    }),
+                ),
+        },
+        {
+            id: "editor:toggle-code",
+            name: "Inline code",
+            callback: () =>
+                document.dispatchEvent(
+                    new CustomEvent("mindzj:editor-command", {
+                        detail: { command: "code" },
+                    }),
+                ),
+        },
+        {
+            id: "editor:toggle-blockquote",
+            name: "Blockquote",
+            callback: () =>
+                document.dispatchEvent(
+                    new CustomEvent("mindzj:editor-command", {
+                        detail: { command: "quote" },
+                    }),
+                ),
+        },
+        {
+            id: "editor:toggle-checklist-status",
+            name: "Checklist status",
+            callback: () =>
+                document.dispatchEvent(
+                    new CustomEvent("mindzj:editor-command", {
+                        detail: { command: "toggle-checklist-status" },
+                    }),
+                ),
+        },
+        {
+            id: "editor:toggle-bullet-list",
+            name: "Bullet list",
+            callback: () =>
+                document.dispatchEvent(
+                    new CustomEvent("mindzj:editor-command", {
+                        detail: { command: "bullet-list" },
+                    }),
+                ),
+        },
+        {
+            id: "editor:toggle-numbered-list",
+            name: "Numbered list",
+            callback: () =>
+                document.dispatchEvent(
+                    new CustomEvent("mindzj:editor-command", {
+                        detail: { command: "numbered-list" },
+                    }),
+                ),
+        },
+        {
+            id: "editor:toggle-comments",
+            name: "Comment",
+            callback: () =>
+                document.dispatchEvent(
+                    new CustomEvent("mindzj:editor-command", {
+                        detail: { command: "toggle-comment" },
+                    }),
+                ),
+        },
+        {
+            id: "editor:insert-link",
+            name: "Insert link",
+            callback: () =>
+                document.dispatchEvent(
+                    new CustomEvent("mindzj:editor-command", {
+                        detail: { command: "link" },
+                    }),
+                ),
+        },
+        {
+            id: "editor:insert-tag",
+            name: "Insert tag",
+            callback: () =>
+                document.dispatchEvent(
+                    new CustomEvent("mindzj:editor-command", {
+                        detail: { command: "tag" },
+                    }),
+                ),
+        },
+        {
+            id: "editor:insert-wikilink",
+            name: "Insert wikilink",
+            callback: () =>
+                document.dispatchEvent(
+                    new CustomEvent("mindzj:editor-command", {
+                        detail: { command: "wikilink" },
+                    }),
+                ),
+        },
+        {
+            id: "editor:insert-embed",
+            name: "Insert embed",
+            callback: () =>
+                document.dispatchEvent(
+                    new CustomEvent("mindzj:editor-command", {
+                        detail: { command: "embed" },
+                    }),
+                ),
+        },
+        {
+            id: "editor:insert-callout",
+            name: "Insert callout",
+            callback: () =>
+                document.dispatchEvent(
+                    new CustomEvent("mindzj:editor-command", {
+                        detail: { command: "callout" },
+                    }),
+                ),
+        },
+        {
+            id: "editor:insert-mathblock",
+            name: "Insert math block",
+            callback: () =>
+                document.dispatchEvent(
+                    new CustomEvent("mindzj:editor-command", {
+                        detail: { command: "mathblock" },
+                    }),
+                ),
+        },
+        {
+            id: "editor:insert-table",
+            name: "Insert table",
+            callback: () =>
+                document.dispatchEvent(
+                    new CustomEvent("mindzj:editor-command", {
+                        detail: { command: "table" },
+                    }),
+                ),
+        },
+        {
+            id: "editor:swap-line-up",
+            name: "Swap line up",
+            callback: () =>
+                document.dispatchEvent(
+                    new CustomEvent("mindzj:editor-command", {
+                        detail: { command: "move-line-up" },
+                    }),
+                ),
+        },
+        {
+            id: "editor:swap-line-down",
+            name: "Swap line down",
+            callback: () =>
+                document.dispatchEvent(
+                    new CustomEvent("mindzj:editor-command", {
+                        detail: { command: "move-line-down" },
+                    }),
+                ),
+        },
+        {
+            id: "editor:clear-formatting",
+            name: "Clear formatting",
+            callback: () =>
+                document.dispatchEvent(
+                    new CustomEvent("mindzj:editor-command", {
+                        detail: { command: "clear-formatting" },
+                    }),
+                ),
+        },
+        {
+            id: "editor:set-heading-1",
+            name: "Heading 1",
+            callback: () =>
+                document.dispatchEvent(
+                    new CustomEvent("mindzj:editor-command", {
+                        detail: { command: "heading", level: 1 },
+                    }),
+                ),
+        },
+        {
+            id: "editor:set-heading-2",
+            name: "Heading 2",
+            callback: () =>
+                document.dispatchEvent(
+                    new CustomEvent("mindzj:editor-command", {
+                        detail: { command: "heading", level: 2 },
+                    }),
+                ),
+        },
+        {
+            id: "editor:set-heading-3",
+            name: "Heading 3",
+            callback: () =>
+                document.dispatchEvent(
+                    new CustomEvent("mindzj:editor-command", {
+                        detail: { command: "heading", level: 3 },
+                    }),
+                ),
+        },
+        {
+            id: "editor:set-heading-4",
+            name: "Heading 4",
+            callback: () =>
+                document.dispatchEvent(
+                    new CustomEvent("mindzj:editor-command", {
+                        detail: { command: "heading", level: 4 },
+                    }),
+                ),
+        },
+        {
+            id: "editor:set-heading-5",
+            name: "Heading 5",
+            callback: () =>
+                document.dispatchEvent(
+                    new CustomEvent("mindzj:editor-command", {
+                        detail: { command: "heading", level: 5 },
+                    }),
+                ),
+        },
+        {
+            id: "editor:set-heading-6",
+            name: "Heading 6",
+            callback: () =>
+                document.dispatchEvent(
+                    new CustomEvent("mindzj:editor-command", {
+                        detail: { command: "heading", level: 6 },
+                    }),
+                ),
+        },
+        {
+            id: "app:toggle-left-sidebar",
+            name: "Toggle left sidebar",
+            callback: () =>
+                document.dispatchEvent(
+                    new CustomEvent("mindzj:app-command", {
+                        detail: { command: "toggle-left-sidebar" },
+                    }),
+                ),
+        },
+        {
+            id: "app:toggle-right-sidebar",
+            name: "Toggle right sidebar",
+            callback: () =>
+                document.dispatchEvent(
+                    new CustomEvent("mindzj:app-command", {
+                        detail: { command: "toggle-right-sidebar" },
+                    }),
+                ),
+        },
     ];
 }
 
@@ -765,15 +1070,23 @@ function matchesPluginHotkey(
     hotkey: { modifiers?: string[]; key?: string } | undefined,
 ): boolean {
     if (!hotkey?.key) return false;
-    const modifiers = new Set((hotkey.modifiers ?? []).map((m) => m.toLowerCase()));
+    const modifiers = new Set(
+        (hotkey.modifiers ?? []).map((m) => m.toLowerCase()),
+    );
     const expectsMod = modifiers.has("mod");
     const expectsCtrl = modifiers.has("ctrl");
     const expectsMeta = modifiers.has("meta");
     const expectsShift = modifiers.has("shift");
     const expectsAlt = modifiers.has("alt");
 
-    const wantCtrl = expectsCtrl || (expectsMod && !("ontouchstart" in window) && navigator.platform.toLowerCase().includes("win"));
-    const wantMeta = expectsMeta || (expectsMod && navigator.platform.toLowerCase().includes("mac"));
+    const wantCtrl =
+        expectsCtrl ||
+        (expectsMod &&
+            !("ontouchstart" in window) &&
+            navigator.platform.toLowerCase().includes("win"));
+    const wantMeta =
+        expectsMeta ||
+        (expectsMod && navigator.platform.toLowerCase().includes("mac"));
 
     if (!!event.ctrlKey !== wantCtrl) return false;
     if (!!event.metaKey !== wantMeta) return false;
@@ -788,19 +1101,27 @@ function installPluginHotkeys() {
     if (_pluginHotkeysInstalled) return;
     _pluginHotkeysInstalled = true;
 
-    document.addEventListener("keydown", (event) => {
-        const commands = Array.from(pluginCommandRegistry.values());
-        for (const command of commands) {
-            if (!command.hotkeys?.length) continue;
-            if (!command.hotkeys.some((hotkey) => matchesPluginHotkey(event, hotkey))) {
-                continue;
+    document.addEventListener(
+        "keydown",
+        (event) => {
+            const commands = Array.from(pluginCommandRegistry.values());
+            for (const command of commands) {
+                if (!command.hotkeys?.length) continue;
+                if (
+                    !command.hotkeys.some((hotkey) =>
+                        matchesPluginHotkey(event, hotkey),
+                    )
+                ) {
+                    continue;
+                }
+                event.preventDefault();
+                event.stopPropagation();
+                void executeCommandById(command.id);
+                break;
             }
-            event.preventDefault();
-            event.stopPropagation();
-            void executeCommandById(command.id);
-            break;
-        }
-    }, true);
+        },
+        true,
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -851,13 +1172,21 @@ export function isPluginSaving(path: string): boolean {
     return _pluginSavingPaths.has(_normPath(path));
 }
 
-export async function updatePluginViewsForFile(filePath: string, content: string, clear = true): Promise<void> {
+export async function updatePluginViewsForFile(
+    filePath: string,
+    content: string,
+    clear = true,
+): Promise<void> {
     const normalized = _normPath(filePath);
     const updates: Promise<void>[] = [];
     for (const view of activePluginViews.values()) {
         if (_normPath(String(view?.file?.path ?? "")) !== normalized) continue;
         if (typeof view?.setViewData !== "function") continue;
-        updates.push(Promise.resolve(view.setViewData(content, clear)).then(() => undefined));
+        updates.push(
+            Promise.resolve(view.setViewData(content, clear)).then(
+                () => undefined,
+            ),
+        );
     }
     await Promise.all(updates);
 }
@@ -960,9 +1289,16 @@ export async function mountPluginView(
             name: fileName,
             basename: baseName,
             extension: ext,
-            stat: { mtime: Date.now(), ctime: Date.now(), size: content.length },
+            stat: {
+                mtime: Date.now(),
+                ctime: Date.now(),
+                size: content.length,
+            },
             vault: { getName: () => vaultStore.vaultInfo()?.name ?? "vault" },
-            parent: { path: filePath.split("/").slice(0, -1).join("/") || "/", name: filePath.split("/").slice(-2, -1)[0] || "/" },
+            parent: {
+                path: filePath.split("/").slice(0, -1).join("/") || "/",
+                name: filePath.split("/").slice(-2, -1)[0] || "/",
+            },
         };
 
         // Ensure app is available on the view
@@ -990,7 +1326,9 @@ export async function mountPluginView(
                     }, 1500);
                 }
                 // Notify the Outline component to refresh its tree view
-                document.dispatchEvent(new CustomEvent("mindzj:outline-refresh"));
+                document.dispatchEvent(
+                    new CustomEvent("mindzj:outline-refresh"),
+                );
             } catch (e) {
                 console.error("[Plugin View] requestSave error:", e);
             }
@@ -1026,7 +1364,9 @@ export async function mountPluginView(
             await view.setViewData(content, true);
         }
 
-        console.log(`[Plugin View] Mounted view for ${filePath} (handle: ${handle}, type: ${viewType})`);
+        console.log(
+            `[Plugin View] Mounted view for ${filePath} (handle: ${handle}, type: ${viewType})`,
+        );
         return { view, handle };
     } catch (e) {
         console.error("[Plugin View] Failed to create view:", e);
@@ -1081,9 +1421,11 @@ function installWorkspaceBridges() {
 
     // Bridge window resize to workspace "resize" event
     window.addEventListener("resize", () => {
-        document.dispatchEvent(new CustomEvent("mindzj:workspace-trigger", {
-            detail: { event: "resize" },
-        }));
+        document.dispatchEvent(
+            new CustomEvent("mindzj:workspace-trigger", {
+                detail: { event: "resize" },
+            }),
+        );
     });
 }
 
@@ -1104,12 +1446,15 @@ function createPluginStore() {
         setLoading(true);
         try {
             const plugins = await invoke<PluginInfo[]>("list_plugins");
-            const enabled = plugins.filter(p => p.enabled);
+            const enabled = plugins.filter((p) => p.enabled);
             for (const plugin of enabled) {
                 try {
                     await loadPlugin(plugin);
                 } catch (e) {
-                    console.error(`[Plugin] Failed to load "${plugin.manifest.name}":`, e);
+                    console.error(
+                        `[Plugin] Failed to load "${plugin.manifest.name}":`,
+                        e,
+                    );
                 }
             }
         } catch (e) {
@@ -1117,15 +1462,22 @@ function createPluginStore() {
         } finally {
             setLoading(false);
             // Bump reactive version so UI re-evaluates hasPluginViewForExtension
-            setPluginsVersion(v => v + 1);
+            setPluginsVersion((v) => v + 1);
             // Notify plugins that loading is complete — fire layout-change,
             // layout-ready, and active-leaf-change so plugins can initialize
             // their UI (e.g. pixel-perfect-image attaches to images).
             setTimeout(() => {
-                for (const evt of ["layout-ready", "layout-change", "active-leaf-change", "file-open"]) {
-                    document.dispatchEvent(new CustomEvent("mindzj:workspace-trigger", {
-                        detail: { event: evt },
-                    }));
+                for (const evt of [
+                    "layout-ready",
+                    "layout-change",
+                    "active-leaf-change",
+                    "file-open",
+                ]) {
+                    document.dispatchEvent(
+                        new CustomEvent("mindzj:workspace-trigger", {
+                            detail: { event: evt },
+                        }),
+                    );
                 }
             }, 200);
         }
@@ -1135,13 +1487,19 @@ function createPluginStore() {
         const id = plugin.manifest.id;
         let styleEl: HTMLStyleElement | null = null;
         let instance: any = null;
-        const dirName = plugin.dir_path.replace(/[\\/]+$/, "").split(/[\\/]/).pop() ?? id;
+        const dirName =
+            plugin.dir_path
+                .replace(/[\\/]+$/, "")
+                .split(/[\\/]/)
+                .pop() ?? id;
         pluginDataDirMap.set(id, dirName);
 
         // 1. Inject CSS
         if (plugin.has_styles) {
             try {
-                const css = await invoke<string>("read_plugin_styles", { pluginId: id });
+                const css = await invoke<string>("read_plugin_styles", {
+                    pluginId: id,
+                });
                 if (css) {
                     styleEl = document.createElement("style");
                     styleEl.setAttribute("data-plugin-id", id);
@@ -1155,7 +1513,9 @@ function createPluginStore() {
 
         // 2. Execute main.js
         try {
-            const jsCode = await invoke<string>("read_plugin_main", { pluginId: id });
+            const jsCode = await invoke<string>("read_plugin_main", {
+                pluginId: id,
+            });
             if (jsCode) {
                 instance = await executePluginCode(id, jsCode, plugin.manifest);
             }
@@ -1163,16 +1523,25 @@ function createPluginStore() {
             console.warn(`[Plugin] JS load failed for "${id}":`, e);
         }
 
-        setLoadedPlugins(prev => {
-            const next = [...prev, { id, manifest: plugin.manifest, styleEl, instance }];
+        setLoadedPlugins((prev) => {
+            const next = [
+                ...prev,
+                { id, manifest: plugin.manifest, styleEl, instance },
+            ];
             // Expose for Outline component to find plugins with outline creators
             (window as any).__mindzj_loadedPlugins = next;
             return next;
         });
-        console.log(`[Plugin] Loaded: ${plugin.manifest.name} v${plugin.manifest.version}`);
+        console.log(
+            `[Plugin] Loaded: ${plugin.manifest.name} v${plugin.manifest.version}`,
+        );
     }
 
-    async function executePluginCode(pluginId: string, code: string, manifest: PluginManifest): Promise<any> {
+    async function executePluginCode(
+        pluginId: string,
+        code: string,
+        manifest: PluginManifest,
+    ): Promise<any> {
         // Build the Obsidian compatibility shim
         const obsidianModule = createObsidianShim(pluginId);
 
@@ -1181,11 +1550,20 @@ function createPluginStore() {
             // Provide minimal Node.js module shims used by some plugins
             if (name === "path") {
                 return {
-                    join: (...parts: string[]) => parts.filter(Boolean).join("/").replace(/\/+/g, "/"),
+                    join: (...parts: string[]) =>
+                        parts.filter(Boolean).join("/").replace(/\/+/g, "/"),
                     basename: (p: string) => p.split(/[\\/]/).pop() ?? p,
-                    dirname: (p: string) => { const parts = p.split(/[\\/]/); parts.pop(); return parts.join("/") || "."; },
-                    extname: (p: string) => { const m = p.match(/\.[^.]+$/); return m ? m[0] : ""; },
-                    resolve: (...parts: string[]) => parts.filter(Boolean).join("/").replace(/\/+/g, "/"),
+                    dirname: (p: string) => {
+                        const parts = p.split(/[\\/]/);
+                        parts.pop();
+                        return parts.join("/") || ".";
+                    },
+                    extname: (p: string) => {
+                        const m = p.match(/\.[^.]+$/);
+                        return m ? m[0] : "";
+                    },
+                    resolve: (...parts: string[]) =>
+                        parts.filter(Boolean).join("/").replace(/\/+/g, "/"),
                     sep: "/",
                 };
             }
@@ -1193,12 +1571,22 @@ function createPluginStore() {
                 return {
                     spawn: () => {
                         const noop = () => {};
-                        return { on: noop, unref: noop, stdout: null, stderr: null, pid: 0 };
+                        return {
+                            on: noop,
+                            unref: noop,
+                            stdout: null,
+                            stderr: null,
+                            pid: 0,
+                        };
                     },
-                    exec: (_cmd: string, cb?: Function) => { if (cb) cb(new Error("child_process not available")); },
+                    exec: (_cmd: string, cb?: Function) => {
+                        if (cb) cb(new Error("child_process not available"));
+                    },
                 };
             }
-            console.warn(`[Plugin:${pluginId}] require("${name}") — not available`);
+            console.warn(
+                `[Plugin:${pluginId}] require("${name}") — not available`,
+            );
             return {};
         };
 
@@ -1223,7 +1611,10 @@ function createPluginStore() {
                     try {
                         await instance.onload();
                     } catch (loadErr) {
-                        console.error(`[Plugin:${pluginId}] onload() threw:`, loadErr);
+                        console.error(
+                            `[Plugin:${pluginId}] onload() threw:`,
+                            loadErr,
+                        );
                         // Still return the instance — the settings tab may
                         // have been registered before the error occurred.
                     }
@@ -1238,7 +1629,11 @@ function createPluginStore() {
 
     async function unloadAllPlugins(): Promise<void> {
         for (const p of loadedPlugins()) {
-            try { if (p.instance?.onunload) await p.instance.onunload(); } catch (e) { console.warn(`[Plugin] Unload error "${p.id}":`, e); }
+            try {
+                if (p.instance?.onunload) await p.instance.onunload();
+            } catch (e) {
+                console.warn(`[Plugin] Unload error "${p.id}":`, e);
+            }
             if (p.styleEl) p.styleEl.remove();
             pluginDataDirMap.delete(p.id);
             pluginCommandRegistry.forEach((command, id) => {
@@ -1254,35 +1649,41 @@ function createPluginStore() {
         // destroy-all loop body is identical — we just need to close and
         // drop every entry regardless of what the key is.
         for (const [handle, view] of activePluginViews.entries()) {
-            try { if (view.onClose) view.onClose(); } catch {}
+            try {
+                if (view.onClose) view.onClose();
+            } catch {}
             activePluginViews.delete(handle);
         }
     }
 
     async function unloadPlugin(pluginId: string): Promise<void> {
-        const plugin = loadedPlugins().find(p => p.id === pluginId);
+        const plugin = loadedPlugins().find((p) => p.id === pluginId);
         if (!plugin) return;
-        try { if (plugin.instance?.onunload) await plugin.instance.onunload(); } catch {}
+        try {
+            if (plugin.instance?.onunload) await plugin.instance.onunload();
+        } catch {}
         if (plugin.styleEl) plugin.styleEl.remove();
         pluginDataDirMap.delete(pluginId);
         pluginSettingTabs.delete(pluginId);
         pluginCommandRegistry.forEach((command, id) => {
             if (command.pluginId === pluginId) pluginCommandRegistry.delete(id);
         });
-        setLoadedPlugins(prev => prev.filter(p => p.id !== pluginId));
+        setLoadedPlugins((prev) => prev.filter((p) => p.id !== pluginId));
     }
 
     async function reloadPlugin(pluginId: string): Promise<void> {
         await unloadPlugin(pluginId);
         try {
             const plugins = await invoke<PluginInfo[]>("list_plugins");
-            const plugin = plugins.find(p => p.manifest.id === pluginId && p.enabled);
+            const plugin = plugins.find(
+                (p) => p.manifest.id === pluginId && p.enabled,
+            );
             if (plugin) await loadPlugin(plugin);
         } catch (e) {
             console.error(`[Plugin] Reload failed "${pluginId}":`, e);
         }
         // Bump reactive version so settings UI re-evaluates
-        setPluginsVersion(v => v + 1);
+        setPluginsVersion((v) => v + 1);
     }
 
     return {
@@ -1330,8 +1731,10 @@ function createTFileLike(path: string) {
     const normalized = path.replace(/\\/g, "/");
     const name = normalized.split("/").pop() ?? normalized;
     const basename = name.replace(/\.[^.]+$/, "");
-    const extension = name.includes(".") ? name.split(".").pop() ?? "" : "";
-    const parentPath = normalized.includes("/") ? normalized.split("/").slice(0, -1).join("/") : "";
+    const extension = name.includes(".") ? (name.split(".").pop() ?? "") : "";
+    const parentPath = normalized.includes("/")
+        ? normalized.split("/").slice(0, -1).join("/")
+        : "";
     return {
         path: normalized,
         name,
@@ -1365,26 +1768,38 @@ function findFileInTree(link: string): any | null {
 }
 
 function createAppObject(pluginId: string, obsidianModule?: any) {
-    const FileSystemAdapterClass = obsidianModule?.FileSystemAdapter ?? class {
-        getBasePath() { return vaultStore.vaultInfo()?.path ?? ""; }
-    };
-    const adapter = new FileSystemAdapterClass(vaultStore.vaultInfo()?.path ?? "");
+    const FileSystemAdapterClass =
+        obsidianModule?.FileSystemAdapter ??
+        class {
+            getBasePath() {
+                return vaultStore.vaultInfo()?.path ?? "";
+            }
+        };
+    const adapter = new FileSystemAdapterClass(
+        vaultStore.vaultInfo()?.path ?? "",
+    );
     let markdownLeafCache: any = null;
     let markdownLeafSource: any = null;
 
     adapter.read = async (path: string) => {
-        const r = await invoke<{ content: string }>("read_file", { relativePath: path });
+        const r = await invoke<{ content: string }>("read_file", {
+            relativePath: path,
+        });
         return r.content;
     };
     adapter.readBinary = async (path: string) => {
-        const base64 = await invoke<string>("read_binary_file", { relativePath: path });
+        const base64 = await invoke<string>("read_binary_file", {
+            relativePath: path,
+        });
         const binary = atob(base64);
-        return Uint8Array.from(binary, (char: string) => char.charCodeAt(0)).buffer;
+        return Uint8Array.from(binary, (char: string) => char.charCodeAt(0))
+            .buffer;
     };
     adapter.writeBinary = async (path: string, data: ArrayBuffer) => {
         const bytes = new Uint8Array(data);
         let binaryStr = "";
-        for (let i = 0; i < bytes.length; i++) binaryStr += String.fromCharCode(bytes[i]);
+        for (let i = 0; i < bytes.length; i++)
+            binaryStr += String.fromCharCode(bytes[i]);
         const base64Data = btoa(binaryStr);
         await invoke("write_binary_file", { relativePath: path, base64Data });
     };
@@ -1414,18 +1829,35 @@ function createAppObject(pluginId: string, obsidianModule?: any) {
     };
     adapter.stat = async (path: string) => {
         try {
-            const meta = await invoke<any>("get_file_metadata", { relativePath: path });
-            return { type: meta.is_markdown ? "file" : "file", mtime: Date.now(), ctime: Date.now(), size: meta.size || 0 };
-        } catch { return null; }
+            const meta = await invoke<any>("get_file_metadata", {
+                relativePath: path,
+            });
+            return {
+                type: meta.is_markdown ? "file" : "file",
+                mtime: Date.now(),
+                ctime: Date.now(),
+                size: meta.size || 0,
+            };
+        } catch {
+            return null;
+        }
     };
     adapter.list = async (path: string) => {
         try {
-            const entries = await invoke<any[]>("list_entries", { relativeDir: path });
+            const entries = await invoke<any[]>("list_entries", {
+                relativeDir: path,
+            });
             return {
-                files: entries.filter((e: any) => !e.is_dir).map((e: any) => e.relative_path),
-                folders: entries.filter((e: any) => e.is_dir).map((e: any) => e.relative_path),
+                files: entries
+                    .filter((e: any) => !e.is_dir)
+                    .map((e: any) => e.relative_path),
+                folders: entries
+                    .filter((e: any) => e.is_dir)
+                    .map((e: any) => e.relative_path),
             };
-        } catch { return { files: [], folders: [] }; }
+        } catch {
+            return { files: [], folders: [] };
+        }
     };
 
     const getMarkdownLeafCompat = () => {
@@ -1440,10 +1872,16 @@ function createAppObject(pluginId: string, obsidianModule?: any) {
             const leaf: any = {
                 app,
                 view: null,
-                containerEl: source.containerEl ?? source.contentEl ?? document.body,
+                containerEl:
+                    source.containerEl ?? source.contentEl ?? document.body,
                 getViewState: () => ({
                     type: "markdown",
-                    state: { file: source.file?.path ?? vaultStore.activeFile()?.path ?? "" },
+                    state: {
+                        file:
+                            source.file?.path ??
+                            vaultStore.activeFile()?.path ??
+                            "",
+                    },
                 }),
                 setViewState: async () => {},
                 reveal: () => {},
@@ -1453,7 +1891,9 @@ function createAppObject(pluginId: string, obsidianModule?: any) {
                     if (path) await vaultStore.openFile(path);
                 },
             };
-            const view = obsidianModule?.MarkdownView ? new obsidianModule.MarkdownView(leaf) : { ...source, leaf };
+            const view = obsidianModule?.MarkdownView
+                ? new obsidianModule.MarkdownView(leaf)
+                : { ...source, leaf };
             leaf.view = view;
             markdownLeafCache = leaf;
             markdownLeafSource = source;
@@ -1461,26 +1901,48 @@ function createAppObject(pluginId: string, obsidianModule?: any) {
 
         const active = vaultStore.activeFile();
         const fileName = active?.path.split("/").pop() ?? active?.path ?? "";
-        const fallbackFile = active?.path ? {
-            path: active.path,
-            name: fileName,
-            basename: fileName.replace(/\.[^.]+$/, ""),
-            extension: fileName.includes(".") ? fileName.split(".").pop() ?? "" : "",
-            stat: { mtime: Date.now(), ctime: Date.now(), size: active.content?.length ?? 0 },
-            vault: { getName: () => vaultStore.vaultInfo()?.name ?? "vault" },
-            parent: {
-                path: active.path.includes("/") ? active.path.split("/").slice(0, -1).join("/") : "",
-                name: active.path.includes("/") ? active.path.split("/").slice(-2, -1)[0] || "/" : "/",
-            },
-        } : null;
+        const fallbackFile = active?.path
+            ? {
+                  path: active.path,
+                  name: fileName,
+                  basename: fileName.replace(/\.[^.]+$/, ""),
+                  extension: fileName.includes(".")
+                      ? (fileName.split(".").pop() ?? "")
+                      : "",
+                  stat: {
+                      mtime: Date.now(),
+                      ctime: Date.now(),
+                      size: active.content?.length ?? 0,
+                  },
+                  vault: {
+                      getName: () => vaultStore.vaultInfo()?.name ?? "vault",
+                  },
+                  parent: {
+                      path: active.path.includes("/")
+                          ? active.path.split("/").slice(0, -1).join("/")
+                          : "",
+                      name: active.path.includes("/")
+                          ? active.path.split("/").slice(-2, -1)[0] || "/"
+                          : "/",
+                  },
+              }
+            : null;
         const view = markdownLeafCache.view;
         view.app = app;
         view.editor = source.editor ?? null;
         view.editMode = source.editMode;
         view.currentMode = source.currentMode;
         view.sourceMode = source.sourceMode;
-        view.containerEl = source.containerEl ?? source.contentEl ?? view.containerEl ?? document.body;
-        view.contentEl = source.contentEl ?? source.containerEl ?? view.contentEl ?? view.containerEl;
+        view.containerEl =
+            source.containerEl ??
+            source.contentEl ??
+            view.containerEl ??
+            document.body;
+        view.contentEl =
+            source.contentEl ??
+            source.containerEl ??
+            view.contentEl ??
+            view.containerEl;
         view.file = source.file ?? fallbackFile;
         view.getViewType = () => "markdown";
         view.getMode = () => source.getMode?.() ?? "preview";
@@ -1514,42 +1976,62 @@ function createAppObject(pluginId: string, obsidianModule?: any) {
             async read(file: any) {
                 const path = typeof file === "string" ? file : file?.path;
                 if (!path) return "";
-                const r = await invoke<{ content: string }>("read_file", { relativePath: path });
+                const r = await invoke<{ content: string }>("read_file", {
+                    relativePath: path,
+                });
                 return r.content;
             },
             async cachedRead(file: any) {
                 // Same as read() — no separate cache in MindZJ
                 const path = typeof file === "string" ? file : file?.path;
                 if (!path) return "";
-                const r = await invoke<{ content: string }>("read_file", { relativePath: path });
+                const r = await invoke<{ content: string }>("read_file", {
+                    relativePath: path,
+                });
                 return r.content;
             },
             async readBinary(file: any) {
                 const path = typeof file === "string" ? file : file?.path;
                 if (!path) return new Uint8Array();
-                const base64 = await invoke<string>("read_binary_file", { relativePath: path });
+                const base64 = await invoke<string>("read_binary_file", {
+                    relativePath: path,
+                });
                 const binary = atob(base64);
                 return Uint8Array.from(binary, (char) => char.charCodeAt(0));
             },
             async modify(file: any, data: string) {
                 const path = typeof file === "string" ? file : file?.path;
                 if (!path) return;
-                await invoke("write_file", { relativePath: path, content: data });
+                await invoke("write_file", {
+                    relativePath: path,
+                    content: data,
+                });
             },
             async process(file: any, fn: (content: string) => string) {
                 const path = typeof file === "string" ? file : file?.path;
                 if (!path) return;
-                const current = await invoke<{ content: string }>("read_file", { relativePath: path });
+                const current = await invoke<{ content: string }>("read_file", {
+                    relativePath: path,
+                });
                 const nextContent = fn(current.content);
                 _pluginSavingPaths.add(_normPath(path));
                 try {
-                    await invoke("write_file", { relativePath: path, content: nextContent });
+                    await invoke("write_file", {
+                        relativePath: path,
+                        content: nextContent,
+                    });
                 } finally {
-                    setTimeout(() => _pluginSavingPaths.delete(_normPath(path)), 1200);
+                    setTimeout(
+                        () => _pluginSavingPaths.delete(_normPath(path)),
+                        1200,
+                    );
                 }
             },
             async create(path: string, data: string) {
-                await invoke("create_file", { relativePath: path, content: data ?? "" });
+                await invoke("create_file", {
+                    relativePath: path,
+                    content: data ?? "",
+                });
                 return createTFileLike(path);
             },
             async delete(file: any) {
@@ -1564,7 +2046,8 @@ function createAppObject(pluginId: string, obsidianModule?: any) {
                 const normalized = path.replace(/\\/g, "/").replace(/^\/+/, "");
                 const found = findFileInTree(path);
                 if (found) return found;
-                if (normalized.includes(".mindzj/")) return createTFileLike(normalized);
+                if (normalized.includes(".mindzj/"))
+                    return createTFileLike(normalized);
                 // Bare filename with extension → try .mindzj/images/
                 if (!normalized.includes("/") && /\.\w+$/.test(normalized)) {
                     return createTFileLike(`.mindzj/images/${normalized}`);
@@ -1577,7 +2060,9 @@ function createAppObject(pluginId: string, obsidianModule?: any) {
             getName() {
                 return vaultStore.vaultInfo()?.name ?? "vault";
             },
-            getConfig(_key: string) { return null; },
+            getConfig(_key: string) {
+                return null;
+            },
             /** Return all files in the vault as TFile-like objects. */
             getFiles() {
                 const result: any[] = [];
@@ -1595,8 +2080,9 @@ function createAppObject(pluginId: string, obsidianModule?: any) {
             },
             /** Return all markdown files. */
             getMarkdownFiles() {
-                return this.getFiles().filter((f: any) =>
-                    f.extension === "md" || f.extension === "markdown",
+                return this.getFiles().filter(
+                    (f: any) =>
+                        f.extension === "md" || f.extension === "markdown",
                 );
             },
             getAllLoadedFiles() {
@@ -1604,18 +2090,23 @@ function createAppObject(pluginId: string, obsidianModule?: any) {
             },
             _eventHandlers: {} as Record<string, Function[]>,
             on(event: string, cb: Function) {
-                if (!this._eventHandlers[event]) this._eventHandlers[event] = [];
+                if (!this._eventHandlers[event])
+                    this._eventHandlers[event] = [];
                 this._eventHandlers[event].push(cb);
                 return { id: Math.random(), event, cb };
             },
             off(event: string, ref: any) {
                 if (this._eventHandlers[event]) {
-                    this._eventHandlers[event] = this._eventHandlers[event].filter((fn: Function) => fn !== ref?.cb);
+                    this._eventHandlers[event] = this._eventHandlers[
+                        event
+                    ].filter((fn: Function) => fn !== ref?.cb);
                 }
             },
             trigger(event: string, ...args: any[]) {
-                for (const fn of (this._eventHandlers[event] || [])) {
-                    try { fn(...args); } catch {}
+                for (const fn of this._eventHandlers[event] || []) {
+                    try {
+                        fn(...args);
+                    } catch {}
                 }
             },
         },
@@ -1641,7 +2132,8 @@ function createAppObject(pluginId: string, obsidianModule?: any) {
                 return editor ? { editor } : null;
             },
             on(event: string, cb: Function) {
-                if (!this._eventHandlers[event]) this._eventHandlers[event] = [];
+                if (!this._eventHandlers[event])
+                    this._eventHandlers[event] = [];
                 this._eventHandlers[event].push(cb);
 
                 // Bridge document-level workspace triggers to plugin handlers.
@@ -1656,8 +2148,16 @@ function createAppObject(pluginId: string, obsidianModule?: any) {
                             } else if (event === "file-open") {
                                 // Obsidian passes the active TFile
                                 const activeFile = vaultStore.activeFile();
-                                cb(activeFile ? createTFileLike(activeFile.path) : null);
-                            } else if (event === "resize" || event === "layout-change" || event === "layout-ready") {
+                                cb(
+                                    activeFile
+                                        ? createTFileLike(activeFile.path)
+                                        : null,
+                                );
+                            } else if (
+                                event === "resize" ||
+                                event === "layout-change" ||
+                                event === "layout-ready"
+                            ) {
                                 cb();
                             } else {
                                 cb();
@@ -1672,21 +2172,31 @@ function createAppObject(pluginId: string, obsidianModule?: any) {
             },
             off(event: string, ref: any) {
                 if (this._eventHandlers[event]) {
-                    this._eventHandlers[event] = this._eventHandlers[event].filter((fn: Function) => fn !== ref?.cb);
+                    this._eventHandlers[event] = this._eventHandlers[
+                        event
+                    ].filter((fn: Function) => fn !== ref?.cb);
                 }
                 if (ref?._handler) {
-                    document.removeEventListener("mindzj:workspace-trigger", ref._handler);
+                    document.removeEventListener(
+                        "mindzj:workspace-trigger",
+                        ref._handler,
+                    );
                 }
             },
             trigger(event: string, ...args: any[]) {
                 const handlers = this._eventHandlers[event] || [];
                 for (const fn of handlers) {
-                    try { fn(...args); } catch {}
+                    try {
+                        fn(...args);
+                    } catch {}
                 }
             },
             getActiveViewOfType(type: any) {
                 const markdownLeaf = getMarkdownLeafCompat();
-                if (type === obsidianModule?.MarkdownView || type === obsidianModule?.ItemView) {
+                if (
+                    type === obsidianModule?.MarkdownView ||
+                    type === obsidianModule?.ItemView
+                ) {
                     return markdownLeaf?.view ?? null;
                 }
                 if (type?.prototype?.getViewType) {
@@ -1697,7 +2207,11 @@ function createAppObject(pluginId: string, obsidianModule?: any) {
                         }
                         if (expectedType) {
                             for (const view of activePluginViews.values()) {
-                                if (view.getViewType && view.getViewType() === expectedType) return view;
+                                if (
+                                    view.getViewType &&
+                                    view.getViewType() === expectedType
+                                )
+                                    return view;
                             }
                         }
                     } catch {}
@@ -1720,7 +2234,10 @@ function createAppObject(pluginId: string, obsidianModule?: any) {
                 }
                 if (this._outlineLeaves) {
                     for (const leaf of this._outlineLeaves) {
-                        if (leaf.view?.getViewType && leaf.view.getViewType() === type) {
+                        if (
+                            leaf.view?.getViewType &&
+                            leaf.view.getViewType() === type
+                        ) {
                             leaves.push(leaf);
                         }
                     }
@@ -1756,7 +2273,9 @@ function createAppObject(pluginId: string, obsidianModule?: any) {
                     if (view.leaf) cb(view.leaf);
                 }
             },
-            onLayoutReady(cb: Function) { setTimeout(cb, 100); },
+            onLayoutReady(cb: Function) {
+                setTimeout(cb, 100);
+            },
             getActiveFile() {
                 const active = vaultStore.activeFile();
                 if (!active) return null;
@@ -1765,36 +2284,47 @@ function createAppObject(pluginId: string, obsidianModule?: any) {
         },
         setting: {
             get activeTab() {
-                return (window as any).__mindzj_plugin_settings_active_tab ?? null;
+                return (
+                    (window as any).__mindzj_plugin_settings_active_tab ?? null
+                );
             },
             open() {
                 document.dispatchEvent(new CustomEvent("mindzj:open-settings"));
             },
             openTabById(id: string) {
-                document.dispatchEvent(new CustomEvent("mindzj:open-settings", {
-                    detail: { pluginId: id },
-                }));
+                document.dispatchEvent(
+                    new CustomEvent("mindzj:open-settings", {
+                        detail: { pluginId: id },
+                    }),
+                );
             },
         },
         metadataCache: {
             getFileCache(file: any) {
                 const active = vaultStore.activeFile();
                 const filePath = typeof file === "string" ? file : file?.path;
-                if (!active || !filePath || active.path !== filePath) return null;
+                if (!active || !filePath || active.path !== filePath)
+                    return null;
                 const content = active.content;
                 if (!content) return null;
                 const headings: any[] = [];
                 let inCodeBlock = false;
                 content.split("\n").forEach((line: string, idx: number) => {
                     const trimmed = line.trim();
-                    if (trimmed.startsWith("```")) { inCodeBlock = !inCodeBlock; return; }
+                    if (trimmed.startsWith("```")) {
+                        inCodeBlock = !inCodeBlock;
+                        return;
+                    }
                     if (inCodeBlock) return;
                     const m = trimmed.match(/^(#{1,6})\s+(.+)$/);
                     if (m) {
                         headings.push({
                             heading: m[2].replace(/[#*`\[\]]/g, "").trim(),
                             level: m[1].length,
-                            position: { start: { line: idx, col: 0, offset: 0 }, end: { line: idx, col: line.length, offset: 0 } },
+                            position: {
+                                start: { line: idx, col: 0, offset: 0 },
+                                end: { line: idx, col: line.length, offset: 0 },
+                            },
                         });
                     }
                 });
@@ -1806,7 +2336,8 @@ function createAppObject(pluginId: string, obsidianModule?: any) {
                 const found = findFileInTree(link);
                 if (found) return found;
                 // 2. If link already contains .mindzj/ path, create a TFile directly
-                if (normalized.includes(".mindzj/")) return createTFileLike(normalized);
+                if (normalized.includes(".mindzj/"))
+                    return createTFileLike(normalized);
                 // 3. For bare filenames (e.g. "image.png"), check .mindzj/images/
                 //    because the default attachment folder is excluded from the file tree
                 if (!normalized.includes("/") && /\.\w+$/.test(normalized)) {
@@ -1814,19 +2345,28 @@ function createAppObject(pluginId: string, obsidianModule?: any) {
                 }
                 return null;
             },
-            on(_event: string, _cb: Function) { return { id: Math.random() }; },
+            on(_event: string, _cb: Function) {
+                return { id: Math.random() };
+            },
             off(_event: string, _ref: any) {},
             resolvedLinks: {},
             unresolvedLinks: {},
         },
         fileManager: {
             getNewFileParent(sourcePath: string) {
-                const path = sourcePath.includes("/") ? sourcePath.split("/").slice(0, -1).join("/") : "";
+                const path = sourcePath.includes("/")
+                    ? sourcePath.split("/").slice(0, -1).join("/")
+                    : "";
                 return { path };
             },
             createNewMarkdownFile(folder: any, name: string) {
-                const path = folder?.path ? `${folder.path}/${name}.md` : `${name}.md`;
-                return invoke("create_file", { relativePath: path, content: "" }).then(() => createTFileLike(path));
+                const path = folder?.path
+                    ? `${folder.path}/${name}.md`
+                    : `${name}.md`;
+                return invoke("create_file", {
+                    relativePath: path,
+                    content: "",
+                }).then(() => createTFileLike(path));
             },
             renameFile(file: any, newPath: string) {
                 return invoke("rename_file", { from: file.path, to: newPath });
@@ -1836,21 +2376,31 @@ function createAppObject(pluginId: string, obsidianModule?: any) {
             },
         },
         showInFolder(relativePath: string) {
-            const cleanPath = relativePath.replace(/\\/g, "/").replace(/^\/+/, "");
-            return invoke("reveal_in_file_manager", { relativePath: cleanPath });
+            const cleanPath = relativePath
+                .replace(/\\/g, "/")
+                .replace(/^\/+/, "");
+            return invoke("reveal_in_file_manager", {
+                relativePath: cleanPath,
+            });
         },
         openWithDefaultApp(relativePath: string) {
-            const cleanPath = relativePath.replace(/\\/g, "/").replace(/^\/+/, "");
+            const cleanPath = relativePath
+                .replace(/\\/g, "/")
+                .replace(/^\/+/, "");
             return invoke("open_in_default_app", { relativePath: cleanPath });
         },
         loadLocalStorage(key: string) {
             return (
-                localStorage.getItem(getScopedPluginLocalStorageKey(pluginId, key)) ??
-                localStorage.getItem(`mindzj-plugin-${pluginId}-${key}`)
+                localStorage.getItem(
+                    getScopedPluginLocalStorageKey(pluginId, key),
+                ) ?? localStorage.getItem(`mindzj-plugin-${pluginId}-${key}`)
             );
         },
         saveLocalStorage(key: string, value: string) {
-            localStorage.setItem(getScopedPluginLocalStorageKey(pluginId, key), value);
+            localStorage.setItem(
+                getScopedPluginLocalStorageKey(pluginId, key),
+                value,
+            );
         },
         // ── Obsidian-compat: app.plugins ──
         // editing-toolbar reads app.plugins.enabledPlugins to check
@@ -1864,8 +2414,9 @@ function createAppObject(pluginId: string, obsidianModule?: any) {
                 return ids;
             },
             getPlugin(id: string) {
-                const loaded = ((window as any).__mindzj_loadedPlugins ?? []) as LoadedPlugin[];
-                const found = loaded.find(p => p.id === id);
+                const loaded = ((window as any).__mindzj_loadedPlugins ??
+                    []) as LoadedPlugin[];
+                const found = loaded.find((p) => p.id === id);
                 return found?.instance ?? null;
             },
             plugins: {} as Record<string, any>,
@@ -1891,14 +2442,26 @@ function createObsidianShim(pluginId: string) {
     class Notice {
         noticeEl: HTMLElement;
         constructor(message: string | DocumentFragment, timeout?: number) {
-            const text = typeof message === "string" ? message : message.textContent ?? "";
+            const text =
+                typeof message === "string"
+                    ? message
+                    : (message.textContent ?? "");
             this.noticeEl = document.createElement("div");
             this.noticeEl.textContent = text;
             Object.assign(this.noticeEl.style, {
-                position: "fixed", bottom: "40px", left: "50%", transform: "translateX(-50%)",
-                background: "var(--mz-bg-secondary, #333)", color: "var(--mz-text-primary, #fff)",
-                padding: "8px 20px", borderRadius: "6px", fontSize: "13px", zIndex: "10000",
-                boxShadow: "0 4px 16px rgba(0,0,0,0.3)", transition: "opacity 300ms", opacity: "1",
+                position: "fixed",
+                bottom: "40px",
+                left: "50%",
+                transform: "translateX(-50%)",
+                background: "var(--mz-bg-secondary, #333)",
+                color: "var(--mz-text-primary, #fff)",
+                padding: "8px 20px",
+                borderRadius: "6px",
+                fontSize: "13px",
+                zIndex: "10000",
+                boxShadow: "0 4px 16px rgba(0,0,0,0.3)",
+                transition: "opacity 300ms",
+                opacity: "1",
             });
             document.body.appendChild(this.noticeEl);
             setTimeout(() => {
@@ -1906,8 +2469,12 @@ function createObsidianShim(pluginId: string) {
                 setTimeout(() => this.noticeEl.remove(), 300);
             }, timeout || 4000);
         }
-        hide() { this.noticeEl.remove(); }
-        setMessage(msg: string) { this.noticeEl.textContent = msg; }
+        hide() {
+            this.noticeEl.remove();
+        }
+        setMessage(msg: string) {
+            this.noticeEl.textContent = msg;
+        }
     }
 
     // Plugin base class — plugins extend this
@@ -1919,7 +2486,12 @@ function createObsidianShim(pluginId: string) {
         _events: any[] = [];
         _intervals: number[] = [];
         _children: any[] = [];
-        _domListeners: Array<{ el: any; type: string; callback: any; options?: any }> = [];
+        _domListeners: Array<{
+            el: any;
+            type: string;
+            callback: any;
+            options?: any;
+        }> = [];
 
         constructor(app?: any, manifest?: any) {
             if (app) this.app = app;
@@ -1928,7 +2500,9 @@ function createObsidianShim(pluginId: string) {
 
         addCommand(cmd: any) {
             this._commands.push(cmd);
-            const fullId = cmd.id?.includes(":") ? cmd.id : `${pluginId}:${cmd.id}`;
+            const fullId = cmd.id?.includes(":")
+                ? cmd.id
+                : `${pluginId}:${cmd.id}`;
             cmd.id = fullId;
             pluginCommandRegistry.set(fullId, {
                 id: fullId,
@@ -1957,7 +2531,8 @@ function createObsidianShim(pluginId: string) {
 
         addStatusBarItem() {
             const el = document.createElement("span");
-            el.style.cssText = "font-size:11px;color:var(--mz-text-muted);margin-left:8px;";
+            el.style.cssText =
+                "font-size:11px;color:var(--mz-text-muted);margin-left:8px;";
             el.setAttribute("data-plugin-id", pluginId);
             const sb = document.querySelector("[data-statusbar]");
             if (sb) sb.appendChild(el);
@@ -1978,7 +2553,9 @@ function createObsidianShim(pluginId: string) {
             for (const ext of extensions) {
                 pluginExtensionMap.set(ext, viewType);
             }
-            console.log(`[Plugin:${pluginId}] Extensions registered: ${extensions.join(",")} -> ${viewType}`);
+            console.log(
+                `[Plugin:${pluginId}] Extensions registered: ${extensions.join(",")} -> ${viewType}`,
+            );
         }
 
         registerEvent(eventRef: any) {
@@ -2037,7 +2614,9 @@ function createObsidianShim(pluginId: string) {
             for (const id of this._intervals) clearInterval(id);
             // Remove registered DOM event listeners
             for (const { el, type, callback, options } of this._domListeners) {
-                try { el?.removeEventListener?.(type, callback, options); } catch {}
+                try {
+                    el?.removeEventListener?.(type, callback, options);
+                } catch {}
             }
             this._domListeners = [];
         }
@@ -2080,8 +2659,11 @@ function createObsidianShim(pluginId: string) {
             this.settingEl = document.createElement("div");
             this.settingEl.className = "setting-item";
             Object.assign(this.settingEl.style, {
-                display: "flex", "align-items": "center", "justify-content": "space-between",
-                padding: "12px 0", "border-bottom": "1px solid var(--mz-border)",
+                display: "flex",
+                "align-items": "center",
+                "justify-content": "space-between",
+                padding: "12px 0",
+                "border-bottom": "1px solid var(--mz-border)",
                 gap: "12px",
             });
             this.infoEl = document.createElement("div");
@@ -2090,19 +2672,25 @@ function createObsidianShim(pluginId: string) {
             this.nameEl = document.createElement("div");
             this.nameEl.className = "setting-item-name";
             Object.assign(this.nameEl.style, {
-                "font-size": "14px", "font-weight": "500",
-                color: "var(--mz-text-primary)", "margin-bottom": "2px",
+                "font-size": "14px",
+                "font-weight": "500",
+                color: "var(--mz-text-primary)",
+                "margin-bottom": "2px",
             });
             this.descEl = document.createElement("div");
             this.descEl.className = "setting-item-description";
             Object.assign(this.descEl.style, {
-                "font-size": "12px", color: "var(--mz-text-muted)",
+                "font-size": "12px",
+                color: "var(--mz-text-muted)",
                 "line-height": "1.4",
             });
             this.controlEl = document.createElement("div");
             this.controlEl.className = "setting-item-control";
             Object.assign(this.controlEl.style, {
-                display: "flex", "align-items": "center", gap: "8px", "flex-shrink": "0",
+                display: "flex",
+                "align-items": "center",
+                gap: "8px",
+                "flex-shrink": "0",
             });
             this.infoEl.appendChild(this.nameEl);
             this.infoEl.appendChild(this.descEl);
@@ -2112,7 +2700,10 @@ function createObsidianShim(pluginId: string) {
         }
         setName(name: string | DocumentFragment) {
             if (typeof name === "string") this.nameEl.textContent = name;
-            else { this.nameEl.textContent = ""; this.nameEl.appendChild(name); }
+            else {
+                this.nameEl.textContent = "";
+                this.nameEl.appendChild(name);
+            }
             return this;
         }
         setDesc(desc: string | DocumentFragment) {
@@ -2135,12 +2726,18 @@ function createObsidianShim(pluginId: string) {
         setHeading() {
             this._isHeading = true;
             this.settingEl.classList.add("setting-item-heading");
-            Object.assign(this.nameEl.style, { "font-size": "16px", "font-weight": "600" });
+            Object.assign(this.nameEl.style, {
+                "font-size": "16px",
+                "font-weight": "600",
+            });
             this.settingEl.style.borderBottom = "none";
             this.settingEl.style.paddingTop = "18px";
             return this;
         }
-        setClass(cls: string) { this.settingEl.classList.add(cls); return this; }
+        setClass(cls: string) {
+            this.settingEl.classList.add(cls);
+            return this;
+        }
         setDisabled(disabled: boolean) {
             this.settingEl.style.opacity = disabled ? "0.5" : "1";
             this.settingEl.style.pointerEvents = disabled ? "none" : "auto";
@@ -2150,13 +2747,37 @@ function createObsidianShim(pluginId: string) {
             const input = document.createElement("input");
             input.type = "text";
             Object.assign(input.style, {
-                padding: "4px 8px", border: "1px solid var(--mz-border)", "border-radius": "4px",
-                background: "var(--mz-bg-primary)", color: "var(--mz-text-primary)",
-                "font-size": "13px", width: "200px", outline: "none",
+                padding: "4px 8px",
+                border: "1px solid var(--mz-border)",
+                "border-radius": "4px",
+                background: "var(--mz-bg-primary)",
+                color: "var(--mz-text-primary)",
+                "font-size": "13px",
+                width: "200px",
+                outline: "none",
             });
-            input.addEventListener("focus", () => { input.style.borderColor = "var(--mz-accent)"; });
-            input.addEventListener("blur", () => { input.style.borderColor = "var(--mz-border)"; });
-            const wrapper = { inputEl: input, getValue: () => input.value, setValue: (v: string) => { input.value = v; return wrapper; }, setPlaceholder: (p: string) => { input.placeholder = p; return wrapper; }, onChange: (fn: (v: string) => void) => { input.addEventListener("change", () => fn(input.value)); return wrapper; } };
+            input.addEventListener("focus", () => {
+                input.style.borderColor = "var(--mz-accent)";
+            });
+            input.addEventListener("blur", () => {
+                input.style.borderColor = "var(--mz-border)";
+            });
+            const wrapper = {
+                inputEl: input,
+                getValue: () => input.value,
+                setValue: (v: string) => {
+                    input.value = v;
+                    return wrapper;
+                },
+                setPlaceholder: (p: string) => {
+                    input.placeholder = p;
+                    return wrapper;
+                },
+                onChange: (fn: (v: string) => void) => {
+                    input.addEventListener("change", () => fn(input.value));
+                    return wrapper;
+                },
+            };
             this.controlEl.appendChild(input);
             cb(wrapper);
             return this;
@@ -2164,13 +2785,39 @@ function createObsidianShim(pluginId: string) {
         addTextArea(cb: (ta: any) => void) {
             const ta = document.createElement("textarea");
             Object.assign(ta.style, {
-                padding: "6px 8px", border: "1px solid var(--mz-border)", "border-radius": "4px",
-                background: "var(--mz-bg-primary)", color: "var(--mz-text-primary)",
-                "font-size": "13px", width: "200px", "min-height": "60px", resize: "vertical", outline: "none",
+                padding: "6px 8px",
+                border: "1px solid var(--mz-border)",
+                "border-radius": "4px",
+                background: "var(--mz-bg-primary)",
+                color: "var(--mz-text-primary)",
+                "font-size": "13px",
+                width: "200px",
+                "min-height": "60px",
+                resize: "vertical",
+                outline: "none",
             });
-            ta.addEventListener("focus", () => { ta.style.borderColor = "var(--mz-accent)"; });
-            ta.addEventListener("blur", () => { ta.style.borderColor = "var(--mz-border)"; });
-            const w = { inputEl: ta, getValue: () => ta.value, setValue: (v: string) => { ta.value = v; return w; }, setPlaceholder: (p: string) => { ta.placeholder = p; return w; }, onChange: (fn: (v: string) => void) => { ta.addEventListener("change", () => fn(ta.value)); return w; } };
+            ta.addEventListener("focus", () => {
+                ta.style.borderColor = "var(--mz-accent)";
+            });
+            ta.addEventListener("blur", () => {
+                ta.style.borderColor = "var(--mz-border)";
+            });
+            const w = {
+                inputEl: ta,
+                getValue: () => ta.value,
+                setValue: (v: string) => {
+                    ta.value = v;
+                    return w;
+                },
+                setPlaceholder: (p: string) => {
+                    ta.placeholder = p;
+                    return w;
+                },
+                onChange: (fn: (v: string) => void) => {
+                    ta.addEventListener("change", () => fn(ta.value));
+                    return w;
+                },
+            };
             this.controlEl.appendChild(ta);
             cb(w);
             return this;
@@ -2180,18 +2827,31 @@ function createObsidianShim(pluginId: string) {
             let changeFn: ((v: boolean) => void) | null = null;
             const toggleEl = document.createElement("div");
             Object.assign(toggleEl.style, {
-                width: "40px", height: "22px", "border-radius": "11px", cursor: "pointer",
-                background: "var(--mz-bg-hover)", position: "relative", transition: "background 150ms",
+                width: "40px",
+                height: "22px",
+                "border-radius": "11px",
+                cursor: "pointer",
+                background: "var(--mz-bg-hover)",
+                position: "relative",
+                transition: "background 150ms",
             });
             const thumb = document.createElement("div");
             Object.assign(thumb.style, {
-                width: "18px", height: "18px", "border-radius": "50%", background: "white",
-                position: "absolute", top: "2px", left: "2px", transition: "left 150ms",
+                width: "18px",
+                height: "18px",
+                "border-radius": "50%",
+                background: "white",
+                position: "absolute",
+                top: "2px",
+                left: "2px",
+                transition: "left 150ms",
                 "box-shadow": "0 1px 3px rgba(0,0,0,0.3)",
             });
             toggleEl.appendChild(thumb);
             function updateVisual() {
-                toggleEl.style.background = val ? "var(--mz-accent)" : "var(--mz-bg-hover)";
+                toggleEl.style.background = val
+                    ? "var(--mz-accent)"
+                    : "var(--mz-bg-hover)";
                 thumb.style.left = val ? "20px" : "2px";
             }
             toggleEl.addEventListener("click", () => {
@@ -2203,9 +2863,20 @@ function createObsidianShim(pluginId: string) {
             const w = {
                 toggleEl,
                 getValue: () => val,
-                setValue: (v: boolean) => { val = v; updateVisual(); return w; },
-                onChange: (fn: (v: boolean) => void) => { changeFn = fn; return w; },
-                setDisabled: (disabled: boolean) => { toggleEl.style.opacity = disabled ? "0.5" : "1"; (toggleEl as any)._disabled = disabled; return w; },
+                setValue: (v: boolean) => {
+                    val = v;
+                    updateVisual();
+                    return w;
+                },
+                onChange: (fn: (v: boolean) => void) => {
+                    changeFn = fn;
+                    return w;
+                },
+                setDisabled: (disabled: boolean) => {
+                    toggleEl.style.opacity = disabled ? "0.5" : "1";
+                    (toggleEl as any)._disabled = disabled;
+                    return w;
+                },
             };
             this.controlEl.appendChild(toggleEl);
             cb(w);
@@ -2215,11 +2886,43 @@ function createObsidianShim(pluginId: string) {
         addDropdown(cb: (dd: any) => void) {
             const sel = document.createElement("select");
             Object.assign(sel.style, {
-                padding: "4px 8px", border: "1px solid var(--mz-border)", "border-radius": "4px",
-                background: "var(--mz-bg-primary)", color: "var(--mz-text-primary)",
-                "font-size": "13px", outline: "none", cursor: "pointer",
+                padding: "4px 8px",
+                border: "1px solid var(--mz-border)",
+                "border-radius": "4px",
+                background: "var(--mz-bg-primary)",
+                color: "var(--mz-text-primary)",
+                "font-size": "13px",
+                outline: "none",
+                cursor: "pointer",
             });
-            const w = { selectEl: sel, getValue: () => sel.value, setValue: (v: string) => { sel.value = v; return w; }, addOption: (val: string, display: string) => { const o = document.createElement("option"); o.value = val; o.textContent = display; sel.appendChild(o); return w; }, addOptions: (opts: Record<string, string>) => { Object.entries(opts).forEach(([k, v]) => { const o = document.createElement("option"); o.value = k; o.textContent = v; sel.appendChild(o); }); return w; }, onChange: (fn: (v: string) => void) => { sel.addEventListener("change", () => fn(sel.value)); return w; } };
+            const w = {
+                selectEl: sel,
+                getValue: () => sel.value,
+                setValue: (v: string) => {
+                    sel.value = v;
+                    return w;
+                },
+                addOption: (val: string, display: string) => {
+                    const o = document.createElement("option");
+                    o.value = val;
+                    o.textContent = display;
+                    sel.appendChild(o);
+                    return w;
+                },
+                addOptions: (opts: Record<string, string>) => {
+                    Object.entries(opts).forEach(([k, v]) => {
+                        const o = document.createElement("option");
+                        o.value = k;
+                        o.textContent = v;
+                        sel.appendChild(o);
+                    });
+                    return w;
+                },
+                onChange: (fn: (v: string) => void) => {
+                    sel.addEventListener("change", () => fn(sel.value));
+                    return w;
+                },
+            };
             this.controlEl.appendChild(sel);
             cb(w);
             return this;
@@ -2227,13 +2930,55 @@ function createObsidianShim(pluginId: string) {
         addButton(cb: (btn: any) => void) {
             const btn = document.createElement("button");
             Object.assign(btn.style, {
-                padding: "4px 12px", border: "1px solid var(--mz-border)", "border-radius": "4px",
-                background: "var(--mz-bg-secondary)", color: "var(--mz-text-primary)",
-                "font-size": "13px", cursor: "pointer",
+                padding: "4px 12px",
+                border: "1px solid var(--mz-border)",
+                "border-radius": "4px",
+                background: "var(--mz-bg-secondary)",
+                color: "var(--mz-text-primary)",
+                "font-size": "13px",
+                cursor: "pointer",
             });
-            btn.addEventListener("mouseenter", () => { btn.style.borderColor = "var(--mz-accent)"; });
-            btn.addEventListener("mouseleave", () => { btn.style.borderColor = "var(--mz-border)"; });
-            const w = { buttonEl: btn, setButtonText: (t: string) => { btn.textContent = t; return w; }, setCta: () => { btn.style.background = "var(--mz-accent)"; btn.style.color = "white"; btn.style.borderColor = "var(--mz-accent)"; return w; }, setIcon: (_i: string) => w, setTooltip: (t: string) => { btn.title = t; return w; }, onClick: (fn: () => void) => { btn.addEventListener("click", fn); return w; }, setWarning: () => { btn.style.color = "var(--mz-error, #e06c75)"; return w; }, setDisabled: (d: boolean) => { btn.disabled = d; btn.style.opacity = d ? "0.5" : "1"; return w; }, setClass: (cls: string) => { btn.classList.add(...cls.split(/\s+/).filter(Boolean)); return w; } };
+            btn.addEventListener("mouseenter", () => {
+                btn.style.borderColor = "var(--mz-accent)";
+            });
+            btn.addEventListener("mouseleave", () => {
+                btn.style.borderColor = "var(--mz-border)";
+            });
+            const w = {
+                buttonEl: btn,
+                setButtonText: (t: string) => {
+                    btn.textContent = t;
+                    return w;
+                },
+                setCta: () => {
+                    btn.style.background = "var(--mz-accent)";
+                    btn.style.color = "white";
+                    btn.style.borderColor = "var(--mz-accent)";
+                    return w;
+                },
+                setIcon: (_i: string) => w,
+                setTooltip: (t: string) => {
+                    btn.title = t;
+                    return w;
+                },
+                onClick: (fn: () => void) => {
+                    btn.addEventListener("click", fn);
+                    return w;
+                },
+                setWarning: () => {
+                    btn.style.color = "var(--mz-error, #e06c75)";
+                    return w;
+                },
+                setDisabled: (d: boolean) => {
+                    btn.disabled = d;
+                    btn.style.opacity = d ? "0.5" : "1";
+                    return w;
+                },
+                setClass: (cls: string) => {
+                    btn.classList.add(...cls.split(/\s+/).filter(Boolean));
+                    return w;
+                },
+            };
             this.controlEl.appendChild(btn);
             cb(w);
             return this;
@@ -2241,8 +2986,33 @@ function createObsidianShim(pluginId: string) {
         addSlider(cb: (slider: any) => void) {
             const input = document.createElement("input");
             input.type = "range";
-            Object.assign(input.style, { width: "120px", cursor: "pointer", "accent-color": "var(--mz-accent)" });
-            const w = { sliderEl: input, getValue: () => Number(input.value), setValue: (v: number) => { input.value = String(v); return w; }, setLimits: (min: number, max: number, step: number) => { input.min = String(min); input.max = String(max); input.step = String(step); return w; }, setDynamicTooltip: () => w, onChange: (fn: (v: number) => void) => { input.addEventListener("input", () => fn(Number(input.value))); return w; }, showTooltip: () => w };
+            Object.assign(input.style, {
+                width: "120px",
+                cursor: "pointer",
+                "accent-color": "var(--mz-accent)",
+            });
+            const w = {
+                sliderEl: input,
+                getValue: () => Number(input.value),
+                setValue: (v: number) => {
+                    input.value = String(v);
+                    return w;
+                },
+                setLimits: (min: number, max: number, step: number) => {
+                    input.min = String(min);
+                    input.max = String(max);
+                    input.step = String(step);
+                    return w;
+                },
+                setDynamicTooltip: () => w,
+                onChange: (fn: (v: number) => void) => {
+                    input.addEventListener("input", () =>
+                        fn(Number(input.value)),
+                    );
+                    return w;
+                },
+                showTooltip: () => w,
+            };
             this.controlEl.appendChild(input);
             cb(w);
             return this;
@@ -2251,10 +3021,25 @@ function createObsidianShim(pluginId: string) {
             const input = document.createElement("input");
             input.type = "color";
             Object.assign(input.style, {
-                width: "32px", height: "28px", padding: "2px", border: "1px solid var(--mz-border)",
-                "border-radius": "4px", background: "var(--mz-bg-primary)", cursor: "pointer",
+                width: "32px",
+                height: "28px",
+                padding: "2px",
+                border: "1px solid var(--mz-border)",
+                "border-radius": "4px",
+                background: "var(--mz-bg-primary)",
+                cursor: "pointer",
             });
-            const w = { getValue: () => input.value, setValue: (v: string) => { input.value = v; return w; }, onChange: (fn: (v: string) => void) => { input.addEventListener("input", () => fn(input.value)); return w; } };
+            const w = {
+                getValue: () => input.value,
+                setValue: (v: string) => {
+                    input.value = v;
+                    return w;
+                },
+                onChange: (fn: (v: string) => void) => {
+                    input.addEventListener("input", () => fn(input.value));
+                    return w;
+                },
+            };
             this.controlEl.appendChild(input);
             cb(w);
             return this;
@@ -2262,36 +3047,88 @@ function createObsidianShim(pluginId: string) {
         addExtraButton(cb: (btn: any) => void) {
             const btn = document.createElement("button");
             Object.assign(btn.style, {
-                width: "24px", height: "24px", border: "none", background: "transparent",
-                color: "var(--mz-text-muted)", cursor: "pointer", display: "flex",
-                "align-items": "center", "justify-content": "center", "border-radius": "4px",
+                width: "24px",
+                height: "24px",
+                border: "none",
+                background: "transparent",
+                color: "var(--mz-text-muted)",
+                cursor: "pointer",
+                display: "flex",
+                "align-items": "center",
+                "justify-content": "center",
+                "border-radius": "4px",
             });
-            btn.addEventListener("mouseenter", () => { btn.style.color = "var(--mz-text-primary)"; });
-            btn.addEventListener("mouseleave", () => { btn.style.color = "var(--mz-text-muted)"; });
-            const w = { extraSettingsEl: btn, setIcon: (i: string) => { const icons = (window as any).__mindzj_icons || {}; if (icons[i]) { btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${icons[i]}</svg>`; } return w; }, setTooltip: (t: string) => { btn.title = t; return w; }, onClick: (fn: () => void) => { btn.addEventListener("click", fn); return w; }, setDisabled: (d: boolean) => { btn.disabled = d; return w; } };
+            btn.addEventListener("mouseenter", () => {
+                btn.style.color = "var(--mz-text-primary)";
+            });
+            btn.addEventListener("mouseleave", () => {
+                btn.style.color = "var(--mz-text-muted)";
+            });
+            const w = {
+                extraSettingsEl: btn,
+                setIcon: (i: string) => {
+                    const icons = (window as any).__mindzj_icons || {};
+                    if (icons[i]) {
+                        btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${icons[i]}</svg>`;
+                    }
+                    return w;
+                },
+                setTooltip: (t: string) => {
+                    btn.title = t;
+                    return w;
+                },
+                onClick: (fn: () => void) => {
+                    btn.addEventListener("click", fn);
+                    return w;
+                },
+                setDisabled: (d: boolean) => {
+                    btn.disabled = d;
+                    return w;
+                },
+            };
             this.controlEl.appendChild(btn);
             cb(w);
             return this;
         }
         addSearch(cb: (search: any) => void) {
             const container = document.createElement("div");
-            Object.assign(container.style, { position: "relative", display: "inline-block" });
+            Object.assign(container.style, {
+                position: "relative",
+                display: "inline-block",
+            });
             const input = document.createElement("input");
             input.type = "search";
             Object.assign(input.style, {
-                padding: "4px 8px", border: "1px solid var(--mz-border)", "border-radius": "4px",
-                background: "var(--mz-bg-primary)", color: "var(--mz-text-primary)",
-                "font-size": "13px", width: "200px", outline: "none",
+                padding: "4px 8px",
+                border: "1px solid var(--mz-border)",
+                "border-radius": "4px",
+                background: "var(--mz-bg-primary)",
+                color: "var(--mz-text-primary)",
+                "font-size": "13px",
+                width: "200px",
+                outline: "none",
             });
-            input.addEventListener("focus", () => { input.style.borderColor = "var(--mz-accent)"; });
-            input.addEventListener("blur", () => { input.style.borderColor = "var(--mz-border)"; });
+            input.addEventListener("focus", () => {
+                input.style.borderColor = "var(--mz-accent)";
+            });
+            input.addEventListener("blur", () => {
+                input.style.borderColor = "var(--mz-border)";
+            });
             // Suggestion dropdown
             const suggestEl = document.createElement("div");
             Object.assign(suggestEl.style, {
-                position: "absolute", top: "100%", left: "0", right: "0",
-                background: "var(--mz-bg-secondary)", border: "1px solid var(--mz-border)",
-                "border-radius": "4px", "max-height": "200px", overflow: "auto",
-                "z-index": "100", display: "none", "box-shadow": "0 4px 12px rgba(0,0,0,0.2)",
+                position: "absolute",
+                top: "100%",
+                left: "0",
+                right: "0",
+                background: "var(--mz-bg-secondary)",
+                border: "1px solid var(--mz-border)",
+                "border-radius": "4px",
+                "max-height": "200px",
+                overflow: "auto",
+                "z-index": "100",
+                display: "none",
+                "box-shadow": "0 4px 12px rgba(0,0,0,0.2)",
             });
             container.appendChild(input);
             container.appendChild(suggestEl);
@@ -2299,10 +3136,22 @@ function createObsidianShim(pluginId: string) {
             const w = {
                 inputEl: input,
                 getValue: () => input.value,
-                setValue: (v: string) => { input.value = v; return w; },
-                setPlaceholder: (p: string) => { input.placeholder = p; return w; },
-                onChange: (fn: (v: string) => void) => { changeFn = fn; input.addEventListener("change", () => fn(input.value)); return w; },
-                onChanged: () => { if (changeFn) changeFn(input.value); },
+                setValue: (v: string) => {
+                    input.value = v;
+                    return w;
+                },
+                setPlaceholder: (p: string) => {
+                    input.placeholder = p;
+                    return w;
+                },
+                onChange: (fn: (v: string) => void) => {
+                    changeFn = fn;
+                    input.addEventListener("change", () => fn(input.value));
+                    return w;
+                },
+                onChanged: () => {
+                    if (changeFn) changeFn(input.value);
+                },
             };
             this.controlEl.appendChild(container);
             cb(w);
@@ -2311,23 +3160,37 @@ function createObsidianShim(pluginId: string) {
         addProgressBar() {
             const bar = document.createElement("div");
             Object.assign(bar.style, {
-                width: "100%", height: "4px", background: "var(--mz-bg-hover)",
-                "border-radius": "2px", overflow: "hidden", "margin-top": "8px",
+                width: "100%",
+                height: "4px",
+                background: "var(--mz-bg-hover)",
+                "border-radius": "2px",
+                overflow: "hidden",
+                "margin-top": "8px",
             });
             const fill = document.createElement("div");
             Object.assign(fill.style, {
-                width: "0%", height: "100%", background: "var(--mz-accent)",
+                width: "0%",
+                height: "100%",
+                background: "var(--mz-accent)",
                 transition: "width 200ms ease",
             });
             bar.appendChild(fill);
             this.settingEl.appendChild(bar);
-            return { barEl: bar, setValue: (v: number) => { fill.style.width = `${Math.max(0, Math.min(100, v))}%`; } };
+            return {
+                barEl: bar,
+                setValue: (v: number) => {
+                    fill.style.width = `${Math.max(0, Math.min(100, v))}%`;
+                },
+            };
         }
         clear() {
             this.controlEl.innerHTML = "";
             return this;
         }
-        then(cb: (setting: Setting) => void) { cb(this); return this; }
+        then(cb: (setting: Setting) => void) {
+            cb(this);
+            return this;
+        }
     }
 
     class SettingGroup {
@@ -2365,7 +3228,7 @@ function createObsidianShim(pluginId: string) {
             this.leaf = leaf;
             // Set app from leaf (Obsidian pattern: this.app = leaf.app)
             if (leaf?.app) this.app = leaf.app;
-            // Build containerEl with Obsidian's expected structure:
+            // Build containerEl with  expected structure:
             //   containerEl.children[0] = view-header (div)
             //   containerEl.children[1] = view-content (div) = contentEl
             // The plugin accesses content via: this.containerEl.children[1]
@@ -2388,15 +3251,21 @@ function createObsidianShim(pluginId: string) {
             Object.assign(this.contentEl.style, {
                 flex: "1",
                 width: "100%",
-                minHeight: "0",      // allow flex child to shrink below content
+                minHeight: "0", // allow flex child to shrink below content
                 position: "relative",
                 overflow: "hidden",
             });
             this.containerEl.appendChild(this.contentEl);
         }
-        getViewType() { return ""; }
-        getDisplayText() { return ""; }
-        getIcon() { return this.icon; }
+        getViewType() {
+            return "";
+        }
+        getDisplayText() {
+            return "";
+        }
+        getIcon() {
+            return this.icon;
+        }
         async onOpen() {}
         async onClose() {}
         onResize() {}
@@ -2405,7 +3274,9 @@ function createObsidianShim(pluginId: string) {
     class MarkdownView extends ItemView {
         editor: any = {};
         file: any = null;
-        getViewType() { return "markdown"; }
+        getViewType() {
+            return "markdown";
+        }
     }
 
     class TextFileView extends ItemView {
@@ -2418,11 +3289,21 @@ function createObsidianShim(pluginId: string) {
                 this.app.vault.modify(this.file, data);
             }
         }
-        getViewData() { return this.data; }
-        setViewData(data: string, _clear: boolean) { this.data = data; }
-        clear() { this.data = ""; }
-        onLoadFile(_file: any) { return Promise.resolve(); }
-        onUnloadFile(_file: any) { return Promise.resolve(); }
+        getViewData() {
+            return this.data;
+        }
+        setViewData(data: string, _clear: boolean) {
+            this.data = data;
+        }
+        clear() {
+            this.data = "";
+        }
+        onLoadFile(_file: any) {
+            return Promise.resolve();
+        }
+        onUnloadFile(_file: any) {
+            return Promise.resolve();
+        }
     }
 
     // Modal — with Obsidian-matching backdrop and close button
@@ -2440,9 +3321,13 @@ function createObsidianShim(pluginId: string) {
             this._backdropEl = document.createElement("div");
             this._backdropEl.className = "modal-container";
             Object.assign(this._backdropEl.style, {
-                position: "fixed", inset: "0", zIndex: "10000",
-                background: "rgba(0,0,0,0.5)", display: "flex",
-                alignItems: "center", justifyContent: "center",
+                position: "fixed",
+                inset: "0",
+                zIndex: "10000",
+                background: "rgba(0,0,0,0.5)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
             });
             this._backdropEl.addEventListener("click", (e: MouseEvent) => {
                 if (e.target === this._backdropEl) this.close();
@@ -2451,29 +3336,53 @@ function createObsidianShim(pluginId: string) {
             this.modalEl = document.createElement("div");
             this.modalEl.className = "modal";
             Object.assign(this.modalEl.style, {
-                background: "var(--mz-bg-secondary,#2b2b2b)", border: "1px solid var(--mz-border,#444)",
-                borderRadius: "8px", padding: "24px", minWidth: "300px", maxWidth: "90vw",
-                maxHeight: "85vh", overflow: "auto",
-                boxShadow: "0 8px 32px rgba(0,0,0,0.5)", color: "var(--mz-text-primary,#ddd)",
+                background: "var(--mz-bg-secondary,#2b2b2b)",
+                border: "1px solid var(--mz-border,#444)",
+                borderRadius: "8px",
+                padding: "24px",
+                minWidth: "300px",
+                maxWidth: "90vw",
+                maxHeight: "85vh",
+                overflow: "auto",
+                boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+                color: "var(--mz-text-primary,#ddd)",
             });
             // Close button
             const closeBtn = document.createElement("div");
             closeBtn.className = "modal-close-button";
             closeBtn.innerHTML = "&times;";
             Object.assign(closeBtn.style, {
-                position: "absolute", top: "8px", right: "12px",
-                fontSize: "20px", cursor: "pointer", color: "var(--mz-text-muted)",
-                lineHeight: "1", width: "24px", height: "24px",
-                display: "flex", alignItems: "center", justifyContent: "center",
+                position: "absolute",
+                top: "8px",
+                right: "12px",
+                fontSize: "20px",
+                cursor: "pointer",
+                color: "var(--mz-text-muted)",
+                lineHeight: "1",
+                width: "24px",
+                height: "24px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
                 borderRadius: "4px",
             });
             closeBtn.addEventListener("click", () => this.close());
-            closeBtn.addEventListener("mouseenter", () => { closeBtn.style.color = "var(--mz-text-primary)"; closeBtn.style.background = "var(--mz-bg-hover)"; });
-            closeBtn.addEventListener("mouseleave", () => { closeBtn.style.color = "var(--mz-text-muted)"; closeBtn.style.background = "transparent"; });
+            closeBtn.addEventListener("mouseenter", () => {
+                closeBtn.style.color = "var(--mz-text-primary)";
+                closeBtn.style.background = "var(--mz-bg-hover)";
+            });
+            closeBtn.addEventListener("mouseleave", () => {
+                closeBtn.style.color = "var(--mz-text-muted)";
+                closeBtn.style.background = "transparent";
+            });
             this.modalEl.style.position = "relative";
             this.modalEl.appendChild(closeBtn);
             this.titleEl = document.createElement("h2");
-            Object.assign(this.titleEl.style, { margin: "0 0 16px", fontSize: "18px", fontWeight: "600" });
+            Object.assign(this.titleEl.style, {
+                margin: "0 0 16px",
+                fontSize: "18px",
+                fontWeight: "600",
+            });
             this.contentEl = document.createElement("div");
             this.containerEl = this.modalEl;
             this.modalEl.appendChild(this.titleEl);
@@ -2491,7 +3400,9 @@ function createObsidianShim(pluginId: string) {
         }
         onOpen() {}
         onClose() {}
-        setTitle(title: string) { this.titleEl.textContent = title; }
+        setTitle(title: string) {
+            this.titleEl.textContent = title;
+        }
     }
 
     class FuzzySuggestModal extends Modal {
@@ -2506,8 +3417,12 @@ function createObsidianShim(pluginId: string) {
             this.inputEl.placeholder = text;
             return this;
         }
-        getItems(): any[] { return []; }
-        getItemText(item: any) { return String(item ?? ""); }
+        getItems(): any[] {
+            return [];
+        }
+        getItemText(item: any) {
+            return String(item ?? "");
+        }
         onChooseItem(_item: any, _evt?: MouseEvent | KeyboardEvent) {}
         onOpen() {
             (this.contentEl as any).empty?.();
@@ -2544,7 +3459,9 @@ function createObsidianShim(pluginId: string) {
                     this.resultsEl.innerHTML = "";
                 }
                 for (const item of items.slice(0, 50)) {
-                    const row = (this.resultsEl as any).createDiv ? (this.resultsEl as any).createDiv() : document.createElement("div");
+                    const row = (this.resultsEl as any).createDiv
+                        ? (this.resultsEl as any).createDiv()
+                        : document.createElement("div");
                     if (!row.parentElement) this.resultsEl.appendChild(row);
                     Object.assign(row.style, {
                         padding: "8px 10px",
@@ -2552,8 +3469,12 @@ function createObsidianShim(pluginId: string) {
                         cursor: "pointer",
                     });
                     row.textContent = this.getItemText(item);
-                    row.addEventListener("mouseenter", () => { row.style.background = "var(--mz-bg-hover)"; });
-                    row.addEventListener("mouseleave", () => { row.style.background = "transparent"; });
+                    row.addEventListener("mouseenter", () => {
+                        row.style.background = "var(--mz-bg-hover)";
+                    });
+                    row.addEventListener("mouseleave", () => {
+                        row.style.background = "transparent";
+                    });
                     row.addEventListener("click", (evt: MouseEvent) => {
                         this.onChooseItem(item, evt);
                         this.close();
@@ -2575,20 +3496,29 @@ function createObsidianShim(pluginId: string) {
         name: string;
         parent: any;
         vault: any;
-        constructor() { this.path = ""; this.name = ""; }
+        constructor() {
+            this.path = "";
+            this.name = "";
+        }
     }
 
     class TFile extends TAbstractFile {
         stat: any = { mtime: 0, ctime: 0, size: 0 };
         basename: string = "";
         extension: string = "";
-        constructor() { super(); }
+        constructor() {
+            super();
+        }
     }
 
     class TFolder extends TAbstractFile {
         children: any[] = [];
-        isRoot() { return this.path === "/"; }
-        constructor() { super(); }
+        isRoot() {
+            return this.path === "/";
+        }
+        constructor() {
+            super();
+        }
     }
 
     // Menu — renders a real context menu at mouse position
@@ -2634,19 +3564,34 @@ function createObsidianShim(pluginId: string) {
                 iconEl: document.createElement("span"),
                 _disabled: false,
                 _submenu: null as any,
-                setTitle: (t: string) => { item.title = t; item.titleEl.textContent = t; return item; },
+                setTitle: (t: string) => {
+                    item.title = t;
+                    item.titleEl.textContent = t;
+                    return item;
+                },
                 setIcon: (i: string) => {
                     item.icon = i;
                     const icons = (window as any).__mindzj_icons || {};
                     item.iconEl.innerHTML = icons[i]
                         ? `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${icons[i]}</svg>`
-                        : (i ? "•" : "");
+                        : i
+                          ? "•"
+                          : "";
                     return item;
                 },
-                onClick: (fn: (evt?: MouseEvent) => void) => { item.callback = fn; return item; },
-                setSection: (s: string) => { item.section = s; return item; },
+                onClick: (fn: (evt?: MouseEvent) => void) => {
+                    item.callback = fn;
+                    return item;
+                },
+                setSection: (s: string) => {
+                    item.section = s;
+                    return item;
+                },
                 setChecked: (_c: boolean) => item,
-                setDisabled: (d: boolean) => { item._disabled = d; return item; },
+                setDisabled: (d: boolean) => {
+                    item._disabled = d;
+                    return item;
+                },
                 setSubmenu: () => {
                     item._submenu = new Menu();
                     return item._submenu;
@@ -2700,7 +3645,10 @@ function createObsidianShim(pluginId: string) {
                         if (item._submenu) {
                             item._submenu.close();
                             const rect = row.getBoundingClientRect();
-                            item._submenu.showAtPosition({ x: rect.right - 4, y: rect.top });
+                            item._submenu.showAtPosition({
+                                x: rect.right - 4,
+                                y: rect.top,
+                            });
                             return;
                         }
                         this.close();
@@ -2725,7 +3673,10 @@ function createObsidianShim(pluginId: string) {
             // Close on outside click
             this._backdrop = document.createElement("div");
             Object.assign(this._backdrop.style, {
-                position: "fixed", inset: "0", zIndex: "10001", background: "transparent",
+                position: "fixed",
+                inset: "0",
+                zIndex: "10001",
+                background: "transparent",
             });
             this._backdrop.addEventListener("mousedown", (ev: MouseEvent) => {
                 ev.preventDefault();
@@ -2745,30 +3696,53 @@ function createObsidianShim(pluginId: string) {
             this.dom.style.top = (pos?.y ?? 0) + "px";
             this._backdrop = document.createElement("div");
             Object.assign(this._backdrop.style, {
-                position: "fixed", inset: "0", zIndex: "10001", background: "transparent",
+                position: "fixed",
+                inset: "0",
+                zIndex: "10001",
+                background: "transparent",
             });
             this._backdrop.addEventListener("mousedown", () => this.close());
             document.body.appendChild(this._backdrop);
         }
         close() {
             this.dom.remove();
-            if (this._backdrop) { this._backdrop.remove(); this._backdrop = null; }
+            if (this._backdrop) {
+                this._backdrop.remove();
+                this._backdrop = null;
+            }
         }
-        hide() { this.close(); }
+        hide() {
+            this.close();
+        }
     }
 
     // Component — used for lifecycle management
     class Component {
         _children: any[] = [];
         _loaded: boolean = false;
-        load() { this._loaded = true; }
-        unload() { this._loaded = false; this._children.forEach((c: any) => c.unload?.()); }
-        addChild(child: any) { this._children.push(child); if (this._loaded) child.load?.(); return child; }
-        removeChild(child: any) { child.unload?.(); }
+        load() {
+            this._loaded = true;
+        }
+        unload() {
+            this._loaded = false;
+            this._children.forEach((c: any) => c.unload?.());
+        }
+        addChild(child: any) {
+            this._children.push(child);
+            if (this._loaded) child.load?.();
+            return child;
+        }
+        removeChild(child: any) {
+            child.unload?.();
+        }
         register(_cb: () => void) {}
         registerEvent(_eventRef: any) {}
-        registerDomEvent(el: any, type: string, callback: any, options?: any) { el?.addEventListener?.(type, callback, options); }
-        registerInterval(id: number) { return id; }
+        registerDomEvent(el: any, type: string, callback: any, options?: any) {
+            el?.addEventListener?.(type, callback, options);
+        }
+        registerInterval(id: number) {
+            return id;
+        }
     }
 
     // Keymap
@@ -2786,7 +3760,11 @@ function createObsidianShim(pluginId: string) {
 
     // Scope
     class Scope {
-        register(_modifiers: string[], _key: string | null, _fn: (e: KeyboardEvent) => boolean | void) {}
+        register(
+            _modifiers: string[],
+            _key: string | null,
+            _fn: (e: KeyboardEvent) => boolean | void,
+        ) {}
         unregister(_handler: any) {}
     }
 
@@ -2810,15 +3788,30 @@ function createObsidianShim(pluginId: string) {
         constructor(containerEl: HTMLElement) {
             this.buttonEl = document.createElement("button");
             Object.assign(this.buttonEl.style, {
-                padding: "4px 12px", border: "1px solid var(--mz-border)", borderRadius: "4px",
-                background: "var(--mz-bg-secondary)", color: "var(--mz-text-primary)",
-                fontSize: "13px", cursor: "pointer",
+                padding: "4px 12px",
+                border: "1px solid var(--mz-border)",
+                borderRadius: "4px",
+                background: "var(--mz-bg-secondary)",
+                color: "var(--mz-text-primary)",
+                fontSize: "13px",
+                cursor: "pointer",
             });
             containerEl.appendChild(this.buttonEl);
         }
-        setButtonText(t: string) { this.buttonEl.textContent = t; return this; }
-        setCta() { this.buttonEl.style.background = "var(--mz-accent)"; this.buttonEl.style.color = "white"; this.buttonEl.style.borderColor = "var(--mz-accent)"; return this; }
-        onClick(fn: () => void) { this.buttonEl.addEventListener("click", fn); return this; }
+        setButtonText(t: string) {
+            this.buttonEl.textContent = t;
+            return this;
+        }
+        setCta() {
+            this.buttonEl.style.background = "var(--mz-accent)";
+            this.buttonEl.style.color = "white";
+            this.buttonEl.style.borderColor = "var(--mz-accent)";
+            return this;
+        }
+        onClick(fn: () => void) {
+            this.buttonEl.addEventListener("click", fn);
+            return this;
+        }
         setIcon(i: string) {
             const icons = (window as any).__mindzj_icons || {};
             if (icons[i]) {
@@ -2826,11 +3819,28 @@ function createObsidianShim(pluginId: string) {
             }
             return this;
         }
-        setTooltip(t: string) { this.buttonEl.title = t; return this; }
-        setDisabled(d: boolean) { this.buttonEl.disabled = d; this.buttonEl.style.opacity = d ? "0.5" : "1"; return this; }
-        setWarning() { this.buttonEl.style.color = "var(--mz-error, #e06c75)"; return this; }
-        removeCta() { this.buttonEl.style.background = "var(--mz-bg-secondary)"; this.buttonEl.style.color = "var(--mz-text-primary)"; return this; }
-        setClass(cls: string) { this.buttonEl.classList.add(...cls.split(/\s+/).filter(Boolean)); return this; }
+        setTooltip(t: string) {
+            this.buttonEl.title = t;
+            return this;
+        }
+        setDisabled(d: boolean) {
+            this.buttonEl.disabled = d;
+            this.buttonEl.style.opacity = d ? "0.5" : "1";
+            return this;
+        }
+        setWarning() {
+            this.buttonEl.style.color = "var(--mz-error, #e06c75)";
+            return this;
+        }
+        removeCta() {
+            this.buttonEl.style.background = "var(--mz-bg-secondary)";
+            this.buttonEl.style.color = "var(--mz-text-primary)";
+            return this;
+        }
+        setClass(cls: string) {
+            this.buttonEl.classList.add(...cls.split(/\s+/).filter(Boolean));
+            return this;
+        }
     }
 
     class TextComponent {
@@ -2839,17 +3849,35 @@ function createObsidianShim(pluginId: string) {
             this.inputEl = document.createElement("input");
             this.inputEl.type = "text";
             Object.assign(this.inputEl.style, {
-                padding: "4px 8px", border: "1px solid var(--mz-border)", borderRadius: "4px",
-                background: "var(--mz-bg-primary)", color: "var(--mz-text-primary)",
-                fontSize: "13px", width: "200px", outline: "none",
+                padding: "4px 8px",
+                border: "1px solid var(--mz-border)",
+                borderRadius: "4px",
+                background: "var(--mz-bg-primary)",
+                color: "var(--mz-text-primary)",
+                fontSize: "13px",
+                width: "200px",
+                outline: "none",
             });
             containerEl.appendChild(this.inputEl);
             return makeThenable(this);
         }
-        getValue() { return this.inputEl.value; }
-        setValue(v: string) { this.inputEl.value = v; return this; }
-        setPlaceholder(p: string) { this.inputEl.placeholder = p; return this; }
-        onChange(fn: (v: string) => void) { this.inputEl.addEventListener("change", () => fn(this.inputEl.value)); return this; }
+        getValue() {
+            return this.inputEl.value;
+        }
+        setValue(v: string) {
+            this.inputEl.value = v;
+            return this;
+        }
+        setPlaceholder(p: string) {
+            this.inputEl.placeholder = p;
+            return this;
+        }
+        onChange(fn: (v: string) => void) {
+            this.inputEl.addEventListener("change", () =>
+                fn(this.inputEl.value),
+            );
+            return this;
+        }
     }
 
     class TextAreaComponent {
@@ -2857,17 +3885,37 @@ function createObsidianShim(pluginId: string) {
         constructor(containerEl: HTMLElement) {
             this.inputEl = document.createElement("textarea");
             Object.assign(this.inputEl.style, {
-                padding: "6px 8px", border: "1px solid var(--mz-border)", borderRadius: "4px",
-                background: "var(--mz-bg-primary)", color: "var(--mz-text-primary)",
-                fontSize: "13px", width: "200px", minHeight: "60px", resize: "vertical", outline: "none",
+                padding: "6px 8px",
+                border: "1px solid var(--mz-border)",
+                borderRadius: "4px",
+                background: "var(--mz-bg-primary)",
+                color: "var(--mz-text-primary)",
+                fontSize: "13px",
+                width: "200px",
+                minHeight: "60px",
+                resize: "vertical",
+                outline: "none",
             });
             containerEl.appendChild(this.inputEl);
             return makeThenable(this);
         }
-        getValue() { return this.inputEl.value; }
-        setValue(v: string) { this.inputEl.value = v; return this; }
-        setPlaceholder(p: string) { this.inputEl.placeholder = p; return this; }
-        onChange(fn: (v: string) => void) { this.inputEl.addEventListener("change", () => fn(this.inputEl.value)); return this; }
+        getValue() {
+            return this.inputEl.value;
+        }
+        setValue(v: string) {
+            this.inputEl.value = v;
+            return this;
+        }
+        setPlaceholder(p: string) {
+            this.inputEl.placeholder = p;
+            return this;
+        }
+        onChange(fn: (v: string) => void) {
+            this.inputEl.addEventListener("change", () =>
+                fn(this.inputEl.value),
+            );
+            return this;
+        }
     }
 
     class ToggleComponent {
@@ -2877,29 +3925,60 @@ function createObsidianShim(pluginId: string) {
         constructor(containerEl: HTMLElement) {
             this.toggleEl = document.createElement("div");
             Object.assign(this.toggleEl.style, {
-                width: "40px", height: "22px", borderRadius: "11px", cursor: "pointer",
-                background: "var(--mz-bg-hover)", position: "relative", transition: "background 150ms",
+                width: "40px",
+                height: "22px",
+                borderRadius: "11px",
+                cursor: "pointer",
+                background: "var(--mz-bg-hover)",
+                position: "relative",
+                transition: "background 150ms",
             });
             const thumb = document.createElement("div");
             Object.assign(thumb.style, {
-                width: "18px", height: "18px", borderRadius: "50%", background: "white",
-                position: "absolute", top: "2px", left: "2px", transition: "left 150ms",
+                width: "18px",
+                height: "18px",
+                borderRadius: "50%",
+                background: "white",
+                position: "absolute",
+                top: "2px",
+                left: "2px",
+                transition: "left 150ms",
                 boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
             });
             this.toggleEl.appendChild(thumb);
             this.toggleEl.addEventListener("click", () => {
                 if ((this.toggleEl as any)._disabled) return;
                 this._val = !this._val;
-                this.toggleEl.style.background = this._val ? "var(--mz-accent)" : "var(--mz-bg-hover)";
+                this.toggleEl.style.background = this._val
+                    ? "var(--mz-accent)"
+                    : "var(--mz-bg-hover)";
                 thumb.style.left = this._val ? "20px" : "2px";
                 if (this._changeFn) this._changeFn(this._val);
             });
             containerEl.appendChild(this.toggleEl);
         }
-        getValue() { return this._val; }
-        setValue(v: boolean) { this._val = v; this.toggleEl.style.background = v ? "var(--mz-accent)" : "var(--mz-bg-hover)"; (this.toggleEl.firstChild as HTMLElement).style.left = v ? "20px" : "2px"; return this; }
-        onChange(fn: (v: boolean) => void) { this._changeFn = fn; return this; }
-        setDisabled(disabled: boolean) { (this.toggleEl as any)._disabled = disabled; this.toggleEl.style.opacity = disabled ? "0.5" : "1"; return this; }
+        getValue() {
+            return this._val;
+        }
+        setValue(v: boolean) {
+            this._val = v;
+            this.toggleEl.style.background = v
+                ? "var(--mz-accent)"
+                : "var(--mz-bg-hover)";
+            (this.toggleEl.firstChild as HTMLElement).style.left = v
+                ? "20px"
+                : "2px";
+            return this;
+        }
+        onChange(fn: (v: boolean) => void) {
+            this._changeFn = fn;
+            return this;
+        }
+        setDisabled(disabled: boolean) {
+            (this.toggleEl as any)._disabled = disabled;
+            this.toggleEl.style.opacity = disabled ? "0.5" : "1";
+            return this;
+        }
     }
 
     class SliderComponent {
@@ -2915,12 +3994,31 @@ function createObsidianShim(pluginId: string) {
             containerEl.appendChild(this.sliderEl);
             return makeThenable(this);
         }
-        getValue() { return Number(this.sliderEl.value); }
-        setValue(v: number) { this.sliderEl.value = String(v); return this; }
-        setLimits(min: number, max: number, step: number) { this.sliderEl.min = String(min); this.sliderEl.max = String(max); this.sliderEl.step = String(step); return this; }
-        setDynamicTooltip() { return this; }
-        showTooltip() { return this; }
-        onChange(fn: (v: number) => void) { this.sliderEl.addEventListener("input", () => fn(Number(this.sliderEl.value))); return this; }
+        getValue() {
+            return Number(this.sliderEl.value);
+        }
+        setValue(v: number) {
+            this.sliderEl.value = String(v);
+            return this;
+        }
+        setLimits(min: number, max: number, step: number) {
+            this.sliderEl.min = String(min);
+            this.sliderEl.max = String(max);
+            this.sliderEl.step = String(step);
+            return this;
+        }
+        setDynamicTooltip() {
+            return this;
+        }
+        showTooltip() {
+            return this;
+        }
+        onChange(fn: (v: number) => void) {
+            this.sliderEl.addEventListener("input", () =>
+                fn(Number(this.sliderEl.value)),
+            );
+            return this;
+        }
     }
 
     class FileSystemAdapter {
@@ -2928,7 +4026,9 @@ function createObsidianShim(pluginId: string) {
         constructor(basePath = "") {
             this._basePath = basePath;
         }
-        getBasePath() { return this._basePath; }
+        getBasePath() {
+            return this._basePath;
+        }
     }
 
     return {
@@ -2950,13 +4050,23 @@ function createObsidianShim(pluginId: string) {
         Scope,
         WorkspaceWindow,
         // Platform
-        Platform: { isDesktop: true, isMobile: false, isMobileApp: false, isDesktopApp: true, isWin: true, isMacOS: false, isLinux: false },
+        Platform: {
+            isDesktop: true,
+            isMobile: false,
+            isMobileApp: false,
+            isDesktopApp: true,
+            isWin: true,
+            isMacOS: false,
+            isLinux: false,
+        },
         requireApiVersion: (_version: string) => true,
         // Utility
-        normalizePath: (path: string) => path.replace(/\\/g, "/").replace(/\/+/g, "/"),
+        normalizePath: (path: string) =>
+            path.replace(/\\/g, "/").replace(/\/+/g, "/"),
         addIcon: (id: string, svgContent: string) => {
             // Store custom icons for later use by setIcon
-            if (!(window as any).__mindzj_icons) (window as any).__mindzj_icons = {};
+            if (!(window as any).__mindzj_icons)
+                (window as any).__mindzj_icons = {};
             (window as any).__mindzj_icons[id] = svgContent;
         },
         setIcon: (el: HTMLElement, id: string) => {
@@ -2965,7 +4075,9 @@ function createObsidianShim(pluginId: string) {
                 el.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${icons[id]}</svg>`;
             }
         },
-        setTooltip: (el: HTMLElement, tooltip: string) => { el.title = tooltip; },
+        setTooltip: (el: HTMLElement, tooltip: string) => {
+            el.title = tooltip;
+        },
         // Debounce
         debounce: (fn: Function, delay: number, _immediate?: boolean) => {
             let timer: any;
@@ -2975,7 +4087,14 @@ function createObsidianShim(pluginId: string) {
             };
         },
         // Common classes
-        MarkdownRenderChild: class { containerEl: HTMLElement; constructor(el: HTMLElement) { this.containerEl = el; } load() {} unload() {} },
+        MarkdownRenderChild: class {
+            containerEl: HTMLElement;
+            constructor(el: HTMLElement) {
+                this.containerEl = el;
+            }
+            load() {}
+            unload() {}
+        },
         MarkdownRenderer: {
             renderMarkdown: async (markdown: string, el: HTMLElement) => {
                 el.innerHTML = renderMarkdownCompat(markdown);
@@ -2985,35 +4104,57 @@ function createObsidianShim(pluginId: string) {
             },
         },
         // Workspace-related
-        WorkspaceLeaf: class { view: any; getViewState() { return {}; } setViewState(_s: any) {} },
+        WorkspaceLeaf: class {
+            view: any;
+            getViewState() {
+                return {};
+            }
+            setViewState(_s: any) {}
+        },
         SettingGroup,
         // Additional utilities commonly used by plugins
-        moment: (window as any).moment || ((...args: any[]) => {
-            // Basic moment-like shim for plugins that reference moment
-            const d = args.length ? new Date(args[0]) : new Date();
-            return {
-                format: (fmt: string) => {
-                    // Basic date formatting
-                    const pad = (n: number) => String(n).padStart(2, "0");
-                    return fmt
-                        .replace("YYYY", String(d.getFullYear()))
-                        .replace("MM", pad(d.getMonth() + 1))
-                        .replace("DD", pad(d.getDate()))
-                        .replace("HH", pad(d.getHours()))
-                        .replace("mm", pad(d.getMinutes()))
-                        .replace("ss", pad(d.getSeconds()));
-                },
-                toDate: () => d,
-                valueOf: () => d.getTime(),
-                isValid: () => !isNaN(d.getTime()),
-            };
-        }),
+        moment:
+            (window as any).moment ||
+            ((...args: any[]) => {
+                // Basic moment-like shim for plugins that reference moment
+                const d = args.length ? new Date(args[0]) : new Date();
+                return {
+                    format: (fmt: string) => {
+                        // Basic date formatting
+                        const pad = (n: number) => String(n).padStart(2, "0");
+                        return fmt
+                            .replace("YYYY", String(d.getFullYear()))
+                            .replace("MM", pad(d.getMonth() + 1))
+                            .replace("DD", pad(d.getDate()))
+                            .replace("HH", pad(d.getHours()))
+                            .replace("mm", pad(d.getMinutes()))
+                            .replace("ss", pad(d.getSeconds()));
+                    },
+                    toDate: () => d,
+                    valueOf: () => d.getTime(),
+                    isValid: () => !isNaN(d.getTime()),
+                };
+            }),
         // Events helper
         Events: class {
             _events: Record<string, Function[]> = {};
-            on(name: string, cb: Function) { if (!this._events[name]) this._events[name] = []; this._events[name].push(cb); return this; }
-            off(name: string, cb: Function) { if (this._events[name]) this._events[name] = this._events[name].filter(f => f !== cb); }
-            trigger(name: string, ...args: any[]) { for (const fn of (this._events[name] || [])) try { fn(...args); } catch {} }
+            on(name: string, cb: Function) {
+                if (!this._events[name]) this._events[name] = [];
+                this._events[name].push(cb);
+                return this;
+            }
+            off(name: string, cb: Function) {
+                if (this._events[name])
+                    this._events[name] = this._events[name].filter(
+                        (f) => f !== cb,
+                    );
+            }
+            trigger(name: string, ...args: any[]) {
+                for (const fn of this._events[name] || [])
+                    try {
+                        fn(...args);
+                    } catch {}
+            }
             offref(_ref: any) {}
         },
         ButtonComponent,
@@ -3032,8 +4173,16 @@ function createObsidianShim(pluginId: string) {
                 const buf = await resp.arrayBuffer();
                 const text = new TextDecoder().decode(buf);
                 let json: any;
-                try { json = JSON.parse(text); } catch {}
-                return { status: resp.status, headers: Object.fromEntries(resp.headers.entries()), text, json, arrayBuffer: buf };
+                try {
+                    json = JSON.parse(text);
+                } catch {}
+                return {
+                    status: resp.status,
+                    headers: Object.fromEntries(resp.headers.entries()),
+                    text,
+                    json,
+                    arrayBuffer: buf,
+                };
             } catch (e: any) {
                 throw new Error(`Request failed: ${e.message}`);
             }

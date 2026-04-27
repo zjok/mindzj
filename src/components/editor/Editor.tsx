@@ -88,10 +88,7 @@ import { listStyleExtension } from "./extensions/listStyleExtension";
 // longer wired into the extension list. The module is kept on disk
 // for reference/rollback.
 
-import {
-    LIST_INDENT_UNIT,
-    LIST_RENDER_TAB_SIZE,
-} from "./extensions/listUtils";
+import { LIST_INDENT_UNIT, LIST_RENDER_TAB_SIZE } from "./extensions/listUtils";
 import { linkHandlerExtension } from "./extensions/linkHandler";
 import { sourceHeadingLineExtension } from "./extensions/sourceHeadingLine";
 import {
@@ -120,13 +117,48 @@ interface EditorProps {
 // `textDecoration: "underline"` on `tags.heading`). Keeping bold +
 // colour — just nuking the underline.
 const mzHeadingHighlightStyle = HighlightStyle.define([
-    { tag: t_.heading, textDecoration: "none", fontWeight: "bold", color: "var(--mz-syntax-heading)" },
-    { tag: t_.heading1, textDecoration: "none", fontWeight: "bold", color: "var(--mz-syntax-heading)" },
-    { tag: t_.heading2, textDecoration: "none", fontWeight: "bold", color: "var(--mz-syntax-heading)" },
-    { tag: t_.heading3, textDecoration: "none", fontWeight: "bold", color: "var(--mz-syntax-heading)" },
-    { tag: t_.heading4, textDecoration: "none", fontWeight: "bold", color: "var(--mz-syntax-heading)" },
-    { tag: t_.heading5, textDecoration: "none", fontWeight: "bold", color: "var(--mz-syntax-heading)" },
-    { tag: t_.heading6, textDecoration: "none", fontWeight: "bold", color: "var(--mz-syntax-heading)" },
+    {
+        tag: t_.heading,
+        textDecoration: "none",
+        fontWeight: "bold",
+        color: "var(--mz-syntax-heading)",
+    },
+    {
+        tag: t_.heading1,
+        textDecoration: "none",
+        fontWeight: "bold",
+        color: "var(--mz-syntax-heading)",
+    },
+    {
+        tag: t_.heading2,
+        textDecoration: "none",
+        fontWeight: "bold",
+        color: "var(--mz-syntax-heading)",
+    },
+    {
+        tag: t_.heading3,
+        textDecoration: "none",
+        fontWeight: "bold",
+        color: "var(--mz-syntax-heading)",
+    },
+    {
+        tag: t_.heading4,
+        textDecoration: "none",
+        fontWeight: "bold",
+        color: "var(--mz-syntax-heading)",
+    },
+    {
+        tag: t_.heading5,
+        textDecoration: "none",
+        fontWeight: "bold",
+        color: "var(--mz-syntax-heading)",
+    },
+    {
+        tag: t_.heading6,
+        textDecoration: "none",
+        fontWeight: "bold",
+        color: "var(--mz-syntax-heading)",
+    },
 ]);
 
 /**
@@ -179,7 +211,9 @@ export const Editor: Component<EditorProps> = (props) => {
         y: number;
         items: MenuItem[];
     } | null>(null);
-    const resolvedFile = createMemo(() => props.file ?? vaultStore.activeFile());
+    const resolvedFile = createMemo(
+        () => props.file ?? vaultStore.activeFile(),
+    );
     const isPaneActive = () => props.isActive ?? true;
 
     // CRITICAL: In SolidJS, createEffect runs BEFORE the JSX ref is bound.
@@ -220,13 +254,18 @@ export const Editor: Component<EditorProps> = (props) => {
     }
 
     function posToOffset(view: EditorView, pos: { line: number; ch: number }) {
-        const lineNum = Math.max(1, Math.min(view.state.doc.lines, pos.line + 1));
+        const lineNum = Math.max(
+            1,
+            Math.min(view.state.doc.lines, pos.line + 1),
+        );
         const line = view.state.doc.line(lineNum);
         return Math.min(line.to, line.from + Math.max(0, pos.ch));
     }
 
     function offsetToPos(view: EditorView, offset: number) {
-        const line = view.state.doc.lineAt(Math.max(0, Math.min(view.state.doc.length, offset)));
+        const line = view.state.doc.lineAt(
+            Math.max(0, Math.min(view.state.doc.length, offset)),
+        );
         return { line: line.number - 1, ch: Math.max(0, offset - line.from) };
     }
 
@@ -251,13 +290,14 @@ export const Editor: Component<EditorProps> = (props) => {
         const idx = currentPath
             ? files.findIndex((file) => file.path === currentPath)
             : -1;
-        const newIdx = direction === "prev"
-            ? idx <= 0
-                ? files.length - 1
-                : idx - 1
-            : idx < 0 || idx >= files.length - 1
-                ? 0
-                : idx + 1;
+        const newIdx =
+            direction === "prev"
+                ? idx <= 0
+                    ? files.length - 1
+                    : idx - 1
+                : idx < 0 || idx >= files.length - 1
+                  ? 0
+                  : idx + 1;
         const next = files[newIdx];
         if (!next) return false;
 
@@ -390,18 +430,32 @@ export const Editor: Component<EditorProps> = (props) => {
             somethingSelected: () => !view.state.selection.main.empty,
             getCursor: (which?: "from" | "to") => {
                 const sel = view.state.selection.main;
-                return offsetToPos(view, which === "from" ? sel.from : which === "to" ? sel.to : sel.head);
+                return offsetToPos(
+                    view,
+                    which === "from"
+                        ? sel.from
+                        : which === "to"
+                          ? sel.to
+                          : sel.head,
+                );
             },
             setCursor: (line: number, ch: number) => {
                 const offset = posToOffset(view, { line, ch });
                 view.dispatch({ selection: { anchor: offset } });
                 view.focus();
             },
-            getLine: (line: number) => view.state.doc.line(Math.max(1, Math.min(view.state.doc.lines, line + 1))).text,
+            getLine: (line: number) =>
+                view.state.doc.line(
+                    Math.max(1, Math.min(view.state.doc.lines, line + 1)),
+                ).text,
             lineCount: () => view.state.doc.lines,
             lastLine: () => view.state.doc.lines - 1,
             firstLine: () => 0,
-            replaceRange: (text: string, from: { line: number; ch: number }, to?: { line: number; ch: number }) => {
+            replaceRange: (
+                text: string,
+                from: { line: number; ch: number },
+                to?: { line: number; ch: number },
+            ) => {
                 const fromOffset = posToOffset(view, from);
                 const toOffset = posToOffset(view, to ?? from);
                 view.dispatch({
@@ -409,20 +463,33 @@ export const Editor: Component<EditorProps> = (props) => {
                     selection: { anchor: fromOffset + text.length },
                 });
             },
-            listSelections: () => view.state.selection.ranges.map((range) => ({
-                anchor: offsetToPos(view, range.anchor),
-                head: offsetToPos(view, range.head),
-            })),
-            setSelections: (ranges: Array<{ anchor: { line: number; ch: number }; head: { line: number; ch: number } }>) => {
+            listSelections: () =>
+                view.state.selection.ranges.map((range) => ({
+                    anchor: offsetToPos(view, range.anchor),
+                    head: offsetToPos(view, range.head),
+                })),
+            setSelections: (
+                ranges: Array<{
+                    anchor: { line: number; ch: number };
+                    head: { line: number; ch: number };
+                }>,
+            ) => {
                 if (!ranges.length) return;
                 view.dispatch({
-                    selection: EditorSelection.create(ranges.map((range) => EditorSelection.range(
-                        posToOffset(view, range.anchor),
-                        posToOffset(view, range.head),
-                    ))),
+                    selection: EditorSelection.create(
+                        ranges.map((range) =>
+                            EditorSelection.range(
+                                posToOffset(view, range.anchor),
+                                posToOffset(view, range.head),
+                            ),
+                        ),
+                    ),
                 });
             },
-            setSelection: (from: { line: number; ch: number }, to?: { line: number; ch: number }) => {
+            setSelection: (
+                from: { line: number; ch: number },
+                to?: { line: number; ch: number },
+            ) => {
                 const anchor = posToOffset(view, from);
                 const head = to ? posToOffset(view, to) : anchor;
                 view.dispatch({ selection: { anchor, head } });
@@ -438,18 +505,32 @@ export const Editor: Component<EditorProps> = (props) => {
                 if (command === "undo") return undo(view);
                 if (command === "redo") return redo(view);
                 if (command === "selectAll") {
-                    view.dispatch({ selection: { anchor: 0, head: view.state.doc.length } });
+                    view.dispatch({
+                        selection: { anchor: 0, head: view.state.doc.length },
+                    });
                     return true;
                 }
                 return false;
             },
             getValue: () => view.state.doc.toString(),
             setValue: (value: string) => {
-                view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: value } });
+                view.dispatch({
+                    changes: {
+                        from: 0,
+                        to: view.state.doc.length,
+                        insert: value,
+                    },
+                });
                 return value;
             },
-            getRange: (from: { line: number; ch: number }, to: { line: number; ch: number }) => {
-                return view.state.sliceDoc(posToOffset(view, from), posToOffset(view, to));
+            getRange: (
+                from: { line: number; ch: number },
+                to: { line: number; ch: number },
+            ) => {
+                return view.state.sliceDoc(
+                    posToOffset(view, from),
+                    posToOffset(view, to),
+                );
             },
             getScrollInfo: () => ({
                 top: view.scrollDOM.scrollTop,
@@ -464,7 +545,9 @@ export const Editor: Component<EditorProps> = (props) => {
             scrollIntoView: (pos?: { line: number; ch: number }) => {
                 if (pos) {
                     const offset = posToOffset(view, pos);
-                    view.dispatch({ effects: EditorView.scrollIntoView(offset) });
+                    view.dispatch({
+                        effects: EditorView.scrollIntoView(offset),
+                    });
                 }
             },
         };
@@ -481,21 +564,37 @@ export const Editor: Component<EditorProps> = (props) => {
             editMode: { editor: { cm: view } },
             currentMode: { editor: { cm: view } },
             sourceMode: { cmEditor: { cm: view } },
-            leaf: { width: containerRef.clientWidth || 0, containerEl: containerRef, view: null },
-            file: activePath ? {
-                path: activePath,
-                name: fileName,
-                basename: fileName.replace(/\.[^.]+$/, ""),
-                extension: fileName.includes(".") ? fileName.split(".").pop() ?? "" : "",
-                stat: { mtime: Date.now(), ctime: Date.now(), size: 0 },
-                vault: { getName: () => vaultStore.vaultInfo()?.name ?? "vault" },
-                parent: {
-                    path: activePath.includes("/") ? activePath.split("/").slice(0, -1).join("/") : "",
-                    name: activePath.includes("/") ? activePath.split("/").slice(-2, -1)[0] || "/" : "/",
-                },
-            } : null,
+            leaf: {
+                width: containerRef.clientWidth || 0,
+                containerEl: containerRef,
+                view: null,
+            },
+            file: activePath
+                ? {
+                      path: activePath,
+                      name: fileName,
+                      basename: fileName.replace(/\.[^.]+$/, ""),
+                      extension: fileName.includes(".")
+                          ? (fileName.split(".").pop() ?? "")
+                          : "",
+                      stat: { mtime: Date.now(), ctime: Date.now(), size: 0 },
+                      vault: {
+                          getName: () =>
+                              vaultStore.vaultInfo()?.name ?? "vault",
+                      },
+                      parent: {
+                          path: activePath.includes("/")
+                              ? activePath.split("/").slice(0, -1).join("/")
+                              : "",
+                          name: activePath.includes("/")
+                              ? activePath.split("/").slice(-2, -1)[0] || "/"
+                              : "/",
+                      },
+                  }
+                : null,
             getViewType: () => "markdown",
-            getMode: () => getActiveViewMode() === "source" ? "source" : "preview",
+            getMode: () =>
+                getActiveViewMode() === "source" ? "source" : "preview",
         };
         markdownView.leaf.view = markdownView;
         (window as any).__mindzj_markdown_view = markdownView;
@@ -563,90 +662,97 @@ export const Editor: Component<EditorProps> = (props) => {
             createEditorView(activeFile.content);
             if (editorView) {
                 restoreEditorSelection(editorView, activeFile.path);
-                restoreEditorViewport(editorView, activeFile.path, currentViewMode!, false);
+                restoreEditorViewport(
+                    editorView,
+                    activeFile.path,
+                    currentViewMode!,
+                    false,
+                );
             }
         }
     });
 
     // Watch for active file changes (handles file switching AFTER initial mount)
     createEffect(
-        on(
-            resolvedFile,
-            (activeFile) => {
-                if (!activeFile || !containerRef) return;
-                if (activeFile.path !== currentFilePath) {
-                    // Rename detection: if the editor content matches the
-                    // signal content, only the path changed (file was renamed).
-                    // Update the local path reference without destroying/
-                    // recreating the view — avoids a visual flash.
-                    if (
-                        editorView &&
-                        activeFile.content === editorView.state.doc.toString()
-                    ) {
-                        const mode = getActiveViewMode();
-                        editorStore.setFileScrollPosition(
-                            activeFile.path,
-                            mode,
-                            editorView.scrollDOM.scrollTop,
-                        );
-                        editorStore.setFileTopLine(
-                            activeFile.path,
-                            getTopVisibleLine(editorView),
-                        );
-                        currentFilePath = activeFile.path;
-                        syncPluginEditorBindings(editorView);
-                        return;
-                    }
-
-                    rememberEditorViewport();
-                    // Persist under the OLD `currentFilePath` before we
-                    // reassign it — otherwise the history for the tab we
-                    // just left would get keyed under the incoming tab.
-                    persistCurrentHistory();
+        on(resolvedFile, (activeFile) => {
+            if (!activeFile || !containerRef) return;
+            if (activeFile.path !== currentFilePath) {
+                // Rename detection: if the editor content matches the
+                // signal content, only the path changed (file was renamed).
+                // Update the local path reference without destroying/
+                // recreating the view — avoids a visual flash.
+                if (
+                    editorView &&
+                    activeFile.content === editorView.state.doc.toString()
+                ) {
+                    const mode = getActiveViewMode();
+                    editorStore.setFileScrollPosition(
+                        activeFile.path,
+                        mode,
+                        editorView.scrollDOM.scrollTop,
+                    );
+                    editorStore.setFileTopLine(
+                        activeFile.path,
+                        getTopVisibleLine(editorView),
+                    );
                     currentFilePath = activeFile.path;
-                    currentViewMode = getActiveViewMode();
-                    createEditorView(activeFile.content);
-                    if (editorView) {
-                        restoreEditorSelection(editorView, activeFile.path);
-                        restoreEditorViewport(editorView, activeFile.path, currentViewMode!, true);
-                    }
+                    syncPluginEditorBindings(editorView);
                     return;
                 }
 
-                // Same path, but the signal emitted — check if CONTENT
-                // changed externally (e.g. Replace All in SearchPanel
-                // wrote this file, or a plugin updated it). If so,
-                // apply the change as a CM6 transaction so (a) the
-                // editor visually updates in place, and (b) the change
-                // lands in the undo history — Ctrl+Z reverts it.
-                // Guarded so auto-save echoes (which call
-                // `setActiveFile` with identical content) are no-ops.
-                if (
-                    editorView &&
-                    activeFile.content !== editorView.state.doc.toString()
-                ) {
-                    const beforeContent = editorView.state.doc.toString();
-                    isProgrammaticUpdate = true;
-                    try {
-                        editorView.dispatch({
-                            changes: {
-                                from: 0,
-                                to: editorView.state.doc.length,
-                                insert: activeFile.content,
-                            },
-                            annotations: isolateHistory.of("full"),
-                        });
-                    } finally {
-                        isProgrammaticUpdate = false;
-                    }
-                    editorStore.discardExternalEdit(
+                rememberEditorViewport();
+                // Persist under the OLD `currentFilePath` before we
+                // reassign it — otherwise the history for the tab we
+                // just left would get keyed under the incoming tab.
+                persistCurrentHistory();
+                currentFilePath = activeFile.path;
+                currentViewMode = getActiveViewMode();
+                createEditorView(activeFile.content);
+                if (editorView) {
+                    restoreEditorSelection(editorView, activeFile.path);
+                    restoreEditorViewport(
+                        editorView,
                         activeFile.path,
-                        beforeContent,
-                        activeFile.content,
+                        currentViewMode!,
+                        true,
                     );
                 }
-            },
-        ),
+                return;
+            }
+
+            // Same path, but the signal emitted — check if CONTENT
+            // changed externally (e.g. Replace All in SearchPanel
+            // wrote this file, or a plugin updated it). If so,
+            // apply the change as a CM6 transaction so (a) the
+            // editor visually updates in place, and (b) the change
+            // lands in the undo history — Ctrl+Z reverts it.
+            // Guarded so auto-save echoes (which call
+            // `setActiveFile` with identical content) are no-ops.
+            if (
+                editorView &&
+                activeFile.content !== editorView.state.doc.toString()
+            ) {
+                const beforeContent = editorView.state.doc.toString();
+                isProgrammaticUpdate = true;
+                try {
+                    editorView.dispatch({
+                        changes: {
+                            from: 0,
+                            to: editorView.state.doc.length,
+                            insert: activeFile.content,
+                        },
+                        annotations: isolateHistory.of("full"),
+                    });
+                } finally {
+                    isProgrammaticUpdate = false;
+                }
+                editorStore.discardExternalEdit(
+                    activeFile.path,
+                    beforeContent,
+                    activeFile.content,
+                );
+            }
+        }),
     );
 
     // Watch for view mode changes — rebuild the editor with/without the
@@ -655,43 +761,45 @@ export const Editor: Component<EditorProps> = (props) => {
     // content pinned to the viewport top, and stash it for ReadingView
     // to pick up on mount.
     createEffect(
-        on(
-            getActiveViewMode,
-            (mode) => {
-                if (!containerRef || !currentFilePath) return;
-                if (mode !== currentViewMode) {
-                    rememberEditorViewport();
-                    // Stash undo/redo history so the Ctrl+Z chain
-                    // survives the source ↔ live-preview rebuild that
-                    // follows. `createEditorView` consumes this on the
-                    // next tick.
-                    persistCurrentHistory();
-                    currentViewMode = mode;
-                    const activeFile = resolvedFile();
-                    if (activeFile) {
-                        const currentContent = editorView
-                            ? editorView.state.doc.toString()
-                            : activeFile.content;
-                        // Snapshot the selection + the top-visible line.
-                        const prevSel = editorView?.state.selection.main;
+        on(getActiveViewMode, (mode) => {
+            if (!containerRef || !currentFilePath) return;
+            if (mode !== currentViewMode) {
+                rememberEditorViewport();
+                // Stash undo/redo history so the Ctrl+Z chain
+                // survives the source ↔ live-preview rebuild that
+                // follows. `createEditorView` consumes this on the
+                // next tick.
+                persistCurrentHistory();
+                currentViewMode = mode;
+                const activeFile = resolvedFile();
+                if (activeFile) {
+                    const currentContent = editorView
+                        ? editorView.state.doc.toString()
+                        : activeFile.content;
+                    // Snapshot the selection + the top-visible line.
+                    const prevSel = editorView?.state.selection.main;
 
-                        createEditorView(currentContent);
+                    createEditorView(currentContent);
 
-                        if (editorView && prevSel) {
-                            const len = editorView.state.doc.length;
-                            const anchor = Math.min(prevSel.anchor, len);
-                            const head = Math.min(prevSel.head, len);
-                            editorView.dispatch({
-                                selection: { anchor, head },
-                            });
-                        }
-                        if (editorView) {
-                            restoreEditorViewport(editorView, currentFilePath, mode, false);
-                        }
+                    if (editorView && prevSel) {
+                        const len = editorView.state.doc.length;
+                        const anchor = Math.min(prevSel.anchor, len);
+                        const head = Math.min(prevSel.head, len);
+                        editorView.dispatch({
+                            selection: { anchor, head },
+                        });
+                    }
+                    if (editorView) {
+                        restoreEditorViewport(
+                            editorView,
+                            currentFilePath,
+                            mode,
+                            false,
+                        );
                     }
                 }
-            },
-        ),
+            }
+        }),
     );
 
     // When the editor is destroyed (user switched to Reading mode, or
@@ -820,9 +928,10 @@ export const Editor: Component<EditorProps> = (props) => {
         const pendingExternalEdits = currentFilePath
             ? editorStore.takePendingExternalEdits(currentFilePath, content)
             : [];
-        const contentForState = pendingExternalEdits.length > 0
-            ? pendingExternalEdits[0].before
-            : content;
+        const contentForState =
+            pendingExternalEdits.length > 0
+                ? pendingExternalEdits[0].before
+                : content;
 
         if (editorView) {
             // Snapshot the Ctrl+F panel state into shared signals
@@ -863,7 +972,8 @@ export const Editor: Component<EditorProps> = (props) => {
         // gutter too so the left rail disappears entirely (previously an
         // empty fold gutter column remained).
         const isSourceMode = mode === "source";
-        const showGutter = isSourceMode && settingsStore.settings().editor_line_numbers;
+        const showGutter =
+            isSourceMode && settingsStore.settings().editor_line_numbers;
 
         const extensions = [
             // Force tab-based indentation globally — prevents CM6's
@@ -949,7 +1059,7 @@ export const Editor: Component<EditorProps> = (props) => {
             // atomic, so the cursor can't be placed inside, arrow keys
             // skip them, and clicks can't map to source lines. Instead,
             // livePreview.ts styles the raw source via line decorations
-            // (Obsidian-style) so every character stays cursor-addressable.
+            // () so every character stays cursor-addressable.
             ...(isLivePreview
                 ? livePreviewExtension(vaultRoot, currentFilePath ?? "")
                 : []),
@@ -961,36 +1071,51 @@ export const Editor: Component<EditorProps> = (props) => {
             ...((window as any).__mindzj_plugin_cm_extensions ?? []),
 
             keymap.of([
-                { key: "Mod-Shift-ArrowLeft", run: () => switchTabFromEditor("prev") },
-                { key: "Mod-Shift-ArrowRight", run: () => switchTabFromEditor("next") },
+                {
+                    key: "Mod-Shift-ArrowLeft",
+                    run: () => switchTabFromEditor("prev"),
+                },
+                {
+                    key: "Mod-Shift-ArrowRight",
+                    run: () => switchTabFromEditor("next"),
+                },
                 // PageUp / PageDown intentionally NOT overridden here —
                 // we fall through to `defaultKeymap` which binds them
                 // to `cursorPageUp` / `cursorPageDown`, i.e. scroll
                 // the cursor by one viewport page. This matches VS
-                // Code / Obsidian / the web default behaviour the
+                // Code / the web default behaviour the
                 // user explicitly asked us to preserve.
                 ...(isLivePreview
                     ? [
-                        { key: "Home", run: cursorLineBoundaryBackward },
-                        { key: "End", run: cursorLineBoundaryForward },
-                        { key: "Shift-Home", run: selectLineBoundaryBackward },
-                        { key: "Shift-End", run: selectLineBoundaryForward },
-                        { key: "Mod-Shift-Home", run: selectLineBoundaryBackward },
-                        { key: "Mod-Shift-End", run: selectLineBoundaryForward },
-                        { key: "ArrowUp", run: cursorLineUp },
-                        { key: "ArrowDown", run: cursorLineDown },
-                        { key: "Shift-ArrowUp", run: selectLineUp },
-                        { key: "Shift-ArrowDown", run: selectLineDown },
-                    ]
+                          { key: "Home", run: cursorLineBoundaryBackward },
+                          { key: "End", run: cursorLineBoundaryForward },
+                          {
+                              key: "Shift-Home",
+                              run: selectLineBoundaryBackward,
+                          },
+                          { key: "Shift-End", run: selectLineBoundaryForward },
+                          {
+                              key: "Mod-Shift-Home",
+                              run: selectLineBoundaryBackward,
+                          },
+                          {
+                              key: "Mod-Shift-End",
+                              run: selectLineBoundaryForward,
+                          },
+                          { key: "ArrowUp", run: cursorLineUp },
+                          { key: "ArrowDown", run: cursorLineDown },
+                          { key: "Shift-ArrowUp", run: selectLineUp },
+                          { key: "Shift-ArrowDown", run: selectLineDown },
+                      ]
                     : []),
                 ...defaultKeymap,
                 ...historyKeymap,
-                // Redo: Ctrl+Shift+Z (Obsidian-style, overrides default Ctrl+Y)
+                // Redo: Ctrl+Shift+Z (, overrides default Ctrl+Y)
                 { key: "Mod-Shift-z", run: (v) => redo(v) },
                 ...searchKeymap,
                 ...foldKeymap,
                 ...closeBracketsKeymap,
-                // Formatting shortcuts (Obsidian-compatible)
+                // Formatting shortcuts
                 { key: "Mod-b", run: (v) => wrapSelection(v, "**") },
                 { key: "Mod-i", run: (v) => wrapSelection(v, "*") },
                 { key: "Mod-Shift-s", run: (v) => wrapSelection(v, "~~") },
@@ -1009,7 +1134,7 @@ export const Editor: Component<EditorProps> = (props) => {
                 { key: "Mod-6", run: (v) => setHeading(v, 6) },
                 // Ctrl+0 = remove heading (normal paragraph)
                 { key: "Mod-0", run: (v) => setHeading(v, 0) },
-                // Ctrl+D: delete current line (Obsidian-like)
+                // Ctrl+D: delete current line 
                 { key: "Mod-d", run: (v) => deleteLine(v) },
                 // Ctrl+Shift+K: also delete line (VS Code style)
                 { key: "Mod-Shift-k", run: (v) => deleteLine(v) },
@@ -1025,8 +1150,18 @@ export const Editor: Component<EditorProps> = (props) => {
                 { key: "Alt-ArrowUp", run: (v) => moveLine(v, -1) },
                 { key: "Alt-ArrowDown", run: (v) => moveLine(v, 1) },
                 // Alt+Left/Right: move by word; Alt+Shift extends selection by word.
-                { key: "Alt-ArrowLeft", run: cursorGroupLeft, shift: selectGroupLeft, preventDefault: true },
-                { key: "Alt-ArrowRight", run: cursorGroupRight, shift: selectGroupRight, preventDefault: true },
+                {
+                    key: "Alt-ArrowLeft",
+                    run: cursorGroupLeft,
+                    shift: selectGroupLeft,
+                    preventDefault: true,
+                },
+                {
+                    key: "Alt-ArrowRight",
+                    run: cursorGroupRight,
+                    shift: selectGroupRight,
+                    preventDefault: true,
+                },
                 // Ctrl+Shift+D: duplicate line
                 { key: "Mod-Shift-d", run: (v) => duplicateLine(v) },
                 // Ctrl+/: toggle comment (HTML comment for markdown)
@@ -1152,7 +1287,9 @@ export const Editor: Component<EditorProps> = (props) => {
                     if (event.ctrlKey) {
                         event.preventDefault();
                         const raw = -event.deltaY;
-                        const step = Math.sign(raw) * Math.min(3, Math.max(1, Math.abs(raw) / 50));
+                        const step =
+                            Math.sign(raw) *
+                            Math.min(3, Math.max(1, Math.abs(raw) / 50));
                         editorStore.zoomEditorText(Math.round(step));
                         return true;
                     }
@@ -1160,11 +1297,16 @@ export const Editor: Component<EditorProps> = (props) => {
                 },
                 contextmenu(event, view) {
                     activatePane();
-                    const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
+                    const pos = view.posAtCoords({
+                        x: event.clientX,
+                        y: event.clientY,
+                    });
                     const selection = view.state.selection.main;
                     if (
                         pos !== null &&
-                        (selection.empty || pos < selection.from || pos > selection.to)
+                        (selection.empty ||
+                            pos < selection.from ||
+                            pos > selection.to)
                     ) {
                         view.dispatch({ selection: { anchor: pos } });
                     }
@@ -1198,21 +1340,31 @@ export const Editor: Component<EditorProps> = (props) => {
                             if (!blob) return true;
 
                             // Determine file extension from MIME type
-                            const ext = item.type.split("/")[1]?.replace("jpeg", "jpg") || "png";
+                            const ext =
+                                item.type
+                                    .split("/")[1]
+                                    ?.replace("jpeg", "jpg") || "png";
                             const now = new Date();
                             const ts = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}${String(now.getSeconds()).padStart(2, "0")}`;
                             const fileName = `Pasted image ${ts}.${ext}`;
                             const currentNotePath = currentFilePath ?? "";
                             const configuredFolder = normalizeVaultRelativePath(
-                                settingsStore.settings().attachment_folder || DEFAULT_ATTACHMENT_FOLDER,
+                                settingsStore.settings().attachment_folder ||
+                                    DEFAULT_ATTACHMENT_FOLDER,
                             );
                             const isNoteRelativeFolder =
                                 configuredFolder.startsWith("./") ||
                                 configuredFolder.startsWith("../");
                             const storageDir = isNoteRelativeFolder
-                                ? joinVaultPath(getParentPath(currentNotePath), configuredFolder)
+                                ? joinVaultPath(
+                                      getParentPath(currentNotePath),
+                                      configuredFolder,
+                                  )
                                 : configuredFolder;
-                            const filePath = joinVaultPath(storageDir, fileName);
+                            const filePath = joinVaultPath(
+                                storageDir,
+                                fileName,
+                            );
                             const markdownImagePath = isNoteRelativeFolder
                                 ? joinVaultPath(configuredFolder, fileName)
                                 : `/${filePath}`;
@@ -1235,8 +1387,13 @@ export const Editor: Component<EditorProps> = (props) => {
                                     const pos = view.state.selection.main.head;
                                     const imageRef = `![](${markdownImagePath})`;
                                     view.dispatch({
-                                        changes: { from: pos, insert: imageRef },
-                                        selection: { anchor: pos + imageRef.length },
+                                        changes: {
+                                            from: pos,
+                                            insert: imageRef,
+                                        },
+                                        selection: {
+                                            anchor: pos + imageRef.length,
+                                        },
                                     });
 
                                     // Windows clipboard often carries a CF_HTML
@@ -1262,18 +1419,22 @@ export const Editor: Component<EditorProps> = (props) => {
                                             afterState.doc.length - afterPos,
                                         );
                                         if (tailLen > 0) {
-                                            const tail = afterState.doc.sliceString(
-                                                afterPos,
-                                                afterPos + tailLen,
-                                            );
-                                            const brMatch = tail.match(
-                                                /^\s*<br\s*\/?\s*>/i,
-                                            );
+                                            const tail =
+                                                afterState.doc.sliceString(
+                                                    afterPos,
+                                                    afterPos + tailLen,
+                                                );
+                                            const brMatch =
+                                                tail.match(
+                                                    /^\s*<br\s*\/?\s*>/i,
+                                                );
                                             if (brMatch) {
                                                 view.dispatch({
                                                     changes: {
                                                         from: afterPos,
-                                                        to: afterPos + brMatch[0].length,
+                                                        to:
+                                                            afterPos +
+                                                            brMatch[0].length,
                                                         insert: "",
                                                     },
                                                 });
@@ -1281,7 +1442,10 @@ export const Editor: Component<EditorProps> = (props) => {
                                         }
                                     }
                                 } catch (e) {
-                                    console.error("[Editor] Failed to save pasted image:", e);
+                                    console.error(
+                                        "[Editor] Failed to save pasted image:",
+                                        e,
+                                    );
                                 }
                             };
                             reader.readAsDataURL(blob);
@@ -1378,7 +1542,10 @@ export const Editor: Component<EditorProps> = (props) => {
                     err,
                 );
                 editorStore.clearFileHistoryState(currentFilePath!);
-                state = EditorState.create({ doc: contentForState, extensions });
+                state = EditorState.create({
+                    doc: contentForState,
+                    extensions,
+                });
             }
         } else {
             if (historyJson && currentFilePath) {
@@ -1471,15 +1638,21 @@ export const Editor: Component<EditorProps> = (props) => {
         // Notify plugins that the editor/file changed so toolbars,
         // context menus, and other UI can mount or update.
         requestAnimationFrame(() => {
-            document.dispatchEvent(new CustomEvent("mindzj:workspace-trigger", {
-                detail: { event: "active-leaf-change" },
-            }));
-            document.dispatchEvent(new CustomEvent("mindzj:workspace-trigger", {
-                detail: { event: "layout-change" },
-            }));
-            document.dispatchEvent(new CustomEvent("mindzj:workspace-trigger", {
-                detail: { event: "file-open" },
-            }));
+            document.dispatchEvent(
+                new CustomEvent("mindzj:workspace-trigger", {
+                    detail: { event: "active-leaf-change" },
+                }),
+            );
+            document.dispatchEvent(
+                new CustomEvent("mindzj:workspace-trigger", {
+                    detail: { event: "layout-change" },
+                }),
+            );
+            document.dispatchEvent(
+                new CustomEvent("mindzj:workspace-trigger", {
+                    detail: { event: "file-open" },
+                }),
+            );
         });
 
         // Continuously track the top-visible line as the user scrolls
@@ -1574,163 +1747,238 @@ export const Editor: Component<EditorProps> = (props) => {
         return [
             {
                 label: t("toolbar.undo"),
-                action: () => { undo(view); },
+                action: () => {
+                    undo(view);
+                },
             },
             {
                 label: t("toolbar.redo"),
-                action: () => { redo(view); },
+                action: () => {
+                    redo(view);
+                },
             },
             {
                 label: t("context.cut"),
-                action: () => { void cutSelection(view); },
+                action: () => {
+                    void cutSelection(view);
+                },
                 separator: true,
             },
             {
                 label: t("common.copy"),
-                action: () => { void copySelection(view); },
+                action: () => {
+                    void copySelection(view);
+                },
             },
             {
                 label: t("context.paste"),
-                action: () => { void pasteFromClipboard(view); },
+                action: () => {
+                    void pasteFromClipboard(view);
+                },
             },
             {
                 label: t("context.pastePlainText"),
-                action: () => { void pastePlainTextFromClipboard(view); },
+                action: () => {
+                    void pastePlainTextFromClipboard(view);
+                },
             },
             {
                 label: t("context.deleteSelection"),
-                action: () => { deleteSelectionOrForward(view); },
+                action: () => {
+                    deleteSelectionOrForward(view);
+                },
             },
             {
                 label: t("context.selectAll"),
-                action: () => { selectAllContent(view); },
+                action: () => {
+                    selectAllContent(view);
+                },
                 separator: true,
             },
             {
                 label: t("toolbar.bold"),
-                action: () => { wrapSelection(view, "**"); },
+                action: () => {
+                    wrapSelection(view, "**");
+                },
             },
             {
                 label: t("toolbar.italic"),
-                action: () => { wrapSelection(view, "*"); },
+                action: () => {
+                    wrapSelection(view, "*");
+                },
             },
             {
                 label: t("toolbar.strikethrough"),
-                action: () => { wrapSelection(view, "~~"); },
+                action: () => {
+                    wrapSelection(view, "~~");
+                },
             },
             {
                 label: t("toolbar.underline"),
-                action: () => { wrapSelection(view, "<u>", "</u>"); },
+                action: () => {
+                    wrapSelection(view, "<u>", "</u>");
+                },
             },
             {
                 label: t("toolbar.highlight"),
-                action: () => { wrapSelection(view, "=="); },
+                action: () => {
+                    wrapSelection(view, "==");
+                },
             },
             {
                 label: t("toolbar.code"),
-                action: () => { wrapSelection(view, "`"); },
+                action: () => {
+                    wrapSelection(view, "`");
+                },
             },
             {
                 label: t("toolbar.link"),
-                action: () => { insertLink(view); },
+                action: () => {
+                    insertLink(view);
+                },
                 separator: true,
             },
             {
                 label: t("toolbar.paragraph"),
-                action: () => { setHeading(view, 0); },
+                action: () => {
+                    setHeading(view, 0);
+                },
             },
             {
                 label: t("toolbar.heading", { level: "1" }),
-                action: () => { setHeading(view, 1); },
+                action: () => {
+                    setHeading(view, 1);
+                },
             },
             {
                 label: t("toolbar.heading", { level: "2" }),
-                action: () => { setHeading(view, 2); },
+                action: () => {
+                    setHeading(view, 2);
+                },
             },
             {
                 label: t("toolbar.heading", { level: "3" }),
-                action: () => { setHeading(view, 3); },
+                action: () => {
+                    setHeading(view, 3);
+                },
                 separator: true,
             },
             {
                 label: t("toolbar.codeBlock"),
-                action: () => { dispatchEditorCommand({ command: "codeblock" }); },
+                action: () => {
+                    dispatchEditorCommand({ command: "codeblock" });
+                },
             },
             {
                 label: t("toolbar.table"),
-                action: () => { dispatchEditorCommand({ command: "table" }); },
+                action: () => {
+                    dispatchEditorCommand({ command: "table" });
+                },
             },
             {
                 label: t("toolbar.separator"),
-                action: () => { dispatchEditorCommand({ command: "horizontal-rule" }); },
+                action: () => {
+                    dispatchEditorCommand({ command: "horizontal-rule" });
+                },
             },
             {
                 label: t("context.todo"),
-                action: () => { dispatchEditorCommand({ command: "task-list" }); },
+                action: () => {
+                    dispatchEditorCommand({ command: "task-list" });
+                },
                 separator: true,
             },
             {
                 label: t("toolbar.bulletList"),
-                action: () => { dispatchEditorCommand({ command: "bullet-list" }); },
+                action: () => {
+                    dispatchEditorCommand({ command: "bullet-list" });
+                },
             },
             {
                 label: t("toolbar.numberedList"),
-                action: () => { dispatchEditorCommand({ command: "numbered-list" }); },
+                action: () => {
+                    dispatchEditorCommand({ command: "numbered-list" });
+                },
             },
             {
                 label: t("toolbar.quote"),
-                action: () => { dispatchEditorCommand({ command: "quote" }); },
+                action: () => {
+                    dispatchEditorCommand({ command: "quote" });
+                },
                 separator: true,
             },
             {
                 label: t("hotkeys.deleteLine"),
-                action: () => { dispatchEditorCommand({ command: "delete-line" }); },
+                action: () => {
+                    dispatchEditorCommand({ command: "delete-line" });
+                },
             },
             {
                 label: t("hotkeys.duplicateLine"),
-                action: () => { dispatchEditorCommand({ command: "duplicate-line" }); },
+                action: () => {
+                    dispatchEditorCommand({ command: "duplicate-line" });
+                },
             },
             {
                 label: t("hotkeys.moveLineUp"),
-                action: () => { dispatchEditorCommand({ command: "move-line-up" }); },
+                action: () => {
+                    dispatchEditorCommand({ command: "move-line-up" });
+                },
             },
             {
                 label: t("hotkeys.moveLineDown"),
-                action: () => { dispatchEditorCommand({ command: "move-line-down" }); },
+                action: () => {
+                    dispatchEditorCommand({ command: "move-line-down" });
+                },
             },
             {
                 label: t("hotkeys.indentMore"),
-                action: () => { dispatchEditorCommand({ command: "indent" }); },
+                action: () => {
+                    dispatchEditorCommand({ command: "indent" });
+                },
             },
             {
                 label: t("hotkeys.indentLess"),
-                action: () => { dispatchEditorCommand({ command: "outdent" }); },
+                action: () => {
+                    dispatchEditorCommand({ command: "outdent" });
+                },
             },
             {
                 label: t("hotkeys.toggleComment"),
-                action: () => { dispatchEditorCommand({ command: "toggle-comment" }); },
+                action: () => {
+                    dispatchEditorCommand({ command: "toggle-comment" });
+                },
             },
             {
                 label: t("hotkeys.toggleBlockquote"),
-                action: () => { dispatchEditorCommand({ command: "toggle-blockquote" }); },
+                action: () => {
+                    dispatchEditorCommand({ command: "toggle-blockquote" });
+                },
             },
             {
                 label: t("context.clearFormatting"),
-                action: () => { dispatchEditorCommand({ command: "clear-formatting" }); },
+                action: () => {
+                    dispatchEditorCommand({ command: "clear-formatting" });
+                },
                 separator: true,
             },
             {
                 label: t("commandPalette.aiControl"),
                 action: () => {
                     activatePane();
-                    document.dispatchEvent(new CustomEvent("mindzj:toggle-ai-panel"));
+                    document.dispatchEvent(
+                        new CustomEvent("mindzj:toggle-ai-panel"),
+                    );
                 },
             },
             {
                 label: t("context.editMode"),
                 action: () => {
                     activatePane();
-                    editorStore.setViewMode("live-preview", currentFilePath ?? undefined);
+                    editorStore.setViewMode(
+                        "live-preview",
+                        currentFilePath ?? undefined,
+                    );
                 },
                 separator: true,
             },
@@ -1738,14 +1986,20 @@ export const Editor: Component<EditorProps> = (props) => {
                 label: t("context.sourceMode"),
                 action: () => {
                     activatePane();
-                    editorStore.setViewMode("source", currentFilePath ?? undefined);
+                    editorStore.setViewMode(
+                        "source",
+                        currentFilePath ?? undefined,
+                    );
                 },
             },
             {
                 label: t("context.readingView"),
                 action: () => {
                     activatePane();
-                    editorStore.setViewMode("reading", currentFilePath ?? undefined);
+                    editorStore.setViewMode(
+                        "reading",
+                        currentFilePath ?? undefined,
+                    );
                 },
             },
         ];
@@ -1799,12 +2053,17 @@ export const Editor: Component<EditorProps> = (props) => {
         const existingMatch = line.text.match(/^#{1,6}\s*/);
         const removeLen = existingMatch ? existingMatch[0].length : 0;
         const prefix = level > 0 ? "#".repeat(level) + " " : "";
-        const contentOffset = line.text.trim().length === 0
-            ? 0
-            : Math.max(0, pos - line.from - removeLen);
+        const contentOffset =
+            line.text.trim().length === 0
+                ? 0
+                : Math.max(0, pos - line.from - removeLen);
         const nextCursor = line.from + prefix.length + contentOffset;
         view.dispatch({
-            changes: { from: line.from, to: line.from + removeLen, insert: prefix },
+            changes: {
+                from: line.from,
+                to: line.from + removeLen,
+                insert: prefix,
+            },
             selection: { anchor: nextCursor },
         });
         return true;
@@ -1815,8 +2074,23 @@ export const Editor: Component<EditorProps> = (props) => {
         const pos = view.state.selection.main.head;
         const line = view.state.doc.lineAt(pos);
         const from = line.from;
-        const to = line.number < view.state.doc.lines ? line.to + 1 : (line.from > 0 ? line.from - 1 : line.to);
-        view.dispatch({ changes: { from: Math.max(0, from > 0 && line.number === view.state.doc.lines ? from - 1 : from), to } });
+        const to =
+            line.number < view.state.doc.lines
+                ? line.to + 1
+                : line.from > 0
+                  ? line.from - 1
+                  : line.to;
+        view.dispatch({
+            changes: {
+                from: Math.max(
+                    0,
+                    from > 0 && line.number === view.state.doc.lines
+                        ? from - 1
+                        : from,
+                ),
+                to,
+            },
+        });
         return true;
     }
 
@@ -1829,7 +2103,12 @@ export const Editor: Component<EditorProps> = (props) => {
         } else {
             const match = line.text.match(/^(\t| {1,4})/);
             if (match) {
-                view.dispatch({ changes: { from: line.from, to: line.from + match[0].length } });
+                view.dispatch({
+                    changes: {
+                        from: line.from,
+                        to: line.from + match[0].length,
+                    },
+                });
             }
         }
         return true;
@@ -1862,14 +2141,19 @@ export const Editor: Component<EditorProps> = (props) => {
         const pos = view.state.selection.main.head;
         const line = view.state.doc.lineAt(pos);
         if (direction === -1 && line.number === 1) return true;
-        if (direction === 1 && line.number === view.state.doc.lines) return true;
+        if (direction === 1 && line.number === view.state.doc.lines)
+            return true;
 
         const targetLine = view.state.doc.line(line.number + direction);
         if (direction === -1) {
             // Swap with line above
             view.dispatch({
                 changes: [
-                    { from: targetLine.from, to: line.to, insert: line.text + "\n" + targetLine.text },
+                    {
+                        from: targetLine.from,
+                        to: line.to,
+                        insert: line.text + "\n" + targetLine.text,
+                    },
                 ],
                 selection: { anchor: targetLine.from + (pos - line.from) },
             });
@@ -1877,9 +2161,19 @@ export const Editor: Component<EditorProps> = (props) => {
             // Swap with line below
             view.dispatch({
                 changes: [
-                    { from: line.from, to: targetLine.to, insert: targetLine.text + "\n" + line.text },
+                    {
+                        from: line.from,
+                        to: targetLine.to,
+                        insert: targetLine.text + "\n" + line.text,
+                    },
                 ],
-                selection: { anchor: line.from + targetLine.text.length + 1 + (pos - line.from) },
+                selection: {
+                    anchor:
+                        line.from +
+                        targetLine.text.length +
+                        1 +
+                        (pos - line.from),
+                },
             });
         }
         return true;
@@ -1904,10 +2198,18 @@ export const Editor: Component<EditorProps> = (props) => {
         if (trimmed.startsWith("<!--") && trimmed.endsWith("-->")) {
             // Unwrap comment
             const inner = trimmed.slice(4, -3).trim();
-            view.dispatch({ changes: { from: line.from, to: line.to, insert: inner } });
+            view.dispatch({
+                changes: { from: line.from, to: line.to, insert: inner },
+            });
         } else {
             // Wrap in comment
-            view.dispatch({ changes: { from: line.from, to: line.to, insert: `<!-- ${line.text} -->` } });
+            view.dispatch({
+                changes: {
+                    from: line.from,
+                    to: line.to,
+                    insert: `<!-- ${line.text} -->`,
+                },
+            });
         }
         return true;
     }
@@ -1939,10 +2241,12 @@ export const Editor: Component<EditorProps> = (props) => {
         const handleToggleViewModeWithSave = async (event: Event) => {
             if (!isPaneActive()) return;
             if (!editorView || !currentFilePath) return;
-            const detail = (event as CustomEvent<{
-                path?: string | null;
-                release?: () => void;
-            }>).detail;
+            const detail = (
+                event as CustomEvent<{
+                    path?: string | null;
+                    release?: () => void;
+                }>
+            ).detail;
             if (detail?.path && detail.path !== currentFilePath) return;
 
             event.preventDefault();
@@ -2011,7 +2315,10 @@ export const Editor: Component<EditorProps> = (props) => {
                 "mindzj:editor-command",
                 handleEditorCommand,
             );
-            document.removeEventListener("mindzj:insert-text", handleInsertText);
+            document.removeEventListener(
+                "mindzj:insert-text",
+                handleInsertText,
+            );
             // Persist undo/redo history BEFORE destroying the view so
             // the next Editor remount (e.g. after exiting reading mode)
             // can restore the chain. This is the Ctrl+E toggle path —
@@ -2132,11 +2439,20 @@ export const Editor: Component<EditorProps> = (props) => {
                 const line = view.state.doc.lineAt(pos);
                 const text = line.text;
                 let replacement = text;
-                if (text.startsWith("- [ ] ")) replacement = `- [x] ${text.slice(6)}`;
-                else if (text.startsWith("- [x] ")) replacement = `- ${text.slice(6)}`;
-                else if (text.startsWith("- ")) replacement = `- [ ] ${text.slice(2)}`;
+                if (text.startsWith("- [ ] "))
+                    replacement = `- [x] ${text.slice(6)}`;
+                else if (text.startsWith("- [x] "))
+                    replacement = `- ${text.slice(6)}`;
+                else if (text.startsWith("- "))
+                    replacement = `- [ ] ${text.slice(2)}`;
                 else replacement = `- [ ] ${text}`;
-                view.dispatch({ changes: { from: line.from, to: line.to, insert: replacement } });
+                view.dispatch({
+                    changes: {
+                        from: line.from,
+                        to: line.to,
+                        insert: replacement,
+                    },
+                });
                 break;
             }
             case "toggle-comment":
@@ -2170,7 +2486,11 @@ export const Editor: Component<EditorProps> = (props) => {
                 const sel = view.state.selection.main;
                 const text = view.state.sliceDoc(sel.from, sel.to) || "Callout";
                 view.dispatch({
-                    changes: { from: sel.from, to: sel.to, insert: `> [!note]\n> ${text}` },
+                    changes: {
+                        from: sel.from,
+                        to: sel.to,
+                        insert: `> [!note]\n> ${text}`,
+                    },
                     selection: { anchor: sel.from + 11 + text.length },
                 });
                 break;
@@ -2179,8 +2499,15 @@ export const Editor: Component<EditorProps> = (props) => {
                 const sel = view.state.selection.main;
                 const text = view.state.sliceDoc(sel.from, sel.to) || "x = y";
                 view.dispatch({
-                    changes: { from: sel.from, to: sel.to, insert: `$$\n${text}\n$$` },
-                    selection: { anchor: sel.from + 3, head: sel.from + 3 + text.length },
+                    changes: {
+                        from: sel.from,
+                        to: sel.to,
+                        insert: `$$\n${text}\n$$`,
+                    },
+                    selection: {
+                        anchor: sel.from + 3,
+                        head: sel.from + 3 + text.length,
+                    },
                 });
                 break;
             }
@@ -2202,7 +2529,10 @@ export const Editor: Component<EditorProps> = (props) => {
                     .replace(/<u>(.*?)<\/u>/g, "$1");
                 view.dispatch({
                     changes: { from: sel.from, to: sel.to, insert: cleared },
-                    selection: { anchor: sel.from, head: sel.from + cleared.length },
+                    selection: {
+                        anchor: sel.from,
+                        head: sel.from + cleared.length,
+                    },
                 });
                 break;
             }
@@ -2243,7 +2573,10 @@ export const Editor: Component<EditorProps> = (props) => {
                 view.dispatch({
                     selection: { anchor: lineInfo.from },
                     effects: [
-                        EditorView.scrollIntoView(lineInfo.from, { y: "start", yMargin: 0 }),
+                        EditorView.scrollIntoView(lineInfo.from, {
+                            y: "start",
+                            yMargin: 0,
+                        }),
                         addLineFlash.of(lineInfo.from),
                     ],
                 });
@@ -2286,9 +2619,8 @@ export const Editor: Component<EditorProps> = (props) => {
                 // fresh case-insensitive `indexOf` on the line in JS
                 // space gives us a correct match for any encoding.
                 const line0 = typeof detail.line === "number" ? detail.line : 0;
-                const query: string = typeof detail.query === "string"
-                    ? detail.query
-                    : "";
+                const query: string =
+                    typeof detail.query === "string" ? detail.query : "";
                 const lineNum = Math.max(
                     1,
                     Math.min(line0 + 1, view.state.doc.lines),
@@ -2368,8 +2700,7 @@ export const Editor: Component<EditorProps> = (props) => {
                 overflow: "hidden",
                 background: "var(--mz-bg-primary)",
                 position: "relative",
-            }}
-        >
+            }}>
             <div
                 ref={containerRef}
                 style={{
