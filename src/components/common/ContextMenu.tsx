@@ -2,7 +2,9 @@ import {
   Component,
   For,
   Show,
+  createEffect,
   createSignal,
+  on,
   onCleanup,
   onMount,
 } from "solid-js";
@@ -25,6 +27,22 @@ interface ContextMenuProps {
 
 export const ContextMenu: Component<ContextMenuProps> = (props) => {
   let menuRef: HTMLDivElement | undefined;
+  const [menuSize, setMenuSize] = createSignal({ width: 180, height: 0 });
+
+  createEffect(
+    on(
+      () => [props.x, props.y, props.items] as const,
+      () => {
+        const frame = requestAnimationFrame(() => {
+          if (!menuRef) return;
+          const rect = menuRef.getBoundingClientRect();
+          setMenuSize({ width: rect.width, height: rect.height });
+        });
+
+        onCleanup(() => cancelAnimationFrame(frame));
+      }
+    )
+  );
 
   onMount(() => {
     const handleClick = (event: MouseEvent) => {
@@ -57,14 +75,16 @@ export const ContextMenu: Component<ContextMenuProps> = (props) => {
   });
 
   const adjustedX = () => {
-    const menuWidth = 180;
+    const menuWidth = menuSize().width || 180;
     return props.x + menuWidth > window.innerWidth
-      ? window.innerWidth - menuWidth - 8
+      ? Math.max(8, window.innerWidth - menuWidth - 8)
       : props.x;
   };
 
   const adjustedY = () => {
-    const menuHeight = Math.min(window.innerHeight - 16, props.items.length * 32 + 8);
+    const menuHeight =
+      menuSize().height ||
+      Math.min(window.innerHeight - 16, props.items.length * 32 + 8);
     return props.y + menuHeight > window.innerHeight
       ? Math.max(8, window.innerHeight - menuHeight - 8)
       : props.y;
