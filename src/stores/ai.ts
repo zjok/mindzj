@@ -23,6 +23,7 @@ type ChatRole = "system" | "user" | "assistant" | "tool";
 interface ChatMessage {
   role: ChatRole;
   content?: string | null;
+  reasoning_content?: string | null;
   tool_calls?: ToolCall[];
   tool_call_id?: string;
 }
@@ -239,6 +240,14 @@ function modelDisplayName(config: AiProviderConfig): string {
   return builtInModelOptions(config.provider_type).find((option) => option.value === model)?.label ?? model;
 }
 
+function configuredModelIdentity(config: AiProviderConfig | null | undefined): string {
+  if (!config) return "the configured AI model";
+  const provider = providerDisplayName(config);
+  const model = modelDisplayName(config);
+  if (!model || model === provider) return provider;
+  return model.toLowerCase().includes(provider.toLowerCase()) ? model : `${provider} ${model}`;
+}
+
 export function aiProviderModelLabel(config: AiProviderConfig | null | undefined): string {
   if (!config) return "Ollama";
   const provider = providerDisplayName(config);
@@ -309,6 +318,13 @@ function defaultApiKeyEndpoint(config: AiProviderConfig): string {
   }
   if (modelHint(config).includes("deepseek")) return "https://api.deepseek.com";
   return "https://api.openai.com/v1";
+}
+
+function isDeepSeekConfig(config: AiProviderConfig): boolean {
+  const providerType = normalizeProviderType(config.provider_type);
+  if (providerType === "DeepSeek") return true;
+  return providerBaseUrl(config).toLowerCase().includes("deepseek.com")
+    || modelHint(config).includes("deepseek");
 }
 
 function providerNeedsRealKey(provider: AiProviderType): boolean {
@@ -1395,14 +1411,24 @@ function configuredPromptAndSkills(config: AiProviderConfig): { prompt: string; 
   return { prompt, skills };
 }
 
+function builtInToolCatalogForPrompt(): string {
+  return TOOLS.map((tool) => `- ${tool.function.name}: ${tool.function.description}`).join("\n");
+}
+
 function buildSystemPrompt(context?: ToolExecutionContext, config?: AiProviderConfig) {
   const active = vaultStore.activeFile()?.path ?? "(none)";
   const commands = listPluginCommands().map((command) => command.id).slice(0, 80);
   const modelConfig = config ? configuredPromptAndSkills(config) : { prompt: "", skills: [] };
+  const modelIdentity = configuredModelIdentity(config);
   const lines = [
+    "MindZJ operation base prompt:",
+    `Configured AI model identity: ${modelIdentity}.`,
     "You are MindZJ's local automation agent.",
+    `If the user asks what model you are, answer that you are based on ${modelIdentity} and work inside MindZJ as a local automation agent.`,
+    "Do not describe MindZJ by comparing it with other note apps.",
     "Use tools to inspect and modify the user's current vault. Do not invent file contents or paths.",
-    "The bottom AI command panel is for executing note actions, not casual chat.",
+    "The AI command panel is primarily for executing note actions; answer simple identity or status questions directly.",
+    "MindZJ capabilities available through tools: Markdown notes, .mindzj mind maps, file and folder management, vault search, backlinks, forward links, graph data, active note and view mode inspection, settings updates, file-tree refresh, and plugin commands.",
     ".mindzj files are MindZJ mind maps. Use read_mindmap, create_mindmap_from_markdown, create_mindmap, add_mindmap_node, update_mindmap_node, and delete_mindmap_node for them instead of hand-writing raw JSON.",
     "To turn Markdown into a mind map, call create_mindmap_from_markdown. If the user omits a target path, write beside the source with the .mindzj extension.",
     "For mind map node edits, call read_mindmap first when you need node ids, then edit by node_id or text_path.",
@@ -1413,15 +1439,20 @@ function buildSystemPrompt(context?: ToolExecutionContext, config?: AiProviderCo
     "If a tool fails, report the exact failure in one short sentence. Do not produce long summaries or solution lists.",
     "When you finish, summarize what you changed in one concise sentence.",
     `Active note: ${active}`,
+    "Available built-in tools:",
+    builtInToolCatalogForPrompt(),
     `Available plugin command ids: ${commands.join(", ") || "(none)"}`,
     "If tool calling is unavailable, respond with JSON like {\"tool\":\"read_note\",\"arguments\":{\"path\":\"note.md\"}}, {\"tool\":\"read_mindmap\",\"arguments\":{\"path\":\"map.mindzj\"}}, or {\"actions\":[...]} only.",
   ];
+  if (modelConfig.prompt || modelConfig.skills.length > 0) {
+    lines.push("", "User supplements for this configured model:");
+  }
   if (modelConfig.prompt) {
-    lines.push("User-configured prompt for this model:", modelConfig.prompt);
+    lines.push("Current model prompt:", modelConfig.prompt);
   }
   for (const skill of modelConfig.skills) {
     lines.push(
-      `Skill: ${skill.name}`,
+      `Selected skill: ${skill.name}`,
       skill.description ? `Skill description: ${skill.description}` : "",
       skill.content.trim(),
     );
@@ -1600,6 +1631,18 @@ async function chatCompletionOpenAiCompatible(
       ...(includeTools ? { tools: TOOLS, tool_choice: "auto" } : {}),
     },
   );
+}
+
+function normalizeAssistantMessageForHistory(message: any, config: AiProviderConfig): ChatMessage {
+  const result: ChatMessage = {
+    role: "assistant",
+    content: message.content ?? null,
+    tool_calls: message.tool_calls,
+  };
+  if (isDeepSeekConfig(config) && typeof message.reasoning_content === "string") {
+    result.reasoning_content = message.reasoning_content;
+  }
+  return result;
 }
 
 function anthropicToolDefinitions() {
@@ -1957,11 +2000,7 @@ function createAiStore() {
       const message = choice?.message;
       const finishReason = String(choice?.finish_reason ?? "");
       if (!message) throw new Error("AI provider returned an empty response.");
-      messages.push({
-        role: "assistant",
-        content: message.content ?? null,
-        tool_calls: message.tool_calls,
-      });
+      messages.push(normalizeAssistantMessageForHistory(message, config));
 
       const toolCalls = Array.isArray(message.tool_calls) ? message.tool_calls as ToolCall[] : [];
       if (toolCalls.length > 0) {
