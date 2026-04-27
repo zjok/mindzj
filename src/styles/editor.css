@@ -1030,7 +1030,7 @@ html[data-theme-mode="light"] .mz-setting-number-input::-webkit-outer-spin-butto
     background: var(--mz-accent-subtle);
     border: 1px solid color-mix(in srgb, var(--mz-accent) 36%, transparent);
     border-radius: 4px;
-    padding: 0 3px;
+    padding: 0 3px 3px 3px;
 }
 
 html[data-theme-mode="dark"] .cm-editor .mz-lp-task-marker {
@@ -1117,7 +1117,7 @@ html[data-theme-mode="light"] .cm-editor .mz-lp-task-marker {
     width: 15px;
     height: 15px;
     cursor: pointer;
-    margin: 0 7px 0 0;
+    margin: 0 7px 4.3px 0;
     vertical-align: middle;
     border: 1px solid var(--mz-border-strong);
     border-radius: 4px;
@@ -1132,24 +1132,34 @@ html[data-theme-mode="light"] .cm-editor .mz-lp-task-marker {
 
 .mz-lp-checkbox:checked::after {
     content: "";
+    display: block;
     position: absolute;
-    left: 4px;
+    left: 4.2px;
     top: 1px;
-    width: 4px;
-    height: 8px;
+    width: 5px;
+    height: 9.6px;
     border: solid var(--mz-text-on-accent);
-    border-width: 0 2px 2px 0;
+    border-width: 0 2.5px 2.5px 0;
     transform: rotate(45deg);
+    
 }
 
-html[data-theme-mode="dark"] .mz-lp-checkbox {
+html[data-theme-mode="dark"] .mz-lp-checkbox:not(:checked) {
     background: color-mix(in srgb, var(--mz-bg-secondary) 82%, #000);
     border-color: color-mix(in srgb, var(--mz-border-strong) 70%, var(--mz-text-muted));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--mz-bg-primary) 58%, transparent);
 }
 
-html[data-theme-mode="light"] .mz-lp-checkbox {
+html[data-theme-mode="light"] .mz-lp-checkbox:not(:checked) {
     background: var(--mz-bg-primary);
     border-color: color-mix(in srgb, var(--mz-border-strong) 76%, var(--mz-text-secondary));
+}
+
+html[data-theme-mode="dark"] .mz-lp-checkbox:checked,
+html[data-theme-mode="light"] .mz-lp-checkbox:checked {
+    background: var(--mz-accent);
+    border-color: var(--mz-accent);
+    box-shadow: none;
 }
 
 /* Inline math */
@@ -1409,6 +1419,9 @@ html[data-theme-mode="light"] .mz-lp-checkbox {
     gap: 8px;
     padding: 3px 0;
     border-radius: 4px;
+    display: flex;        
+    align-items: center;  
+    flex-wrap: wrap;
 }
 
 .mz-reading-view .mz-rv-task-item > span {
@@ -1431,7 +1444,7 @@ html[data-theme-mode="light"] .mz-lp-checkbox {
     position: relative;
     width: 15px;
     height: 15px;
-    margin-top: 5px;
+    margin-top: 2px;
     border: 1px solid var(--mz-border-strong);
     border-radius: 4px;
     background: var(--mz-bg-primary);
@@ -1446,24 +1459,33 @@ html[data-theme-mode="light"] .mz-lp-checkbox {
 
 .mz-reading-view .mz-rv-task-item input[type="checkbox"]:checked::after {
     content: "";
+    display: block;
     position: absolute;
-    left: 4px;
+    left: 4.2px;
     top: 1px;
-    width: 4px;
-    height: 8px;
+    width: 5px;
+    height: 9.6px;
     border: solid var(--mz-text-on-accent);
-    border-width: 0 2px 2px 0;
+    border-width: 0 2.5px 2.5px 0;
     transform: rotate(45deg);
 }
 
-html[data-theme-mode="dark"] .mz-reading-view .mz-rv-task-item input[type="checkbox"] {
+html[data-theme-mode="dark"] .mz-reading-view .mz-rv-task-item input[type="checkbox"]:not(:checked) {
     background: color-mix(in srgb, var(--mz-bg-secondary) 82%, #000);
     border-color: color-mix(in srgb, var(--mz-border-strong) 70%, var(--mz-text-muted));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--mz-bg-primary) 58%, transparent);
 }
 
-html[data-theme-mode="light"] .mz-reading-view .mz-rv-task-item input[type="checkbox"] {
+html[data-theme-mode="light"] .mz-reading-view .mz-rv-task-item input[type="checkbox"]:not(:checked) {
     background: var(--mz-bg-primary);
     border-color: color-mix(in srgb, var(--mz-border-strong) 76%, var(--mz-text-secondary));
+}
+
+html[data-theme-mode="dark"] .mz-reading-view .mz-rv-task-item input[type="checkbox"]:checked,
+html[data-theme-mode="light"] .mz-reading-view .mz-rv-task-item input[type="checkbox"]:checked {
+    background: var(--mz-accent);
+    border-color: var(--mz-accent);
+    box-shadow: none;
 }
 
 .mz-reading-view .mz-rv-task-item.checked span {
