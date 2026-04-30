@@ -1,6 +1,6 @@
 [package]
 name = "mindzj-cli"
-version = "0.1.5"
+version = "0.1.6"
 description = "MindZJ CLI - command-line interface for MindZJ note vaults"
 authors = ["SuperJohn"] 
 license = "AGPL-3.0-or-later"
