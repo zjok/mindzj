@@ -1656,7 +1656,13 @@ function anthropicToolDefinitions() {
 function anthropicMessages(messages: ChatMessage[]) {
   const system: string[] = [];
   const result: any[] = [];
-  const toolNames = new Map<string, string>();
+  let pendingToolResults: any[] = [];
+
+  const flushToolResults = () => {
+    if (!pendingToolResults.length) return;
+    result.push({ role: "user", content: pendingToolResults });
+    pendingToolResults = [];
+  };
 
   for (const message of messages) {
     if (message.role === "system") {
@@ -1664,14 +1670,15 @@ function anthropicMessages(messages: ChatMessage[]) {
       continue;
     }
     if (message.role === "user") {
+      flushToolResults();
       result.push({ role: "user", content: message.content ?? "" });
       continue;
     }
     if (message.role === "assistant") {
+      flushToolResults();
       const content: any[] = [];
       if (message.content) content.push({ type: "text", text: message.content });
       for (const call of message.tool_calls ?? []) {
-        toolNames.set(call.id, call.function.name);
         content.push({
           type: "tool_use",
           id: call.id,
@@ -1683,16 +1690,16 @@ function anthropicMessages(messages: ChatMessage[]) {
       continue;
     }
     if (message.role === "tool" && message.tool_call_id) {
-      result.push({
-        role: "user",
-        content: [{
-          type: "tool_result",
-          tool_use_id: message.tool_call_id,
-          content: message.content ?? "",
-        }],
+      const parsed = message.content ? parseJsonObject(message.content) : null;
+      pendingToolResults.push({
+        type: "tool_result",
+        tool_use_id: message.tool_call_id,
+        content: message.content ?? "",
+        ...(parsed?.ok === false ? { is_error: true } : {}),
       });
     }
   }
+  flushToolResults();
 
   return { system: system.join("\n\n"), messages: result };
 }
@@ -1741,8 +1748,8 @@ async function chatCompletionAnthropic(
     {
       model: config.model,
       max_tokens: 4096,
-      system: converted.system,
       messages: converted.messages,
+      ...(converted.system ? { system: converted.system } : {}),
       ...(includeTools ? { tools: anthropicToolDefinitions() } : {}),
     },
   );
