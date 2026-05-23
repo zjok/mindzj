@@ -3453,9 +3453,7 @@ var _MindMapView = class extends import_obsidian.TextFileView {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "v") {
         e.preventDefault();
         e.stopPropagation();
-        if (this.selId) {
-          void this.handlePaste();
-        }
+        void this.handlePaste();
         return;
       }
       if (this.matchKey(e, this.kb.undo)) {
@@ -5477,9 +5475,16 @@ var _MindMapView = class extends import_obsidian.TextFileView {
     }
   }
   pasteNode(strip) {
-    var _a, _b, _c, _d;
+    var _a, _b;
     if (!_MindMapView.clipboard && !hydrateMindzjNodeClipboard())
       return;
+    const appendAsRoot = (node) => {
+      const last = this.roots[this.roots.length - 1];
+      node.isRoot = true;
+      node.x = (_a = last == null ? void 0 : last.x) != null ? _a : 0;
+      node.y = ((_b = last == null ? void 0 : last.y) != null ? _b : 0) + 200;
+      this.roots.push(node);
+    };
     if (_MindMapView.clipboard.multi) {
       const clones = JSON.parse(_MindMapView.clipboard.data);
       const reId = (n) => {
@@ -5511,17 +5516,14 @@ var _MindMapView = class extends import_obsidian.TextFileView {
       if (selectedParent && !selectedParent.children) selectedParent.children = [];
       for (const clone2 of clones) {
         if (!clone2.children) clone2.children = [];
-        if (selectedParent) {
+        if (clone2.isRoot) {
+          appendAsRoot(clone2);
+        } else if (selectedParent) {
           clone2.isRoot = false;
           selectedParent.children.push(clone2);
-        } else if (clone2.isRoot) {
-          const last = this.roots[this.roots.length - 1];
-          clone2.x = (_a = last == null ? void 0 : last.x) != null ? _a : 0;
-          clone2.y = ((_b = last == null ? void 0 : last.y) != null ? _b : 0) + 200;
-          this.roots.push(clone2);
         } else {
           clone2.isRoot = false;
-          this.roots.push({ ...clone2, isRoot: true });
+          appendAsRoot({ ...clone2, isRoot: true });
         }
       }
       if (clones.length)
@@ -5555,18 +5557,15 @@ var _MindMapView = class extends import_obsidian.TextFileView {
     }
     this.saveS();
     const selectedParent = this.selId ? this.fAll(this.selId) : null;
-    if (selectedParent) {
+    if (clone.isRoot) {
+      appendAsRoot(clone);
+    } else if (selectedParent) {
       clone.isRoot = false;
       if (!selectedParent.children) selectedParent.children = [];
       selectedParent.children.push(clone);
-    } else if (clone.isRoot) {
-      const last = this.roots[this.roots.length - 1];
-      clone.x = (_c = last == null ? void 0 : last.x) != null ? _c : 0;
-      clone.y = ((_d = last == null ? void 0 : last.y) != null ? _d : 0) + 200;
-      this.roots.push(clone);
     } else {
       clone.isRoot = false;
-      this.roots.push({ ...clone, isRoot: true });
+      appendAsRoot({ ...clone, isRoot: true });
     }
     this.sel1(clone.id);
     this.render();
@@ -5600,8 +5599,6 @@ var _MindMapView = class extends import_obsidian.TextFileView {
    * - Otherwise (text from edit-mode or external) → overwrite node text
    */
   async handlePaste() {
-    if (!this.selId)
-      return;
     // Await any pending clipboard write so readText returns up-to-date content.
     // Without this, a fast Ctrl+C → Ctrl+V can race: writeText hasn't finished
     // yet, readText returns stale content, comparison fails, and we incorrectly
@@ -5624,6 +5621,8 @@ var _MindMapView = class extends import_obsidian.TextFileView {
       this.pasteNode(false);
       return;
     }
+    if (!this.selId)
+      return;
     const nd = this.fAll(this.selId);
     if (!nd)
       return;
