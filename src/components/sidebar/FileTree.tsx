@@ -230,12 +230,14 @@ const [renamingPath, setRenamingPath] = createSignal<string | null>(null);
 const [renamingName, setRenamingName] = createSignal("");
 let _renameHiddenSuffix: string | null = null;
 let _renameOriginalDisplay = "";
+let _renameIsDir = false;
 
 /** Start inline rename for a file/folder entry */
 function startInlineRename(path: string, isDir: boolean) {
     const name = path.split("/").pop() || path;
     const hiddenSuffixes = [".markdown", ".md", ".mindzj"];
     const lower = name.toLowerCase();
+    _renameIsDir = isDir;
     _renameHiddenSuffix = isDir
         ? null
         : hiddenSuffixes.find((s) => lower.endsWith(s)) ?? null;
@@ -270,6 +272,7 @@ async function confirmRename() {
         // Cancel any pending auto-save for the old path so it doesn't
         // re-create the old file after rename.
         editorStore.cancelAutoSave(path);
+        const nextFileOrder = await buildFileOrderAfterRename(path, newPath, _renameIsDir);
 
         // Snapshot backlinks BEFORE the rename — the backend clears
         // the old path's backlink entries during rename_file.
@@ -280,6 +283,11 @@ async function confirmRename() {
         // Keep open tabs & active file in sync with the new path
         vaultStore.renameFilePath(path, newPath);
         editorStore.renameFileState(path, newPath);
+
+        // Preserve the visible default-order slot for this entry.
+        if (nextFileOrder) {
+            await saveFileOrder(nextFileOrder);
+        }
 
         // Rewrite [[oldName…]] → [[newName…]] in all referencing files
         await updateBacklinksOnFileRename(path, newPath, backlinks);
@@ -350,6 +358,73 @@ async function saveFileOrder(order: FileOrderMap): Promise<void> {
     } catch (e) {
         console.error("Failed to save file order:", e);
     }
+}
+
+function replaceOrderedName(orderList: string[], oldName: string, newName: string): string[] {
+    const next: string[] = [];
+    const seen = new Set<string>();
+    let replaced = false;
+
+    for (const name of orderList) {
+        const candidate = name === oldName ? newName : name;
+        if (name === oldName) replaced = true;
+        if (seen.has(candidate)) continue;
+        seen.add(candidate);
+        next.push(candidate);
+    }
+
+    if (!replaced && !seen.has(newName)) {
+        next.push(newName);
+    }
+
+    return next;
+}
+
+async function buildFileOrderAfterRename(
+    oldPath: string,
+    newPath: string,
+    isDir: boolean,
+): Promise<FileOrderMap | null> {
+    const oldDir = getParentDir(oldPath);
+    const newDir = getParentDir(newPath);
+    if (oldDir !== newDir) return null;
+
+    await loadFileOrder();
+
+    const oldName = oldPath.split("/").pop() || oldPath;
+    const newName = newPath.split("/").pop() || newPath;
+    const currentOrder: FileOrderMap = { ...fileOrderMap() };
+    const existingOrder = currentOrder[oldDir];
+    const entries = findEntriesForDir(oldDir, vaultStore.fileTree());
+    const displayedOrder = entries
+        ? sortEntries(entries, "custom", "asc", oldDir).map((entry) => entry.name)
+        : [];
+    const orderList =
+        existingOrder?.includes(oldName)
+            ? [...existingOrder]
+            : displayedOrder.length > 0
+                ? displayedOrder
+                : existingOrder
+                    ? [...existingOrder]
+                    : [];
+
+    if (orderList.length === 0) return null;
+
+    currentOrder[oldDir] = replaceOrderedName(orderList, oldName, newName);
+
+    if (isDir) {
+        for (const key of Object.keys(currentOrder)) {
+            if (key !== oldPath && !key.startsWith(`${oldPath}/`)) continue;
+            const suffix = key.slice(oldPath.length);
+            const renamedKey = `${newPath}${suffix}`;
+            if (!(renamedKey in currentOrder)) {
+                currentOrder[renamedKey] = currentOrder[key];
+            }
+            delete currentOrder[key];
+        }
+    }
+
+    return currentOrder;
 }
 
 /** Reset loaded flag when vault changes */

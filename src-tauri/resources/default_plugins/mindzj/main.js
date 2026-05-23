@@ -3260,6 +3260,86 @@ function t(key) {
 }
 
 // src/MindMapView.ts
+var MINDZJ_NODE_CLIPBOARD_STORAGE_KEY = "mindzj:node-clipboard:v1";
+function normalizeMindzjClipboardText(value) {
+  return value == null ? null : String(value).replace(/\r\n/g, "\n");
+}
+function createMindzjClipboardRecord(clip, text) {
+  return {
+    type: "mindzj-node-clipboard",
+    version: 1,
+    text,
+    data: clip.data,
+    isRoot: !!clip.isRoot,
+    cut: !!clip.cut,
+    multi: !!clip.multi
+  };
+}
+function parseMindzjClipboardRecord(raw) {
+  try {
+    const record = typeof raw === "string" ? JSON.parse(raw) : raw;
+    if (!record || record.type !== "mindzj-node-clipboard" || record.version !== 1 || typeof record.data !== "string")
+      return null;
+    return {
+      data: record.data,
+      isRoot: !!record.isRoot,
+      cut: !!record.cut,
+      multi: !!record.multi,
+      text: typeof record.text === "string" ? record.text : ""
+    };
+  } catch (e) {
+    return null;
+  }
+}
+function writeMindzjClipboardRecord(clip, text) {
+  try {
+    localStorage.setItem(
+      MINDZJ_NODE_CLIPBOARD_STORAGE_KEY,
+      JSON.stringify(createMindzjClipboardRecord(clip, text))
+    );
+  } catch (e) {
+  }
+}
+function readMindzjClipboardRecord() {
+  try {
+    return parseMindzjClipboardRecord(localStorage.getItem(MINDZJ_NODE_CLIPBOARD_STORAGE_KEY));
+  } catch (e) {
+    return null;
+  }
+}
+function clearMindzjClipboardRecord() {
+  try {
+    localStorage.removeItem(MINDZJ_NODE_CLIPBOARD_STORAGE_KEY);
+  } catch (e) {
+  }
+}
+function setMindzjNodeClipboard(clip, text) {
+  _MindMapView.clipboard = clip;
+  _MindMapView.clipboardText = text;
+  writeMindzjClipboardRecord(clip, text);
+  _MindMapView._clipWriteP = navigator.clipboard.writeText(text).then(() => true).catch(() => false);
+}
+function hydrateMindzjNodeClipboard() {
+  if (_MindMapView.clipboard)
+    return true;
+  const record = readMindzjClipboardRecord();
+  if (!record)
+    return false;
+  _MindMapView.clipboard = {
+    data: record.data,
+    isRoot: record.isRoot,
+    cut: record.cut,
+    multi: record.multi
+  };
+  _MindMapView.clipboardText = record.text;
+  return true;
+}
+function clearMindzjNodeClipboard() {
+  _MindMapView.clipboard = null;
+  _MindMapView.clipboardText = null;
+  _MindMapView._clipWriteP = null;
+  clearMindzjClipboardRecord();
+}
 var _MindMapView = class extends import_obsidian.TextFileView {
   constructor(leaf, plugin) {
     super(leaf);
@@ -3347,9 +3427,7 @@ var _MindMapView = class extends import_obsidian.TextFileView {
             e.stopPropagation();
             void this.pasteIntoTA();
           } else if (k === "c" || k === "x") {
-            _MindMapView.clipboard = null;
-            _MindMapView.clipboardText = null;
-            _MindMapView._clipWriteP = null;
+            clearMindzjNodeClipboard();
           }
         }
         return;
@@ -5360,15 +5438,14 @@ var _MindMapView = class extends import_obsidian.TextFileView {
       });
       if (!nodes.length)
         return;
-      _MindMapView.clipboard = {
+      const clip = {
         data: JSON.stringify(nodes),
         isRoot: nodes.some((n) => !!n.isRoot),
         cut,
         multi: true
       };
       const allText = nodes.map((n) => n.text).join("\n");
-      _MindMapView.clipboardText = allText;
-      _MindMapView._clipWriteP = navigator.clipboard.writeText(allText).then(() => true).catch(() => false);
+      setMindzjNodeClipboard(clip, allText);
       if (cut) {
         this.saveS();
         for (const id of ids) {
@@ -5386,9 +5463,8 @@ var _MindMapView = class extends import_obsidian.TextFileView {
     const nd = this.fAll(this.selId);
     if (!nd)
       return;
-    _MindMapView.clipboard = { data: JSON.stringify(nd), isRoot: !!nd.isRoot, cut };
-    _MindMapView.clipboardText = nd.text;
-    _MindMapView._clipWriteP = navigator.clipboard.writeText(nd.text).then(() => true).catch(() => false);
+    const clip = { data: JSON.stringify(nd), isRoot: !!nd.isRoot, cut };
+    setMindzjNodeClipboard(clip, nd.text);
     if (cut) {
       this.saveS();
       if (nd.isRoot)
@@ -5402,7 +5478,7 @@ var _MindMapView = class extends import_obsidian.TextFileView {
   }
   pasteNode(strip) {
     var _a, _b, _c, _d;
-    if (!_MindMapView.clipboard)
+    if (!_MindMapView.clipboard && !hydrateMindzjNodeClipboard())
       return;
     if (_MindMapView.clipboard.multi) {
       const clones = JSON.parse(_MindMapView.clipboard.data);
@@ -5416,7 +5492,7 @@ var _MindMapView = class extends import_obsidian.TextFileView {
         for (const n of clones)
           reId(n);
       } else {
-        _MindMapView.clipboard = null;
+        clearMindzjNodeClipboard();
       }
       if (strip) {
         const s = (n) => {
@@ -5465,7 +5541,7 @@ var _MindMapView = class extends import_obsidian.TextFileView {
       };
       reId(clone);
     } else
-      _MindMapView.clipboard = null;
+      clearMindzjNodeClipboard();
     if (strip) {
       const s = (n) => {
         n.styleOverride = void 0;
@@ -5540,9 +5616,10 @@ var _MindMapView = class extends import_obsidian.TextFileView {
       sysText = await navigator.clipboard.readText();
     } catch (e) {
     }
-    const normalizeClipText = (value) => value == null ? null : String(value).replace(/\r\n/g, "\n");
-    const internalText = normalizeClipText(_MindMapView.clipboardText);
-    const externalText = normalizeClipText(sysText);
+    if (!_MindMapView.clipboard)
+      hydrateMindzjNodeClipboard();
+    const internalText = normalizeMindzjClipboardText(_MindMapView.clipboardText);
+    const externalText = normalizeMindzjClipboardText(sysText);
     if (_MindMapView.clipboard && internalText != null && (externalText === null || externalText === internalText || !writeOk || _MindMapView.clipboard.multi && externalText.trim() === internalText.trim())) {
       this.pasteNode(false);
       return;
@@ -6177,7 +6254,7 @@ var _MindMapView = class extends import_obsidian.TextFileView {
         );
       })
     );
-    if (_MindMapView.clipboard && this.selId)
+    if ((_MindMapView.clipboard || readMindzjClipboardRecord()) && this.selId)
       menu.addItem(
         (i) => i.setTitle(t("ctx.paste")).onClick(() => {
           void this.handlePaste();
@@ -6231,7 +6308,7 @@ var _MindMapView = class extends import_obsidian.TextFileView {
           this.copyNode(true);
         })
       );
-      if (_MindMapView.clipboard)
+      if (_MindMapView.clipboard || readMindzjClipboardRecord())
         menu.addItem(
           (i) => i.setTitle(t("ctx.paste")).onClick(() => {
             this.sel1(nd.id);
@@ -6867,6 +6944,7 @@ var _MindMapView = class extends import_obsidian.TextFileView {
 var MindMapView = _MindMapView;
 MindMapView.clipboard = null;
 MindMapView.clipboardText = null;
+MindMapView._clipWriteP = null;
 MindMapView.activeInstance = null;
 
 // src/StylePanelView.ts
