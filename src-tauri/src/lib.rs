@@ -34,6 +34,12 @@ use tauri::Manager;
 /// Lanczos for any taskbar size it needs.
 const APP_ICON_PNG: &[u8] = include_bytes!("../icons/1024x1024.png");
 
+/// Keep Wry's default WebView2 feature disables and turn off Chromium 149's
+/// broken TSF autocorrect handling, which drops every other IME commit.
+/// https://issues.chromium.org/issues/521205128
+const WEBVIEW2_BROWSER_ARGS: &str =
+    "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection,TSFHonorAutocorrectOff";
+
 /// Apply the high-resolution icon to a window at runtime. Called for
 /// every webview window we create (main window in `setup()`, plus
 /// `open_vault_window` and `open_file_in_split_window` for new windows).
@@ -495,6 +501,7 @@ async fn open_vault_window(
         // startup (before WebView2's first paint) and during window
         // resize (where WebView2 lags the window geometry by a frame).
         .background_color(tauri::window::Color(30, 30, 30, 255))
+        .additional_browser_args(WEBVIEW2_BROWSER_ARGS)
         .visible(false);
     if let Some(ref s) = saved_state {
         if let (Some(x), Some(y)) = (s.x, s.y) {
@@ -655,6 +662,7 @@ async fn open_file_in_split_window(
     // Match the main window — dark native backbuffer to eliminate
     // white flash during startup and resize.
     .background_color(tauri::window::Color(30, 30, 30, 255))
+    .additional_browser_args(WEBVIEW2_BROWSER_ARGS)
     .visible(false)
     .build()
     .map_err(|e| e.to_string())?;
@@ -730,6 +738,7 @@ async fn open_image_in_new_window(
     .resizable(true)
     .decorations(false)
     .background_color(tauri::window::Color(30, 30, 30, 255))
+    .additional_browser_args(WEBVIEW2_BROWSER_ARGS)
     .visible(false)
     .build()
     .map_err(|e| e.to_string())?;
