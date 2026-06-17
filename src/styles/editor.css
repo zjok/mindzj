@@ -894,6 +894,10 @@ html[data-theme="light"] .cm-editor .cm-panel.mz-search-panel {
     border-radius: 2px;
     padding: 1px 2px;
 }
+.cm-editor .mz-lp-color-highlight {
+    border-radius: 2px;
+    padding: 1px 2px;
+}
 
 /* Search-result flash highlight — applied when the user clicks a
    hit in the global search panel. The decoration lives on the
@@ -1566,6 +1570,10 @@ html[data-theme-mode="light"] .mz-lp-checkbox:checked {
 /* Highlight */
 .mz-reading-view .mz-rv-highlight {
     background: var(--mz-syntax-highlight-bg);
+    border-radius: 2px;
+    padding: 1px 3px;
+}
+.mz-reading-view .mz-rv-color-highlight {
     border-radius: 2px;
     padding: 1px 3px;
 }

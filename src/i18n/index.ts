@@ -217,6 +217,7 @@ const MESSAGES: Record<string, TranslationMap> = {
   "toolbar.italic": { "zh-CN": "斜体", en: "Italic", ja: "斜体", fr: "Italique", de: "Kursiv", es: "Cursiva" },
   "toolbar.strikethrough": { "zh-CN": "删除线", en: "Strikethrough", ja: "取り消し線", fr: "Barré", de: "Durchgestrichen", es: "Tachado" },
   "toolbar.underline": { "zh-CN": "下划线", en: "Underline", ja: "下線", fr: "Souligné", de: "Unterstrichen", es: "Subrayado" },
+  "toolbar.markImportant": { "zh-CN": "标记重点", en: "Mark important", ja: "重要マーク", fr: "Marquer l’important", de: "Wichtig markieren", es: "Marcar importante" },
   "toolbar.highlight": { "zh-CN": "高亮", en: "Highlight", ja: "ハイライト", fr: "Surligner", de: "Hervorheben", es: "Resaltar" },
   "toolbar.link": { "zh-CN": "链接", en: "Link", ja: "リンク", fr: "Lien", de: "Link", es: "Enlace" },
   "toolbar.code": { "zh-CN": "代码", en: "Code", ja: "コード", fr: "Code", de: "Code", es: "Código" },

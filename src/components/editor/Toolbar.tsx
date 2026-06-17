@@ -7,13 +7,16 @@ import {
   onCleanup,
   onMount,
 } from "solid-js";
+import { Dynamic } from "solid-js/web";
+import { Highlighter } from "lucide-solid";
 import { t } from "../../i18n";
 import { editorStore } from "../../stores/editor";
 import { vaultStore } from "../../stores/vault";
+import { MARKER_COLORS } from "./markerColors";
 
 interface ToolbarButton {
   command: string;
-  icon: string;
+  icon: string | Component<any>;
   label: string;
   level?: number;
   separator?: boolean;
@@ -54,6 +57,11 @@ const TOOLBAR_ITEMS: ToolbarButton[] = [
   },
   { icon: "U", label: "toolbar.underline", command: "underline", shortcut: "Ctrl+U" },
   {
+    icon: Highlighter,
+    label: "toolbar.markImportant",
+    command: "color-highlight",
+  },
+  {
     icon: "H",
     label: "toolbar.highlight",
     command: "highlight",
@@ -75,8 +83,10 @@ const TOOLBAR_ITEMS: ToolbarButton[] = [
 export const Toolbar: Component = () => {
   const [showHeadingMenu, setShowHeadingMenu] = createSignal(false);
   const [showOverflowMenu, setShowOverflowMenu] = createSignal(false);
+  const [showMarkerMenu, setShowMarkerMenu] = createSignal(false);
   const [overflowIndex, setOverflowIndex] = createSignal<number>(-1);
   const [headingMenuPos, setHeadingMenuPos] = createSignal({ x: 0, y: 0 });
+  const [markerMenuPos, setMarkerMenuPos] = createSignal({ x: 0, y: 0 });
   let toolbarRef: HTMLDivElement | undefined;
   let itemsRef: HTMLDivElement | undefined;
   let headingBtnRef: HTMLButtonElement | undefined;
@@ -87,9 +97,20 @@ export const Toolbar: Component = () => {
       ? t(item.label, { level: item.level ?? 1 })
       : t(item.label);
 
-  const dispatchCommand = (item: ToolbarButton) => {
+  const dispatchCommand = (item: ToolbarButton, event?: MouseEvent) => {
     if (item.command === "ai-panel") {
       document.dispatchEvent(new CustomEvent("mindzj:toggle-ai-panel"));
+      return;
+    }
+
+    if (item.command === "color-highlight") {
+      const rect = (event?.currentTarget as HTMLElement | null)?.getBoundingClientRect();
+      if (rect) {
+        setMarkerMenuPos({ x: rect.left, y: rect.bottom + 2 });
+      }
+      setShowHeadingMenu(false);
+      setShowOverflowMenu(false);
+      setShowMarkerMenu((value) => !value);
       return;
     }
 
@@ -177,6 +198,18 @@ export const Toolbar: Component = () => {
           setShowOverflowMenu(false);
         }
       }
+
+      if (showMarkerMenu()) {
+        const portal = document.getElementById("mz-marker-dropdown");
+        const target = event.target as HTMLElement;
+        if (
+          !portal ||
+          (!portal.contains(target) &&
+            !target.closest('[data-toolbar-command="color-highlight"]'))
+        ) {
+          setShowMarkerMenu(false);
+        }
+      }
     };
 
     document.addEventListener("mousedown", handleClick);
@@ -242,7 +275,7 @@ export const Toolbar: Component = () => {
         <For each={otherItems().slice(0, 2)}>
           {(item, index) => (
             <span data-toolbar-idx={index()} style={{ display: "inline-flex", "align-items": "center" }}>
-              <ToolbarBtn item={item} label={translateLabel(item)} onClick={() => dispatchCommand(item)} />
+              <ToolbarBtn item={item} label={translateLabel(item)} onClick={(event) => dispatchCommand(item, event)} />
               <Show when={item.separator}>
                 <ToolbarSep />
               </Show>
@@ -276,7 +309,7 @@ export const Toolbar: Component = () => {
                 "align-items": "center",
               }}
             >
-              <ToolbarBtn item={item} label={translateLabel(item)} onClick={() => dispatchCommand(item)} />
+              <ToolbarBtn item={item} label={translateLabel(item)} onClick={(event) => dispatchCommand(item, event)} />
               <Show when={item.separator}>
                 <ToolbarSep />
               </Show>
@@ -381,6 +414,59 @@ export const Toolbar: Component = () => {
         </div>
       </Show>
 
+      <Show when={showMarkerMenu()}>
+        <div
+          id="mz-marker-dropdown"
+          style={{
+            position: "fixed",
+            top: `${markerMenuPos().y}px`,
+            left: `${markerMenuPos().x}px`,
+            display: "flex",
+            gap: "6px",
+            background: "var(--mz-bg-secondary)",
+            border: "1px solid var(--mz-border-strong)",
+            "border-radius": "var(--mz-radius-md)",
+            "box-shadow": "0 4px 16px rgba(0,0,0,0.25)",
+            padding: "6px",
+            "z-index": "10000",
+          }}
+        >
+          <For each={MARKER_COLORS}>
+            {(color) => (
+              <button
+                title={`${t("toolbar.markImportant")} ${color.label}`}
+                onClick={() => {
+                  document.dispatchEvent(
+                    new CustomEvent("mindzj:editor-command", {
+                      detail: {
+                        command: "color-highlight",
+                        colorId: color.id,
+                      },
+                    }),
+                  );
+                  setShowMarkerMenu(false);
+                }}
+                style={{
+                  width: "24px",
+                  height: "24px",
+                  border: "1px solid var(--mz-border-strong)",
+                  background: color.color,
+                  cursor: "pointer",
+                  "border-radius": "var(--mz-radius-sm)",
+                  padding: "0",
+                }}
+                onMouseEnter={(event) => {
+                  event.currentTarget.style.transform = "translateY(-1px)";
+                }}
+                onMouseLeave={(event) => {
+                  event.currentTarget.style.transform = "none";
+                }}
+              />
+            )}
+          </For>
+        </div>
+      </Show>
+
       <Show when={showOverflowMenu()}>
         <div
           id="mz-overflow-dropdown"
@@ -402,8 +488,8 @@ export const Toolbar: Component = () => {
             {(item) => (
               <>
                 <button
-                  onClick={() => {
-                    dispatchCommand(item);
+                  onClick={(event) => {
+                    dispatchCommand(item, event);
                     setShowOverflowMenu(false);
                   }}
                   style={dropdownButtonStyle}
@@ -412,7 +498,7 @@ export const Toolbar: Component = () => {
                 >
                   <span style={{ display: "flex", "align-items": "center", gap: "8px" }}>
                     <span style={{ "min-width": "20px", "text-align": "center" }}>
-                      {item.icon}
+                      <ToolbarIcon item={item} />
                     </span>
                     {translateLabel(item)}
                   </span>
@@ -435,10 +521,11 @@ export const Toolbar: Component = () => {
 const ToolbarBtn: Component<{
   item: ToolbarButton;
   label: string;
-  onClick: () => void;
+  onClick: (event: MouseEvent) => void;
 }> = (props) => (
   <button
-    onClick={props.onClick}
+    data-toolbar-command={props.item.command}
+    onClick={(event) => props.onClick(event)}
     title={`${props.label}${props.item.shortcut ? ` (${props.item.shortcut})` : ""}`}
     style={{
       display: "flex",
@@ -467,8 +554,23 @@ const ToolbarBtn: Component<{
     onMouseEnter={hoverToolbarButton}
     onMouseLeave={resetToolbarButton}
   >
-    {props.item.icon}
+    <ToolbarIcon item={props.item} />
   </button>
+);
+
+const ToolbarIcon: Component<{ item: ToolbarButton }> = (props) => (
+  <Show
+    when={typeof props.item.icon === "string"}
+    fallback={
+      <Dynamic
+        component={props.item.icon as Component<any>}
+        size={15}
+        strokeWidth={2}
+      />
+    }
+  >
+    {props.item.icon as string}
+  </Show>
 );
 
 const ToolbarSep: Component = () => (

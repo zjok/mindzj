@@ -47,6 +47,11 @@ import {
     LIST_RENDER_TAB_SIZE,
 } from "./listUtils";
 import { t } from "../../../i18n";
+import {
+    getMarkerColor,
+    MARKER_COLOR_ID_PATTERN,
+    type MarkerColor,
+} from "../markerColors";
 
 // ---------------------------------------------------------------------------
 // Image context menu
@@ -1504,6 +1509,10 @@ function buildDecorationsImpl(
         doc.toString(),
         view.state.selection.main.head,
     );
+    const colorHighlightSpans = collectColorHighlightSpans(
+        doc.toString(),
+        view.state.selection.main.head,
+    );
     let inFence = false;
     let activeFence = "";
     let activeFenceLang = "";
@@ -1635,6 +1644,12 @@ function buildDecorationsImpl(
             line.from,
             line.to,
             underlineSpans,
+            decorations,
+        );
+        applyColorHighlightFormat(
+            line.from,
+            line.to,
+            colorHighlightSpans,
             decorations,
         );
 
@@ -1943,6 +1958,89 @@ function applyUnderlineFormat(
         const contentTo = Math.min(span.contentTo, lineTo);
         if (contentFrom < contentTo) {
             decorations.push(underlineDeco.range(contentFrom, contentTo));
+        }
+
+        if (span.showTags) continue;
+
+        if (span.openFrom >= lineFrom && span.openTo <= lineTo) {
+            decorations.push(hideMarker.range(span.openFrom, span.openTo));
+        }
+        if (span.closeFrom >= lineFrom && span.closeTo <= lineTo) {
+            decorations.push(hideMarker.range(span.closeFrom, span.closeTo));
+        }
+    }
+}
+
+interface ColorHighlightSpan {
+    openFrom: number;
+    openTo: number;
+    closeFrom: number;
+    closeTo: number;
+    contentFrom: number;
+    contentTo: number;
+    showTags: boolean;
+    markerColor: MarkerColor;
+}
+
+function collectColorHighlightSpans(
+    text: string,
+    cursorPos: number,
+): ColorHighlightSpan[] {
+    const tagRegex = new RegExp(
+        `<mark\\s+data-mz-color=(["'])(${MARKER_COLOR_ID_PATTERN})\\1>|<\\/mark>`,
+        "gi",
+    );
+    const stack: Array<{ from: number; to: number; markerColor: MarkerColor }> = [];
+    const spans: ColorHighlightSpan[] = [];
+    let match: RegExpExecArray | null;
+
+    while ((match = tagRegex.exec(text)) !== null) {
+        const tagStart = match.index;
+        const tagEnd = tagStart + match[0].length;
+
+        if (match[0].toLowerCase().startsWith("<mark")) {
+            const markerColor = getMarkerColor(match[2]);
+            if (markerColor) {
+                stack.push({ from: tagStart, to: tagEnd, markerColor });
+            }
+            continue;
+        }
+
+        const openTag = stack.pop();
+        if (!openTag) continue;
+        spans.push({
+            openFrom: openTag.from,
+            openTo: openTag.to,
+            closeFrom: tagStart,
+            closeTo: tagEnd,
+            contentFrom: openTag.to,
+            contentTo: tagStart,
+            showTags: cursorPos > openTag.from && cursorPos < tagEnd,
+            markerColor: openTag.markerColor,
+        });
+    }
+
+    return spans;
+}
+
+function applyColorHighlightFormat(
+    lineFrom: number,
+    lineTo: number,
+    spans: ColorHighlightSpan[],
+    decorations: Range<Decoration>[],
+) {
+    for (const span of spans) {
+        const contentFrom = Math.max(span.contentFrom, lineFrom);
+        const contentTo = Math.min(span.contentTo, lineTo);
+        if (contentFrom < contentTo) {
+            decorations.push(
+                Decoration.mark({
+                    class: "mz-lp-color-highlight",
+                    attributes: {
+                        style: `background-color: ${span.markerColor.color};`,
+                    },
+                }).range(contentFrom, contentTo),
+            );
         }
 
         if (span.showTags) continue;
@@ -2289,6 +2387,10 @@ const livePreviewTheme = EditorView.baseTheme({
     },
     ".mz-lp-highlight": {
         background: "var(--mz-syntax-highlight-bg)",
+        borderRadius: "2px",
+        padding: "1px 2px",
+    },
+    ".mz-lp-color-highlight": {
         borderRadius: "2px",
         padding: "1px 2px",
     },

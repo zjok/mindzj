@@ -81,6 +81,7 @@ import { ContextMenu, type MenuItem } from "../common/ContextMenu";
 import { livePreviewExtension } from "./extensions/livePreview";
 import { listContinuationExtension } from "./extensions/listContinuation";
 import { listStyleExtension } from "./extensions/listStyleExtension";
+import { getMarkerColor } from "./markerColors";
 
 // `searchCounterExtension` used to append a match-count span into
 // CM6's default search form. The custom VS Code-style panel (see
@@ -2472,6 +2473,16 @@ export const Editor: Component<EditorProps> = (props) => {
             case "highlight":
                 wrapSelection(view, "==");
                 break;
+            case "color-highlight": {
+                const markerColor = getMarkerColor(detail.colorId);
+                if (!markerColor) break;
+                wrapSelection(
+                    view,
+                    `<mark data-mz-color="${markerColor.id}">`,
+                    "</mark>",
+                );
+                break;
+            }
             case "code":
                 wrapSelection(view, "`");
                 break;
