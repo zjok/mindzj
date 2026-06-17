@@ -1500,10 +1500,13 @@ function buildDecorationsImpl(
     const tableSepRe = /^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$/;
     const isTableRow = (t: string) =>
         t.trim().startsWith("|") && t.indexOf("|", t.indexOf("|") + 1) !== -1;
+    const underlineSpans = collectUnderlineSpans(
+        doc.toString(),
+        view.state.selection.main.head,
+    );
     let inFence = false;
     let activeFence = "";
     let activeFenceLang = "";
-    let underlineActive = false;
 
     for (let i = 1; i <= doc.lines; i++) {
         const line = doc.line(i);
@@ -1628,11 +1631,10 @@ function buildDecorationsImpl(
             }
         }
 
-        underlineActive = applyUnderlineFormat(
-            text,
+        applyUnderlineFormat(
             line.from,
-            isCurrentLine,
-            underlineActive,
+            line.to,
+            underlineSpans,
             decorations,
         );
 
@@ -1888,61 +1890,70 @@ function buildDecorationsImpl(
     return Decoration.set(filtered);
 }
 
-/** Apply <u>...</u> underline across line breaks. */
-function applyUnderlineFormat(
-    text: string,
-    lineFrom: number,
-    isCurrentLine: boolean,
-    isActive: boolean,
-    decorations: Range<Decoration>[],
-): boolean {
+interface UnderlineSpan {
+    openFrom: number;
+    openTo: number;
+    closeFrom: number;
+    closeTo: number;
+    contentFrom: number;
+    contentTo: number;
+    showTags: boolean;
+}
+
+function collectUnderlineSpans(text: string, cursorPos: number): UnderlineSpan[] {
     const tagRegex = /<\/?u>/gi;
+    const stack: Array<{ from: number; to: number }> = [];
+    const spans: UnderlineSpan[] = [];
     let match: RegExpExecArray | null;
-    let contentStart = isActive ? 0 : -1;
 
     while ((match = tagRegex.exec(text)) !== null) {
         const tagStart = match.index;
         const tagEnd = tagStart + match[0].length;
 
-        if (
-            isActive &&
-            contentStart >= 0 &&
-            contentStart < tagStart
-        ) {
-            decorations.push(
-                underlineDeco.range(
-                    lineFrom + contentStart,
-                    lineFrom + tagStart,
-                ),
-            );
-        }
-
-        if (!isCurrentLine) {
-            decorations.push(
-                hideMarker.range(lineFrom + tagStart, lineFrom + tagEnd),
-            );
-        }
-
         if (match[0].toLowerCase() === "<u>") {
-            isActive = true;
-            contentStart = tagEnd;
-        } else {
-            isActive = false;
-            contentStart = -1;
+            stack.push({ from: tagStart, to: tagEnd });
+            continue;
+        }
+
+        const openTag = stack.pop();
+        if (!openTag) continue;
+        spans.push({
+            openFrom: openTag.from,
+            openTo: openTag.to,
+            closeFrom: tagStart,
+            closeTo: tagEnd,
+            contentFrom: openTag.to,
+            contentTo: tagStart,
+            showTags: cursorPos > openTag.from && cursorPos < tagEnd,
+        });
+    }
+
+    return spans;
+}
+
+/** Apply <u>...</u> underline across line breaks. */
+function applyUnderlineFormat(
+    lineFrom: number,
+    lineTo: number,
+    spans: UnderlineSpan[],
+    decorations: Range<Decoration>[],
+) {
+    for (const span of spans) {
+        const contentFrom = Math.max(span.contentFrom, lineFrom);
+        const contentTo = Math.min(span.contentTo, lineTo);
+        if (contentFrom < contentTo) {
+            decorations.push(underlineDeco.range(contentFrom, contentTo));
+        }
+
+        if (span.showTags) continue;
+
+        if (span.openFrom >= lineFrom && span.openTo <= lineTo) {
+            decorations.push(hideMarker.range(span.openFrom, span.openTo));
+        }
+        if (span.closeFrom >= lineFrom && span.closeTo <= lineTo) {
+            decorations.push(hideMarker.range(span.closeFrom, span.closeTo));
         }
     }
-
-    if (
-        isActive &&
-        contentStart >= 0 &&
-        contentStart < text.length
-    ) {
-        decorations.push(
-            underlineDeco.range(lineFrom + contentStart, lineFrom + text.length),
-        );
-    }
-
-    return isActive;
 }
 
 /** Apply a regex-based inline format, hiding markers and styling content */
