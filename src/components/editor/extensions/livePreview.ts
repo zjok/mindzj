@@ -1503,6 +1503,7 @@ function buildDecorationsImpl(
     let inFence = false;
     let activeFence = "";
     let activeFenceLang = "";
+    let underlineActive = false;
 
     for (let i = 1; i <= doc.lines; i++) {
         const line = doc.line(i);
@@ -1627,6 +1628,14 @@ function buildDecorationsImpl(
             }
         }
 
+        underlineActive = applyUnderlineFormat(
+            text,
+            line.from,
+            isCurrentLine,
+            underlineActive,
+            decorations,
+        );
+
         // --- Inline formatting (only apply when cursor is not on this line) ---
         if (!isCurrentLine) {
             // Bold: exactly two asterisks only. Triple asterisks stay plain.
@@ -1659,17 +1668,6 @@ function buildDecorationsImpl(
                 2,
                 2,
                 strikethroughDeco,
-                decorations,
-            );
-
-            // Underline: <u>text</u>
-            applyInlineFormat(
-                text,
-                line.from,
-                /<u>(.+?)<\/u>/gi,
-                3,
-                4,
-                underlineDeco,
                 decorations,
             );
 
@@ -1888,6 +1886,63 @@ function buildDecorationsImpl(
     const filtered = removeOverlaps(decorations);
 
     return Decoration.set(filtered);
+}
+
+/** Apply <u>...</u> underline across line breaks. */
+function applyUnderlineFormat(
+    text: string,
+    lineFrom: number,
+    isCurrentLine: boolean,
+    isActive: boolean,
+    decorations: Range<Decoration>[],
+): boolean {
+    const tagRegex = /<\/?u>/gi;
+    let match: RegExpExecArray | null;
+    let contentStart = isActive ? 0 : -1;
+
+    while ((match = tagRegex.exec(text)) !== null) {
+        const tagStart = match.index;
+        const tagEnd = tagStart + match[0].length;
+
+        if (
+            isActive &&
+            contentStart >= 0 &&
+            contentStart < tagStart
+        ) {
+            decorations.push(
+                underlineDeco.range(
+                    lineFrom + contentStart,
+                    lineFrom + tagStart,
+                ),
+            );
+        }
+
+        if (!isCurrentLine) {
+            decorations.push(
+                hideMarker.range(lineFrom + tagStart, lineFrom + tagEnd),
+            );
+        }
+
+        if (match[0].toLowerCase() === "<u>") {
+            isActive = true;
+            contentStart = tagEnd;
+        } else {
+            isActive = false;
+            contentStart = -1;
+        }
+    }
+
+    if (
+        isActive &&
+        contentStart >= 0 &&
+        contentStart < text.length
+    ) {
+        decorations.push(
+            underlineDeco.range(lineFrom + contentStart, lineFrom + text.length),
+        );
+    }
+
+    return isActive;
 }
 
 /** Apply a regex-based inline format, hiding markers and styling content */

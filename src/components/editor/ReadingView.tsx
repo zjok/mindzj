@@ -587,7 +587,7 @@ function renderInline(text: string, ctx: RenderContext): string {
 
     // Underline: <u>text</u>
     result = result.replace(
-        /&lt;u&gt;(.+?)&lt;\/u&gt;/gi,
+        /&lt;u&gt;([\s\S]+?)&lt;\/u&gt;/gi,
         '<span class="mz-rv-underline">$1</span>',
     );
 
