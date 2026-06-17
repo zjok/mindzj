@@ -224,6 +224,8 @@ pub struct AppSettings {
     pub link_color: Option<String>,
     #[serde(default)]
     pub highlight_color: Option<String>,
+    #[serde(default = "default_marker_colors")]
+    pub marker_colors: Vec<String>,
     /// Bold (`**text**`) color. Feeds the `--mz-syntax-bold` CSS
     /// variable that source, live-preview, and reading modes share.
     #[serde(default)]
@@ -335,6 +337,17 @@ fn default_image_resize_options() -> String { "25%, 33%, 50%, 100%".to_string() 
 fn default_image_ctrl_click() -> String { "open-in-new-tab".to_string() }
 fn default_image_wheel_modifier() -> String { "Alt".to_string() }
 fn default_image_wheel_zoom_step() -> u32 { 20 }
+fn default_marker_colors() -> Vec<String> {
+    vec![
+        "#fde047".to_string(),
+        "#f9a8d4".to_string(),
+        "#fdba74".to_string(),
+        "#86efac".to_string(),
+        "#93c5fd".to_string(),
+        "#c4b5fd".to_string(),
+        "#d1d5db".to_string(),
+    ]
+}
 
 impl Default for AppSettings {
     fn default() -> Self {
@@ -359,6 +372,7 @@ impl Default for AppSettings {
             heading_color: None,
             link_color: None,
             highlight_color: None,
+            marker_colors: default_marker_colors(),
             bold_color: None,
             auto_link_urls: true,
             css_snippet: None,

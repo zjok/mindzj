@@ -22,6 +22,16 @@ export function reloadCssSnippets() {
     bumpSnippetsReload(snippetsReloadTick() + 1);
 }
 
+const DEFAULT_MARKER_COLOR_VALUES = [
+    "#fde047",
+    "#f9a8d4",
+    "#fdba74",
+    "#86efac",
+    "#93c5fd",
+    "#c4b5fd",
+    "#d1d5db",
+];
+
 /**
  * Fetch the contents of the given snippet filenames from the Rust side
  * and inject the concatenated result into the single `<style
@@ -132,6 +142,9 @@ export interface AppSettings {
     heading_color: string | null;
     link_color: string | null;
     highlight_color: string | null;
+    /** Seven custom marker-pen colors used by the Markdown toolbar.
+     *  Values are persisted as #rrggbb strings. */
+    marker_colors: string[];
     /** Bold (**text**) text color. Feeds `--mz-syntax-bold` which
      *  source, live-preview, and reading mode all consume for their
      *  bold styling rules. `null` = theme default (red in dark,
@@ -229,6 +242,7 @@ const DEFAULT_SETTINGS: AppSettings = {
     heading_color: null,
     link_color: null,
     highlight_color: null,
+    marker_colors: [...DEFAULT_MARKER_COLOR_VALUES],
     bold_color: null,
     auto_link_urls: true,
     selection_color: null,
@@ -268,6 +282,7 @@ function createDefaultSettings(): AppSettings {
         ai_skills: [...DEFAULT_SETTINGS.ai_skills],
         ai_model_skill_ids: { ...DEFAULT_SETTINGS.ai_model_skill_ids },
         hotkey_overrides: { ...DEFAULT_SETTINGS.hotkey_overrides },
+        marker_colors: [...DEFAULT_SETTINGS.marker_colors],
     };
 }
 
@@ -422,6 +437,16 @@ function normalizeStringArrayRecord(value: unknown): Record<string, string[]> {
     return result;
 }
 
+function normalizeMarkerColors(value: unknown): string[] {
+    const source = Array.isArray(value) ? value : [];
+    return DEFAULT_MARKER_COLOR_VALUES.map((fallback, index) => {
+        const item = source[index];
+        if (typeof item !== "string") return fallback;
+        const normalized = item.trim().toLowerCase();
+        return /^#[0-9a-f]{6}$/.test(normalized) ? normalized : fallback;
+    });
+}
+
 function normalizeLoadedSettings(
     loaded?: PersistedSettings | null,
 ): AppSettings {
@@ -488,6 +513,7 @@ function normalizeLoadedSettings(
             typeof loaded.hotkey_overrides === "object"
                 ? { ...base.hotkey_overrides, ...loaded.hotkey_overrides }
                 : { ...base.hotkey_overrides },
+        marker_colors: normalizeMarkerColors(loaded?.marker_colors),
     };
 }
 

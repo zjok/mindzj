@@ -48,9 +48,7 @@ import {
 } from "./listUtils";
 import { t } from "../../../i18n";
 import {
-    getMarkerColor,
-    MARKER_COLOR_ID_PATTERN,
-    type MarkerColor,
+    resolveMarkerColor,
 } from "../markerColors";
 
 // ---------------------------------------------------------------------------
@@ -1505,13 +1503,17 @@ function buildDecorationsImpl(
     const tableSepRe = /^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$/;
     const isTableRow = (t: string) =>
         t.trim().startsWith("|") && t.indexOf("|", t.indexOf("|") + 1) !== -1;
+    const cursorPos = view.state.selection.main.head;
+    const cursorLine = doc.lineAt(cursorPos);
     const underlineSpans = collectUnderlineSpans(
         doc.toString(),
-        view.state.selection.main.head,
+        cursorPos,
+        cursorLine.from,
+        cursorLine.to,
     );
     const colorHighlightSpans = collectColorHighlightSpans(
         doc.toString(),
-        view.state.selection.main.head,
+        cursorPos,
     );
     let inFence = false;
     let activeFence = "";
@@ -1915,7 +1917,12 @@ interface UnderlineSpan {
     showTags: boolean;
 }
 
-function collectUnderlineSpans(text: string, cursorPos: number): UnderlineSpan[] {
+function collectUnderlineSpans(
+    text: string,
+    cursorPos: number,
+    cursorLineFrom: number,
+    cursorLineTo: number,
+): UnderlineSpan[] {
     const tagRegex = /<\/?u>/gi;
     const stack: Array<{ from: number; to: number }> = [];
     const spans: UnderlineSpan[] = [];
@@ -1932,6 +1939,10 @@ function collectUnderlineSpans(text: string, cursorPos: number): UnderlineSpan[]
 
         const openTag = stack.pop();
         if (!openTag) continue;
+        const cursorInsideSpan =
+            cursorPos >= openTag.from && cursorPos <= tagEnd;
+        const cursorLineTouchesSpan =
+            openTag.from <= cursorLineTo && tagEnd >= cursorLineFrom;
         spans.push({
             openFrom: openTag.from,
             openTo: openTag.to,
@@ -1939,7 +1950,7 @@ function collectUnderlineSpans(text: string, cursorPos: number): UnderlineSpan[]
             closeTo: tagEnd,
             contentFrom: openTag.to,
             contentTo: tagStart,
-            showTags: cursorPos > openTag.from && cursorPos < tagEnd,
+            showTags: cursorInsideSpan || cursorLineTouchesSpan,
         });
     }
 
@@ -1979,7 +1990,7 @@ interface ColorHighlightSpan {
     contentFrom: number;
     contentTo: number;
     showTags: boolean;
-    markerColor: MarkerColor;
+    markerColor: string;
 }
 
 function collectColorHighlightSpans(
@@ -1987,10 +1998,10 @@ function collectColorHighlightSpans(
     cursorPos: number,
 ): ColorHighlightSpan[] {
     const tagRegex = new RegExp(
-        `<mark\\s+data-mz-color=(["'])(${MARKER_COLOR_ID_PATTERN})\\1>|<\\/mark>`,
+        `<mark\\s+data-mz-color=(["'])(#[0-9a-f]{6}|[a-z0-9_-]+)\\1>|<\\/mark>`,
         "gi",
     );
-    const stack: Array<{ from: number; to: number; markerColor: MarkerColor }> = [];
+    const stack: Array<{ from: number; to: number; markerColor: string }> = [];
     const spans: ColorHighlightSpan[] = [];
     let match: RegExpExecArray | null;
 
@@ -1999,7 +2010,10 @@ function collectColorHighlightSpans(
         const tagEnd = tagStart + match[0].length;
 
         if (match[0].toLowerCase().startsWith("<mark")) {
-            const markerColor = getMarkerColor(match[2]);
+            const markerColor = resolveMarkerColor(
+                match[2],
+                settingsStore.settings().marker_colors,
+            );
             if (markerColor) {
                 stack.push({ from: tagStart, to: tagEnd, markerColor });
             }
@@ -2037,7 +2051,7 @@ function applyColorHighlightFormat(
                 Decoration.mark({
                     class: "mz-lp-color-highlight",
                     attributes: {
-                        style: `background-color: ${span.markerColor.color};`,
+                        style: `background-color: ${span.markerColor};`,
                     },
                 }).range(contentFrom, contentTo),
             );
@@ -2648,17 +2662,6 @@ const lineDecorationField = StateField.define<DecorationSet>({
 // ---------------------------------------------------------------------------
 
 function createLivePreviewPlugin(vaultRoot: string, currentFilePath: string) {
-    function cursorLineChanged(update: ViewUpdate): boolean {
-        if (!update.selectionSet) return false;
-        const before = update.startState.doc.lineAt(
-            update.startState.selection.main.head,
-        ).number;
-        const after = update.state.doc.lineAt(
-            update.state.selection.main.head,
-        ).number;
-        return before !== after;
-    }
-
     return ViewPlugin.fromClass(
         class {
             decorations: DecorationSet;
@@ -2684,12 +2687,13 @@ function createLivePreviewPlugin(vaultRoot: string, currentFilePath: string) {
                 if (update.geometryChanged) {
                     syncListGuideMetrics(update.view);
                 }
-                // Rebuild inline decorations only when the document
-                // changes or the cursor head crosses into another line.
+                // Rebuild inline decorations when the document or cursor
+                // changes; underline/mark tags reveal based on exact cursor
+                // position, including same-line arrow-key movement.
                 // Ctrl+F can trigger viewport/focus updates while opening
                 // its panel; those must not rescan every line in large
                 // split panes.
-                if (update.docChanged || cursorLineChanged(update)) {
+                if (update.docChanged || update.selectionSet) {
                     this.decorations = buildDecorations(
                         update.view,
                         vaultRoot,

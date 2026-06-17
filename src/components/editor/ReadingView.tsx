@@ -50,7 +50,7 @@ import { parseImageSize, formatImageAlt } from "../../utils/imageSize";
 import { linkifyHtmlText, ensureScheme } from "../../utils/autoLink";
 import { invoke } from "@tauri-apps/api/core";
 import { t } from "../../i18n";
-import { getMarkerColor, MARKER_COLOR_ID_PATTERN } from "./markerColors";
+import { resolveMarkerColor } from "./markerColors";
 
 // ---------------------------------------------------------------------------
 // Markdown → HTML renderer
@@ -599,13 +599,16 @@ function renderInline(text: string, ctx: RenderContext): string {
     );
 
     const colorHighlightRegex = new RegExp(
-        `&lt;mark data-mz-color=&quot;(${MARKER_COLOR_ID_PATTERN})&quot;&gt;([\\s\\S]+?)&lt;\\/mark&gt;`,
+        `&lt;mark data-mz-color=&quot;([^&"]+)&quot;&gt;([\\s\\S]+?)&lt;\\/mark&gt;`,
         "gi",
     );
-    result = result.replace(colorHighlightRegex, (_, colorId, content) => {
-        const markerColor = getMarkerColor(colorId);
+    result = result.replace(colorHighlightRegex, (_, colorValue, content) => {
+        const markerColor = resolveMarkerColor(
+            colorValue,
+            settingsStore.settings().marker_colors,
+        );
         if (!markerColor) return content;
-        return `<mark class="mz-rv-color-highlight" style="background-color: ${markerColor.color}">${content}</mark>`;
+        return `<mark class="mz-rv-color-highlight" style="background-color: ${markerColor}">${content}</mark>`;
     });
 
     // Inline code: `text`

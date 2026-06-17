@@ -81,7 +81,7 @@ import { ContextMenu, type MenuItem } from "../common/ContextMenu";
 import { livePreviewExtension } from "./extensions/livePreview";
 import { listContinuationExtension } from "./extensions/listContinuation";
 import { listStyleExtension } from "./extensions/listStyleExtension";
-import { getMarkerColor } from "./markerColors";
+import { resolveMarkerColor } from "./markerColors";
 
 // `searchCounterExtension` used to append a match-count span into
 // CM6's default search form. The custom VS Code-style panel (see
@@ -161,6 +161,53 @@ function selectLineAndSnapHorizontalRule(
     if (!ok) return false;
     adjustHorizontalRuleCursor(view, anchor);
     return true;
+}
+
+interface MarkerSpan {
+    openFrom: number;
+    openTo: number;
+    closeFrom: number;
+    closeTo: number;
+    contentFrom: number;
+    contentTo: number;
+}
+
+function collectMarkerSpans(text: string): MarkerSpan[] {
+    const tagRegex =
+        /<mark\s+data-mz-color=(["'])(#[0-9a-f]{6}|[a-z0-9_-]+)\1>|<\/mark>/gi;
+    const stack: Array<{ from: number; to: number }> = [];
+    const spans: MarkerSpan[] = [];
+    let match: RegExpExecArray | null;
+
+    while ((match = tagRegex.exec(text)) !== null) {
+        const tagStart = match.index;
+        const tagEnd = tagStart + match[0].length;
+
+        if (match[0].toLowerCase().startsWith("<mark")) {
+            stack.push({ from: tagStart, to: tagEnd });
+            continue;
+        }
+
+        const openTag = stack.pop();
+        if (!openTag) continue;
+        spans.push({
+            openFrom: openTag.from,
+            openTo: openTag.to,
+            closeFrom: tagStart,
+            closeTo: tagEnd,
+            contentFrom: openTag.to,
+            contentTo: tagStart,
+        });
+    }
+
+    return spans;
+}
+
+function stripMarkerTags(text: string): string {
+    return text.replace(
+        /<\/?mark(?:\s+data-mz-color=(["'])(?:#[0-9a-f]{6}|[a-z0-9_-]+)\1)?>/gi,
+        "",
+    );
 }
 
 // Override the default highlight style for heading tags so they no
@@ -2130,6 +2177,60 @@ export const Editor: Component<EditorProps> = (props) => {
         return true;
     }
 
+    function applyColorHighlightCommand(
+        view: EditorView,
+        requestedColor: unknown,
+        allowInsert = true,
+    ): boolean {
+        const color = resolveMarkerColor(
+            requestedColor,
+            settingsStore.settings().marker_colors,
+        );
+        if (!color) return false;
+
+        const sel = view.state.selection.main;
+        const docText = view.state.doc.toString();
+        const spans = collectMarkerSpans(docText);
+        const selectedFrom = sel.from;
+        const selectedTo = sel.to;
+        const enclosing = spans.find((span) =>
+            sel.empty
+                ? selectedFrom >= span.openFrom && selectedFrom <= span.closeTo
+                : selectedFrom >= span.contentFrom &&
+                  selectedTo <= span.contentTo,
+        );
+
+        if (enclosing) {
+            view.dispatch({
+                changes: {
+                    from: enclosing.openFrom,
+                    to: enclosing.openTo,
+                    insert: `<mark data-mz-color="${color}">`,
+                },
+            });
+            return true;
+        }
+
+        const selectedText = view.state.sliceDoc(selectedFrom, selectedTo);
+        if (!selectedText && !allowInsert) return false;
+        const cleanText = stripMarkerTags(selectedText);
+        const content = cleanText || "text";
+        const before = `<mark data-mz-color="${color}">`;
+        const after = "</mark>";
+        view.dispatch({
+            changes: {
+                from: selectedFrom,
+                to: selectedTo,
+                insert: `${before}${content}${after}`,
+            },
+            selection: {
+                anchor: selectedFrom + before.length,
+                head: selectedFrom + before.length + content.length,
+            },
+        });
+        return true;
+    }
+
     function insertLink(view: EditorView): boolean {
         const sel = view.state.selection.main;
         const text = view.state.sliceDoc(sel.from, sel.to);
@@ -2474,12 +2575,10 @@ export const Editor: Component<EditorProps> = (props) => {
                 wrapSelection(view, "==");
                 break;
             case "color-highlight": {
-                const markerColor = getMarkerColor(detail.colorId);
-                if (!markerColor) break;
-                wrapSelection(
+                applyColorHighlightCommand(
                     view,
-                    `<mark data-mz-color="${markerColor.id}">`,
-                    "</mark>",
+                    detail.color ?? detail.colorId,
+                    detail.onlyExisting !== true,
                 );
                 break;
             }
