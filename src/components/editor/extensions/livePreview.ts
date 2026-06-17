@@ -1515,6 +1515,8 @@ function buildDecorationsImpl(
     const colorHighlightSpans = collectColorHighlightSpans(
         doc.toString(),
         cursorPos,
+        cursorLine.from,
+        cursorLine.to,
     );
     let inFence = false;
     let activeFence = "";
@@ -2020,7 +2022,6 @@ class MarkerColorWidget extends WidgetType {
         });
         input.addEventListener("input", (event) => {
             event.stopPropagation();
-            updateColor();
         });
         input.addEventListener("change", (event) => {
             event.stopPropagation();
@@ -2039,7 +2040,7 @@ class MarkerColorWidget extends WidgetType {
     }
 
     ignoreEvent(): boolean {
-        return false;
+        return true;
     }
 }
 
@@ -2060,6 +2061,8 @@ interface ColorHighlightSpan {
 function collectColorHighlightSpans(
     text: string,
     cursorPos: number,
+    cursorLineFrom: number,
+    cursorLineTo: number,
 ): ColorHighlightSpan[] {
     const tagRegex = new RegExp(
         `<mark\\s+data-mz-color=(["'])(#[0-9a-f]{6}|[a-z0-9_-]+)\\1>|<\\/mark>`,
@@ -2103,6 +2106,10 @@ function collectColorHighlightSpans(
 
         const openTag = stack.pop();
         if (!openTag) continue;
+        const cursorInsideSpan =
+            cursorPos >= openTag.from && cursorPos <= tagEnd;
+        const cursorLineTouchesSpan =
+            openTag.from <= cursorLineTo && tagEnd >= cursorLineFrom;
         spans.push({
             openFrom: openTag.from,
             openTo: openTag.to,
@@ -2113,7 +2120,7 @@ function collectColorHighlightSpans(
             closeTo: tagEnd,
             contentFrom: openTag.to,
             contentTo: tagStart,
-            showTags: cursorPos > openTag.from && cursorPos < tagEnd,
+            showTags: cursorInsideSpan || cursorLineTouchesSpan,
             markerColor: openTag.markerColor,
         });
     }

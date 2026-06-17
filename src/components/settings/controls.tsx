@@ -186,7 +186,7 @@ export const SettingColor: Component<SettingColorProps> = (props) => (
       <input
         type="color"
         value={props.value || "#528bff"}
-        onInput={(event) => props.onChange(event.currentTarget.value)}
+        onChange={(event) => props.onChange(event.currentTarget.value)}
         style={{
           width: "32px",
           height: "32px",

@@ -666,7 +666,7 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
                                     aria-label={`${t("settings.markerColor")} ${index() + 1}`}
                                     title={`${t("settings.markerColor")} ${index() + 1}: ${color.color}`}
                                     value={color.color}
-                                    onInput={(event) =>
+                                    onChange={(event) =>
                                         updateMarkerColorSetting(
                                             index(),
                                             event.currentTarget.value,
