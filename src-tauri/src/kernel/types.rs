@@ -199,6 +199,10 @@ pub struct AppSettings {
     pub font_size: u32,
     #[serde(default = "default_font_family")]
     pub font_family: String,
+    #[serde(default)]
+    pub editor_font_color_dark: Option<String>,
+    #[serde(default)]
+    pub editor_font_color_light: Option<String>,
     #[serde(default = "default_show_markdown_toolbar")]
     pub show_markdown_toolbar: bool,
     pub editor_line_numbers: bool,
@@ -339,13 +343,13 @@ fn default_image_wheel_modifier() -> String { "Alt".to_string() }
 fn default_image_wheel_zoom_step() -> u32 { 20 }
 fn default_marker_colors() -> Vec<String> {
     vec![
-        "#fde047".to_string(),
-        "#f9a8d4".to_string(),
-        "#fdba74".to_string(),
-        "#86efac".to_string(),
-        "#93c5fd".to_string(),
-        "#c4b5fd".to_string(),
-        "#d1d5db".to_string(),
+        "#facc15".to_string(),
+        "#fb7185".to_string(),
+        "#fb923c".to_string(),
+        "#4ade80".to_string(),
+        "#60a5fa".to_string(),
+        "#a78bfa".to_string(),
+        "#94a3b8".to_string(),
     ]
 }
 
@@ -355,6 +359,8 @@ impl Default for AppSettings {
             theme: default_theme(),
             font_size: 16,
             font_family: default_font_family(),
+            editor_font_color_dark: None,
+            editor_font_color_light: None,
             show_markdown_toolbar: default_show_markdown_toolbar(),
             editor_line_numbers: false,
             markdown_code_block_line_numbers: false,

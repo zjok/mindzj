@@ -78,7 +78,10 @@ import { vaultStore } from "../../stores/vault";
 import { editorStore, type ViewMode } from "../../stores/editor";
 import { settingsStore } from "../../stores/settings";
 import { ContextMenu, type MenuItem } from "../common/ContextMenu";
-import { livePreviewExtension } from "./extensions/livePreview";
+import {
+    livePreviewExtension,
+    markerColorSwatchExtension,
+} from "./extensions/livePreview";
 import { listContinuationExtension } from "./extensions/listContinuation";
 import { listStyleExtension } from "./extensions/listStyleExtension";
 import { resolveMarkerColor } from "./markerColors";
@@ -1177,6 +1180,7 @@ export const Editor: Component<EditorProps> = (props) => {
             // same visuals are supplied by `livePreviewExtension`
             // below (which owns a superset of the list logic).
             ...(isSourceMode ? listStyleExtension() : []),
+            ...(isSourceMode ? markerColorSwatchExtension() : []),
 
             // Live Preview extension (only in live-preview mode).
             // Block widgets (blockWidgetExtension) are NOT included here —
@@ -1631,6 +1635,7 @@ export const Editor: Component<EditorProps> = (props) => {
                 },
                 ".cm-content": {
                     padding: "10px 24px",
+                    color: "var(--mz-editor-font-color, var(--mz-text-primary))",
                     caretColor: "var(--mz-accent)",
                     minHeight: "100%",
                 },

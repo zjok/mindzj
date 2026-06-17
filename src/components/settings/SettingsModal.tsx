@@ -56,6 +56,12 @@ import {
 } from "./controls";
 import { confirmDialog, promptDialog } from "../common/ConfirmDialog";
 import { getLanguageOptions, t } from "../../i18n";
+import {
+    DEFAULT_MARKER_COLOR_VALUES,
+    getMarkerPalette,
+    normalizeMarkerColor,
+    normalizeMarkerPalette,
+} from "../editor/markerColors";
 
 type SettingsCategory =
     | "editor"
@@ -617,6 +623,79 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
                   ...FONT_FAMILY_OPTIONS,
               ];
     });
+    const markerPalette = () => getMarkerPalette(s().marker_colors);
+    const updateMarkerColorSetting = (index: number, value: string) => {
+        const color = normalizeMarkerColor(value);
+        if (!color) return;
+        const next = normalizeMarkerPalette(s().marker_colors);
+        next[index] = color;
+        set("marker_colors", next);
+    };
+    const resetMarkerColors = () => {
+        set("marker_colors", [...DEFAULT_MARKER_COLOR_VALUES]);
+    };
+
+    const renderMarkerColorSettings = () => (
+        <SettingSection title={t("settings.markerColors")}>
+            <div style={settingsRowStyle}>
+                <div style={{ flex: "1", "min-width": "0" }}>
+                    <div style={settingsLabelStyle}>
+                        {t("settings.markerColors")}
+                    </div>
+                    <div style={settingsDescStyle}>
+                        {t("settings.markerColorsDescription")}
+                    </div>
+                </div>
+                <div
+                    style={{
+                        display: "flex",
+                        "align-items": "center",
+                        gap: "8px",
+                        "flex-shrink": "0",
+                    }}>
+                    <div
+                        style={{
+                            display: "grid",
+                            "grid-template-columns": "repeat(7, 32px)",
+                            gap: "8px",
+                        }}>
+                        <For each={markerPalette()}>
+                            {(color, index) => (
+                                <input
+                                    type="color"
+                                    aria-label={`${t("settings.markerColor")} ${index() + 1}`}
+                                    title={`${t("settings.markerColor")} ${index() + 1}: ${color.color}`}
+                                    value={color.color}
+                                    onInput={(event) =>
+                                        updateMarkerColorSetting(
+                                            index(),
+                                            event.currentTarget.value,
+                                        )
+                                    }
+                                    style={{
+                                        width: "32px",
+                                        height: "32px",
+                                        border: "1px solid var(--mz-border)",
+                                        background: "transparent",
+                                        cursor: "pointer",
+                                        "border-radius": "var(--mz-radius-sm)",
+                                        padding: "0",
+                                    }}
+                                />
+                            )}
+                        </For>
+                    </div>
+                    <button
+                        type="button"
+                        title={t("common.reset")}
+                        onClick={resetMarkerColors}
+                        style={settingsButtonStyle}>
+                        {t("common.reset")}
+                    </button>
+                </div>
+            </div>
+        </SettingSection>
+    );
 
     const renderCustomEditorSettings = () => (
         <SettingSection title={t("settings.custom")}>
@@ -910,6 +989,34 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
                                 width="320px"
                                 onChange={(v) => set("font_family", v)}
                             />
+                            <SettingColor
+                                label={t("settings.fontColorDark")}
+                                description={t(
+                                    "settings.fontColorDarkDescription",
+                                )}
+                                value={s().editor_font_color_dark || "#cccccc"}
+                                onChange={(v) =>
+                                    set("editor_font_color_dark", v)
+                                }
+                                onClear={() =>
+                                    set("editor_font_color_dark", null)
+                                }
+                            />
+                            <SettingColor
+                                label={t("settings.fontColorLight")}
+                                description={t(
+                                    "settings.fontColorLightDescription",
+                                )}
+                                value={
+                                    s().editor_font_color_light || "#1e1e1e"
+                                }
+                                onChange={(v) =>
+                                    set("editor_font_color_light", v)
+                                }
+                                onClear={() =>
+                                    set("editor_font_color_light", null)
+                                }
+                            />
                         </SettingSection>
 
                         <SettingSection title={t("settings.editing")}>
@@ -1005,6 +1112,8 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
                                 onChange={(v) => set("default_view_mode", v)}
                             />
                         </SettingSection>
+
+                        {renderMarkerColorSettings()}
 
                         {renderCustomEditorSettings()}
                     </Show>

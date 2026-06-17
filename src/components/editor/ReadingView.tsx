@@ -50,7 +50,7 @@ import { parseImageSize, formatImageAlt } from "../../utils/imageSize";
 import { linkifyHtmlText, ensureScheme } from "../../utils/autoLink";
 import { invoke } from "@tauri-apps/api/core";
 import { t } from "../../i18n";
-import { resolveMarkerColor } from "./markerColors";
+import { getReadableMarkerTextColor, resolveMarkerColor } from "./markerColors";
 
 // ---------------------------------------------------------------------------
 // Markdown → HTML renderer
@@ -608,7 +608,7 @@ function renderInline(text: string, ctx: RenderContext): string {
             settingsStore.settings().marker_colors,
         );
         if (!markerColor) return content;
-        return `<mark class="mz-rv-color-highlight" style="background-color: ${markerColor}">${content}</mark>`;
+        return `<mark class="mz-rv-color-highlight" style="background-color: ${markerColor}; color: ${getReadableMarkerTextColor(markerColor)}">${content}</mark>`;
     });
 
     // Inline code: `text`
@@ -1912,7 +1912,7 @@ export const ReadingView: Component<ReadingViewProps> = (props) => {
                             padding: "10px 24px",
                             margin: "0 auto",
                             width: "100%",
-                            color: "var(--mz-text-primary)",
+                            color: "var(--mz-editor-font-color, var(--mz-text-primary))",
                             "box-sizing": "border-box",
                         }}
                     />

@@ -13,11 +13,7 @@ import { t } from "../../i18n";
 import { editorStore } from "../../stores/editor";
 import { settingsStore } from "../../stores/settings";
 import { vaultStore } from "../../stores/vault";
-import {
-  getMarkerPalette,
-  normalizeMarkerColor,
-  normalizeMarkerPalette,
-} from "./markerColors";
+import { getMarkerPalette } from "./markerColors";
 
 interface ToolbarButton {
   command: string;
@@ -103,23 +99,6 @@ export const Toolbar: Component = () => {
       : t(item.label);
 
   const markerColors = () => getMarkerPalette(settingsStore.settings().marker_colors);
-
-  const updateMarkerColor = (index: number, value: string) => {
-    const color = normalizeMarkerColor(value);
-    if (!color) return;
-    const next = normalizeMarkerPalette(settingsStore.settings().marker_colors);
-    next[index] = color;
-    void settingsStore.updateSetting("marker_colors", next);
-    document.dispatchEvent(
-      new CustomEvent("mindzj:editor-command", {
-        detail: {
-          command: "color-highlight",
-          color,
-          onlyExisting: true,
-        },
-      }),
-    );
-  };
 
   const applyMarkerColor = (color: string) => {
     document.dispatchEvent(
@@ -468,52 +447,26 @@ export const Toolbar: Component = () => {
           }}
         >
           <For each={markerColors()}>
-            {(color, index) => (
-              <span
+            {(color) => (
+              <button
+                title={`${t("toolbar.markImportant")} ${color.color}`}
+                onClick={() => applyMarkerColor(color.color)}
                 style={{
-                  display: "inline-flex",
-                  "align-items": "center",
-                  gap: "3px",
+                  width: "24px",
+                  height: "24px",
+                  border: "1px solid var(--mz-border-strong)",
+                  background: color.color,
+                  cursor: "pointer",
+                  "border-radius": "var(--mz-radius-sm)",
+                  padding: "0",
                 }}
-              >
-                <button
-                  title={`${t("toolbar.markImportant")} ${color.color}`}
-                  onClick={() => applyMarkerColor(color.color)}
-                  style={{
-                    width: "24px",
-                    height: "24px",
-                    border: "1px solid var(--mz-border-strong)",
-                    background: color.color,
-                    cursor: "pointer",
-                    "border-radius": "var(--mz-radius-sm)",
-                    padding: "0",
-                  }}
-                  onMouseEnter={(event) => {
-                    event.currentTarget.style.transform = "translateY(-1px)";
-                  }}
-                  onMouseLeave={(event) => {
-                    event.currentTarget.style.transform = "none";
-                  }}
-                />
-                <input
-                  type="color"
-                  title={color.color}
-                  value={color.color}
-                  onClick={(event) => event.stopPropagation()}
-                  onInput={(event) =>
-                    updateMarkerColor(index(), event.currentTarget.value)
-                  }
-                  style={{
-                    width: "16px",
-                    height: "24px",
-                    border: "1px solid var(--mz-border)",
-                    background: "transparent",
-                    cursor: "pointer",
-                    "border-radius": "var(--mz-radius-sm)",
-                    padding: "0",
-                  }}
-                />
-              </span>
+                onMouseEnter={(event) => {
+                  event.currentTarget.style.transform = "translateY(-1px)";
+                }}
+                onMouseLeave={(event) => {
+                  event.currentTarget.style.transform = "none";
+                }}
+              />
             )}
           </For>
         </div>

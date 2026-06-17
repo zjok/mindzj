@@ -48,6 +48,7 @@ import {
 } from "./listUtils";
 import { t } from "../../../i18n";
 import {
+    getReadableMarkerTextColor,
     resolveMarkerColor,
 } from "../markerColors";
 
@@ -1982,9 +1983,72 @@ function applyUnderlineFormat(
     }
 }
 
+class MarkerColorWidget extends WidgetType {
+    constructor(
+        private color: string,
+        private from: number,
+        private to: number,
+    ) {
+        super();
+    }
+
+    toDOM(view: EditorView): HTMLElement {
+        const input = document.createElement("input");
+        input.type = "color";
+        input.value = this.color;
+        input.className = "mz-lp-marker-color-swatch";
+        input.title = this.color;
+        input.setAttribute("aria-label", t("settings.markerColor"));
+
+        const updateColor = () => {
+            const next = input.value.toLowerCase();
+            if (next === this.color) return;
+            view.dispatch({
+                changes: {
+                    from: this.from,
+                    to: this.to,
+                    insert: next,
+                },
+            });
+        };
+
+        input.addEventListener("mousedown", (event) => {
+            event.stopPropagation();
+        });
+        input.addEventListener("click", (event) => {
+            event.stopPropagation();
+        });
+        input.addEventListener("input", (event) => {
+            event.stopPropagation();
+            updateColor();
+        });
+        input.addEventListener("change", (event) => {
+            event.stopPropagation();
+            updateColor();
+        });
+
+        return input;
+    }
+
+    eq(other: MarkerColorWidget): boolean {
+        return (
+            this.color === other.color &&
+            this.from === other.from &&
+            this.to === other.to
+        );
+    }
+
+    ignoreEvent(): boolean {
+        return false;
+    }
+}
+
 interface ColorHighlightSpan {
     openFrom: number;
     openTo: number;
+    colorFrom: number;
+    colorTo: number;
+    rawColor: string;
     closeFrom: number;
     closeTo: number;
     contentFrom: number;
@@ -2001,7 +2065,14 @@ function collectColorHighlightSpans(
         `<mark\\s+data-mz-color=(["'])(#[0-9a-f]{6}|[a-z0-9_-]+)\\1>|<\\/mark>`,
         "gi",
     );
-    const stack: Array<{ from: number; to: number; markerColor: string }> = [];
+    const stack: Array<{
+        from: number;
+        to: number;
+        colorFrom: number;
+        colorTo: number;
+        rawColor: string;
+        markerColor: string;
+    }> = [];
     const spans: ColorHighlightSpan[] = [];
     let match: RegExpExecArray | null;
 
@@ -2015,7 +2086,17 @@ function collectColorHighlightSpans(
                 settingsStore.settings().marker_colors,
             );
             if (markerColor) {
-                stack.push({ from: tagStart, to: tagEnd, markerColor });
+                const rawColor = match[2];
+                const colorOffset = match[0].indexOf(rawColor);
+                const colorFrom = tagStart + colorOffset;
+                stack.push({
+                    from: tagStart,
+                    to: tagEnd,
+                    colorFrom,
+                    colorTo: colorFrom + rawColor.length,
+                    rawColor,
+                    markerColor,
+                });
             }
             continue;
         }
@@ -2025,6 +2106,9 @@ function collectColorHighlightSpans(
         spans.push({
             openFrom: openTag.from,
             openTo: openTag.to,
+            colorFrom: openTag.colorFrom,
+            colorTo: openTag.colorTo,
+            rawColor: openTag.rawColor,
             closeFrom: tagStart,
             closeTo: tagEnd,
             contentFrom: openTag.to,
@@ -2051,13 +2135,30 @@ function applyColorHighlightFormat(
                 Decoration.mark({
                     class: "mz-lp-color-highlight",
                     attributes: {
-                        style: `background-color: ${span.markerColor};`,
+                        style: `background-color: ${span.markerColor}; color: ${getReadableMarkerTextColor(span.markerColor)};`,
                     },
                 }).range(contentFrom, contentTo),
             );
         }
 
-        if (span.showTags) continue;
+        if (span.showTags) {
+            if (
+                /^#[0-9a-f]{6}$/i.test(span.rawColor) &&
+                span.colorFrom >= lineFrom &&
+                span.colorTo <= lineTo
+            ) {
+                decorations.push(
+                    Decoration.replace({
+                        widget: new MarkerColorWidget(
+                            span.rawColor.toLowerCase(),
+                            span.colorFrom,
+                            span.colorTo,
+                        ),
+                    }).range(span.colorFrom, span.colorTo),
+                );
+            }
+            continue;
+        }
 
         if (span.openFrom >= lineFrom && span.openTo <= lineTo) {
             decorations.push(hideMarker.range(span.openFrom, span.openTo));
@@ -2137,6 +2238,75 @@ function removeOverlaps(decos: Range<Decoration>[]): Range<Decoration>[] {
         }
     }
     return result;
+}
+
+function buildMarkerColorSwatchDecorations(view: EditorView): DecorationSet {
+    const decorations: Range<Decoration>[] = [];
+    const tagRegex =
+        /<mark\s+data-mz-color=(["'])(#[0-9a-f]{6})\1>/gi;
+
+    for (const range of view.visibleRanges) {
+        const text = view.state.doc.sliceString(range.from, range.to);
+        tagRegex.lastIndex = 0;
+        let match: RegExpExecArray | null;
+
+        while ((match = tagRegex.exec(text)) !== null) {
+            const rawColor = match[2].toLowerCase();
+            const colorOffset = match[0].indexOf(match[2]);
+            const colorFrom = range.from + match.index + colorOffset;
+            const colorTo = colorFrom + rawColor.length;
+            decorations.push(
+                Decoration.replace({
+                    widget: new MarkerColorWidget(
+                        rawColor,
+                        colorFrom,
+                        colorTo,
+                    ),
+                }).range(colorFrom, colorTo),
+            );
+        }
+    }
+
+    return Decoration.set(decorations, true);
+}
+
+const markerColorSwatchTheme = EditorView.baseTheme({
+    ".mz-lp-marker-color-swatch": {
+        width: "18px",
+        height: "18px",
+        border: "1px solid var(--mz-border-strong)",
+        borderRadius: "3px",
+        padding: "0",
+        margin: "0 1px",
+        background: "transparent",
+        cursor: "pointer",
+        verticalAlign: "text-bottom",
+    },
+});
+
+const markerColorSwatchPlugin = ViewPlugin.fromClass(
+    class {
+        decorations: DecorationSet;
+
+        constructor(view: EditorView) {
+            this.decorations = buildMarkerColorSwatchDecorations(view);
+        }
+
+        update(update: ViewUpdate) {
+            if (update.docChanged || update.viewportChanged) {
+                this.decorations = buildMarkerColorSwatchDecorations(
+                    update.view,
+                );
+            }
+        }
+    },
+    {
+        decorations: (v) => v.decorations,
+    },
+);
+
+export function markerColorSwatchExtension() {
+    return [markerColorSwatchTheme, markerColorSwatchPlugin];
 }
 
 // ---------------------------------------------------------------------------
@@ -2734,6 +2904,7 @@ export function livePreviewExtension(
     currentFilePath: string,
 ) {
     return [
+        markerColorSwatchTheme,
         livePreviewTheme,
         listLineBoundaryClickHandler,
         horizontalRuleClickHandler,

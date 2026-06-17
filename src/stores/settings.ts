@@ -23,13 +23,13 @@ export function reloadCssSnippets() {
 }
 
 const DEFAULT_MARKER_COLOR_VALUES = [
-    "#fde047",
-    "#f9a8d4",
-    "#fdba74",
-    "#86efac",
-    "#93c5fd",
-    "#c4b5fd",
-    "#d1d5db",
+    "#facc15",
+    "#fb7185",
+    "#fb923c",
+    "#4ade80",
+    "#60a5fa",
+    "#a78bfa",
+    "#94a3b8",
 ];
 
 /**
@@ -124,6 +124,8 @@ export interface AppSettings {
     theme: Theme;
     font_size: number;
     font_family: string;
+    editor_font_color_dark: string | null;
+    editor_font_color_light: string | null;
     show_markdown_toolbar: boolean;
     editor_line_numbers: boolean;
     markdown_code_block_line_numbers: boolean;
@@ -226,6 +228,8 @@ const DEFAULT_SETTINGS: AppSettings = {
     theme: "dark",
     font_size: 16,
     font_family: DEFAULT_FONT_FAMILY,
+    editor_font_color_dark: null,
+    editor_font_color_light: null,
     show_markdown_toolbar: true,
     editor_line_numbers: false,
     markdown_code_block_line_numbers: false,
@@ -447,6 +451,12 @@ function normalizeMarkerColors(value: unknown): string[] {
     });
 }
 
+function normalizeOptionalColor(value: unknown): string | null {
+    if (typeof value !== "string") return null;
+    const normalized = value.trim().toLowerCase();
+    return /^#[0-9a-f]{6}$/.test(normalized) ? normalized : null;
+}
+
 function normalizeLoadedSettings(
     loaded?: PersistedSettings | null,
 ): AppSettings {
@@ -505,6 +515,12 @@ function normalizeLoadedSettings(
             typeof loaded?.font_family === "string" && loaded.font_family.trim()
                 ? loaded.font_family
                 : base.font_family,
+        editor_font_color_dark: normalizeOptionalColor(
+            loaded?.editor_font_color_dark,
+        ),
+        editor_font_color_light: normalizeOptionalColor(
+            loaded?.editor_font_color_light,
+        ),
         enabled_css_snippets: Array.isArray(loaded?.enabled_css_snippets)
             ? loaded!.enabled_css_snippets
             : base.enabled_css_snippets,
@@ -712,6 +728,24 @@ function createSettingsStore() {
             "--mz-font-sans",
             fontFamily,
         );
+    });
+
+    createEffect(() => {
+        const mode = skinMode(settings().theme);
+        const color =
+            mode === "light"
+                ? settings().editor_font_color_light
+                : settings().editor_font_color_dark;
+        if (color) {
+            document.documentElement.style.setProperty(
+                "--mz-editor-font-color",
+                color,
+            );
+        } else {
+            document.documentElement.style.removeProperty(
+                "--mz-editor-font-color",
+            );
+        }
     });
 
     createEffect(() => {

@@ -5,13 +5,13 @@ export interface MarkerColor {
 }
 
 export const DEFAULT_MARKER_COLORS: MarkerColor[] = [
-    { id: "yellow", label: "Yellow", color: "#fde047" },
-    { id: "pink", label: "Pink", color: "#f9a8d4" },
-    { id: "orange", label: "Orange", color: "#fdba74" },
-    { id: "green", label: "Green", color: "#86efac" },
-    { id: "blue", label: "Blue", color: "#93c5fd" },
-    { id: "purple", label: "Purple", color: "#c4b5fd" },
-    { id: "gray", label: "Gray", color: "#d1d5db" },
+    { id: "yellow", label: "Yellow", color: "#facc15" },
+    { id: "pink", label: "Pink", color: "#fb7185" },
+    { id: "orange", label: "Orange", color: "#fb923c" },
+    { id: "green", label: "Green", color: "#4ade80" },
+    { id: "blue", label: "Blue", color: "#60a5fa" },
+    { id: "purple", label: "Purple", color: "#a78bfa" },
+    { id: "gray", label: "Gray", color: "#94a3b8" },
 ];
 
 export const DEFAULT_MARKER_COLOR_VALUES = DEFAULT_MARKER_COLORS.map(
@@ -57,4 +57,16 @@ export function resolveMarkerColor(
     if (index < 0) return null;
 
     return normalizeMarkerPalette(paletteValue)[index];
+}
+
+export function getReadableMarkerTextColor(color: string): string {
+    const normalized = normalizeMarkerColor(color);
+    if (!normalized) return "var(--mz-text-primary)";
+
+    const red = Number.parseInt(normalized.slice(1, 3), 16);
+    const green = Number.parseInt(normalized.slice(3, 5), 16);
+    const blue = Number.parseInt(normalized.slice(5, 7), 16);
+    const luminance = (0.299 * red + 0.587 * green + 0.114 * blue) / 255;
+
+    return luminance > 0.55 ? "#111827" : "#f9fafb";
 }
