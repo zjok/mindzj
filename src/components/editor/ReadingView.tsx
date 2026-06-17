@@ -585,6 +585,12 @@ function renderInline(text: string, ctx: RenderContext): string {
     // Strikethrough: ~~text~~
     result = result.replace(/~~(.+?)~~/g, "<del>$1</del>");
 
+    // Underline: <u>text</u>
+    result = result.replace(
+        /&lt;u&gt;(.+?)&lt;\/u&gt;/gi,
+        '<span class="mz-rv-underline">$1</span>',
+    );
+
     // Highlight: ==text==
     result = result.replace(
         /==(.+?)==/g,

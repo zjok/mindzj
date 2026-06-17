@@ -885,6 +885,10 @@ html[data-theme="light"] .cm-editor .cm-panel.mz-search-panel {
     text-decoration: line-through;
     color: var(--mz-syntax-strikethrough);
 }
+.cm-editor .mz-lp-underline {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
 .cm-editor .mz-lp-highlight {
     background: var(--mz-syntax-highlight-bg);
     border-radius: 2px;
@@ -1553,6 +1557,10 @@ html[data-theme-mode="light"] .mz-lp-checkbox:checked {
 .mz-reading-view del {
     text-decoration: line-through;
     color: var(--mz-syntax-strikethrough);
+}
+.mz-reading-view .mz-rv-underline {
+    text-decoration: underline;
+    text-underline-offset: 2px;
 }
 
 /* Highlight */

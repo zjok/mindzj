@@ -580,6 +580,7 @@ const headingLineDeco: Record<number, Decoration> = {
 const boldDeco = Decoration.mark({ class: "mz-lp-bold" });
 const italicDeco = Decoration.mark({ class: "mz-lp-italic" });
 const strikethroughDeco = Decoration.mark({ class: "mz-lp-strikethrough" });
+const underlineDeco = Decoration.mark({ class: "mz-lp-underline" });
 const highlightDeco = Decoration.mark({ class: "mz-lp-highlight" });
 const inlineCodeDeco = Decoration.mark({ class: "mz-lp-inline-code" });
 const orderedMarkerDeco = Decoration.mark({ class: "mz-lp-ordered-marker" });
@@ -1661,6 +1662,17 @@ function buildDecorationsImpl(
                 decorations,
             );
 
+            // Underline: <u>text</u>
+            applyInlineFormat(
+                text,
+                line.from,
+                /<u>(.+?)<\/u>/gi,
+                3,
+                4,
+                underlineDeco,
+                decorations,
+            );
+
             // Highlight: ==text==
             applyInlineFormat(
                 text,
@@ -2204,6 +2216,10 @@ const livePreviewTheme = EditorView.baseTheme({
     ".mz-lp-strikethrough": {
         textDecoration: "line-through",
         color: "var(--mz-syntax-strikethrough)",
+    },
+    ".mz-lp-underline": {
+        textDecoration: "underline",
+        textUnderlineOffset: "2px",
     },
     ".mz-lp-highlight": {
         background: "var(--mz-syntax-highlight-bg)",
