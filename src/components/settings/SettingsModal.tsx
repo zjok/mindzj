@@ -2998,6 +2998,41 @@ const DEFAULT_HOTKEYS: HotkeyDef[] = [
         labelKey: "toolbar.highlight",
         defaultKeys: "Ctrl+Shift+H",
     },
+    {
+        command: "color-highlight-1",
+        labelKey: "hotkeys.markerColor1",
+        defaultKeys: "Ctrl+Shift+1",
+    },
+    {
+        command: "color-highlight-2",
+        labelKey: "hotkeys.markerColor2",
+        defaultKeys: "Ctrl+Shift+2",
+    },
+    {
+        command: "color-highlight-3",
+        labelKey: "hotkeys.markerColor3",
+        defaultKeys: "Ctrl+Shift+3",
+    },
+    {
+        command: "color-highlight-4",
+        labelKey: "hotkeys.markerColor4",
+        defaultKeys: "Ctrl+Shift+4",
+    },
+    {
+        command: "color-highlight-5",
+        labelKey: "hotkeys.markerColor5",
+        defaultKeys: "Ctrl+Shift+5",
+    },
+    {
+        command: "color-highlight-6",
+        labelKey: "hotkeys.markerColor6",
+        defaultKeys: "Ctrl+Shift+6",
+    },
+    {
+        command: "color-highlight-7",
+        labelKey: "hotkeys.markerColor7",
+        defaultKeys: "Ctrl+Shift+7",
+    },
     { command: "link", labelKey: "hotkeys.insertLink", defaultKeys: "Ctrl+K" },
     {
         command: "code",
@@ -3115,7 +3150,9 @@ const HotkeysPanel: Component = () => {
     // Get the display keys for a hotkey (custom override or default)
     const getDisplayKeys = (hotkey: HotkeyDef) => {
         const overrides = settingsStore.settings().hotkey_overrides || {};
-        return overrides[hotkey.command] || hotkey.defaultKeys;
+        return Object.prototype.hasOwnProperty.call(overrides, hotkey.command)
+            ? overrides[hotkey.command]
+            : hotkey.defaultKeys;
     };
 
     const filtered = () => {
@@ -3144,6 +3181,22 @@ const HotkeysPanel: Component = () => {
             return;
         }
 
+        if (
+            e.key === "Backspace" &&
+            !e.ctrlKey &&
+            !e.shiftKey &&
+            !e.altKey &&
+            !e.metaKey
+        ) {
+            const currentOverrides = {
+                ...(settingsStore.settings().hotkey_overrides || {}),
+            };
+            currentOverrides[capturing()!] = "";
+            settingsStore.updateSetting("hotkey_overrides", currentOverrides);
+            setCapturing(null);
+            return;
+        }
+
         // Build key string — support combo shortcuts like Ctrl+L, Ctrl+Shift+L
         const parts: string[] = [];
         if (e.ctrlKey) parts.push("Ctrl");
@@ -3155,7 +3208,10 @@ const HotkeysPanel: Component = () => {
         if (["Control", "Shift", "Alt", "Meta"].includes(e.key)) return;
 
         // Normalize the key name
-        let keyName = e.key;
+        const digitKey =
+            e.code?.match(/^Digit([0-9])$/)?.[1] ??
+            e.code?.match(/^Numpad([0-9])$/)?.[1];
+        let keyName = digitKey ?? e.key;
         if (keyName.length === 1) {
             keyName = keyName.toUpperCase();
         } else if (keyName === "ArrowUp") {
@@ -3228,9 +3284,15 @@ const HotkeysPanel: Component = () => {
                     {(hotkey) => {
                         const overrides = () =>
                             settingsStore.settings().hotkey_overrides || {};
-                        const isCustom = () => !!overrides()[hotkey.command];
+                        const isCustom = () =>
+                            Object.prototype.hasOwnProperty.call(
+                                overrides(),
+                                hotkey.command,
+                            );
                         const displayKeys = () =>
-                            overrides()[hotkey.command] || hotkey.defaultKeys;
+                            isCustom()
+                                ? overrides()[hotkey.command]
+                                : hotkey.defaultKeys;
 
                         return (
                             <div
@@ -3357,7 +3419,8 @@ const HotkeysPanel: Component = () => {
                                         }}>
                                         {capturing() === hotkey.command
                                             ? t("settings.pressShortcut")
-                                            : displayKeys()}
+                                            : displayKeys() ||
+                                              t("settings.hotkeyEmpty")}
                                     </button>
                                 </div>
                             </div>

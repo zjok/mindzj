@@ -482,6 +482,7 @@ const MESSAGES: Record<string, TranslationMap> = {
   "settings.hotkeysSearchPlaceholder": { "zh-CN": "搜索快捷键...", en: "Search hotkeys...", ja: "ホットキーを検索...", fr: "Rechercher des raccourcis...", de: "Hotkeys suchen...", es: "Buscar atajos..." },
   "settings.resetToDefault": { "zh-CN": "恢复默认: {keys}", en: "Restore default: {keys}", ja: "既定に戻す: {keys}", fr: "Rétablir par défaut : {keys}", de: "Standard wiederherstellen: {keys}", es: "Restaurar valor predeterminado: {keys}" },
   "settings.pressShortcut": { "zh-CN": "按下快捷键...", en: "Press shortcut...", ja: "ショートカットを押してください...", fr: "Appuyez sur un raccourci...", de: "Tastenkürzel drücken...", es: "Pulsa un atajo..." },
+  "settings.hotkeyEmpty": { "zh-CN": "未设置", en: "Not set", ja: "未設定", fr: "Non défini", de: "Nicht gesetzt", es: "Sin asignar" },
   "settings.pluginInfo": { "zh-CN": "插件信息", en: "Plugin info", ja: "プラグイン情報", fr: "Infos du plugin", de: "Plugin-Info", es: "Información del plugin" },
   "settings.pluginId": { "zh-CN": "插件 ID", en: "Plugin ID", ja: "プラグイン ID", fr: "ID du plugin", de: "Plugin-ID", es: "ID del plugin" },
   "settings.dataDirectory": { "zh-CN": "数据目录", en: "Data directory", ja: "データディレクトリ", fr: "Répertoire de données", de: "Datenverzeichnis", es: "Directorio de datos" },
@@ -542,6 +543,13 @@ const MESSAGES: Record<string, TranslationMap> = {
   "hotkeys.insertTimestamp": { "zh-CN": "插入时间戳", en: "Insert timestamp", ja: "タイムスタンプを挿入", fr: "Insérer un horodatage", de: "Zeitstempel einfügen", es: "Insertar marca temporal" },
   "hotkeys.insertSeparator": { "zh-CN": "插入分隔线 (***)", en: "Insert separator (***)", ja: "区切り線を挿入 (***)", fr: "Insérer un séparateur (***)", de: "Trennlinie einfügen (***)", es: "Insertar separador (***)" },
   "hotkeys.screenshot": { "zh-CN": "截图", en: "Screenshot", ja: "スクリーンショット", fr: "Capture d’écran", de: "Screenshot", es: "Captura de pantalla" },
+  "hotkeys.markerColor1": { "zh-CN": "标记颜色 1", en: "Marker color 1", ja: "マーカー色 1", fr: "Couleur de marqueur 1", de: "Markierungsfarbe 1", es: "Color de marcador 1" },
+  "hotkeys.markerColor2": { "zh-CN": "标记颜色 2", en: "Marker color 2", ja: "マーカー色 2", fr: "Couleur de marqueur 2", de: "Markierungsfarbe 2", es: "Color de marcador 2" },
+  "hotkeys.markerColor3": { "zh-CN": "标记颜色 3", en: "Marker color 3", ja: "マーカー色 3", fr: "Couleur de marqueur 3", de: "Markierungsfarbe 3", es: "Color de marcador 3" },
+  "hotkeys.markerColor4": { "zh-CN": "标记颜色 4", en: "Marker color 4", ja: "マーカー色 4", fr: "Couleur de marqueur 4", de: "Markierungsfarbe 4", es: "Color de marcador 4" },
+  "hotkeys.markerColor5": { "zh-CN": "标记颜色 5", en: "Marker color 5", ja: "マーカー色 5", fr: "Couleur de marqueur 5", de: "Markierungsfarbe 5", es: "Color de marcador 5" },
+  "hotkeys.markerColor6": { "zh-CN": "标记颜色 6", en: "Marker color 6", ja: "マーカー色 6", fr: "Couleur de marqueur 6", de: "Markierungsfarbe 6", es: "Color de marcador 6" },
+  "hotkeys.markerColor7": { "zh-CN": "标记颜色 7", en: "Marker color 7", ja: "マーカー色 7", fr: "Couleur de marqueur 7", de: "Markierungsfarbe 7", es: "Color de marcador 7" },
   // --- Skin store / theme picker -------------------------------------------
   // Heading over the full skin grid (used to live under "toolbar.toggleTheme").
   "settings.themeSection": { "zh-CN": "皮肤", en: "Skin", ja: "スキン", fr: "Thème", de: "Skin", es: "Piel" },

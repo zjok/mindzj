@@ -75,7 +75,14 @@ const PLUGIN_COMMAND_HOTKEY_ALIASES: Record<string, string> = {
 
 function configuredHotkey(command: string): string {
   const overrides = settingsStore.settings().hotkey_overrides || {};
-  return overrides[command] || DEFAULT_COMMAND_HOTKEYS[command] || "";
+  return hasHotkeyOverride(command)
+    ? overrides[command]
+    : DEFAULT_COMMAND_HOTKEYS[command] || "";
+}
+
+function hasHotkeyOverride(command: string): boolean {
+  const overrides = settingsStore.settings().hotkey_overrides || {};
+  return Object.prototype.hasOwnProperty.call(overrides, command);
 }
 
 function formatPluginHotkey(hotkey?: { modifiers?: string[]; key?: string }): string {
@@ -90,6 +97,7 @@ function formatPluginHotkey(hotkey?: { modifiers?: string[]; key?: string }): st
 }
 
 function pluginCommandShortcut(commandId: string, hotkeys?: Array<{ modifiers?: string[]; key?: string }>): string {
+  if (hasHotkeyOverride(commandId)) return configuredHotkey(commandId);
   const direct = configuredHotkey(commandId);
   if (direct) return direct;
   const alias = PLUGIN_COMMAND_HOTKEY_ALIASES[commandId];

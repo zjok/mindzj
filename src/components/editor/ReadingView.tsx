@@ -599,7 +599,7 @@ function renderInline(text: string, ctx: RenderContext): string {
     );
 
     const colorHighlightRegex = new RegExp(
-        `&lt;mark data-mz-color=&quot;([^&"]+)&quot;&gt;([\\s\\S]+?)&lt;\\/mark&gt;`,
+        `&lt;mark (?:m-color|data-mz-color)=&quot;([^&"]+)&quot;&gt;([\\s\\S]+?)&lt;\\/mark&gt;`,
         "gi",
     );
     result = result.replace(colorHighlightRegex, (_, colorValue, content) => {

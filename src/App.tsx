@@ -55,6 +55,7 @@ import { Calendar } from "./components/sidebar/Calendar";
 import { TabBar } from "./components/tabs/TabBar";
 import { Editor } from "./components/editor/Editor";
 import { Toolbar } from "./components/editor/Toolbar";
+import { getMarkerPalette } from "./components/editor/markerColors";
 import {
     ReadingView,
     enhanceMarkdownPreviewHtml,
@@ -2155,6 +2156,7 @@ const App: Component = () => {
     }
 
     function matchesHotkey(e: KeyboardEvent, combo: string): boolean {
+        if (!combo.trim()) return false;
         const parts = combo.split("+");
         const keyPart = parts[parts.length - 1];
         const needCtrl = parts.includes("Ctrl");
@@ -2181,6 +2183,12 @@ const App: Component = () => {
 
         const eventKey = normalizeHotkeyKey(e.key);
         const comboKey = normalizeHotkeyKey(keyPart);
+        if (/^[0-9]$/.test(comboKey)) {
+            const digitKey =
+                e.code?.match(/^Digit([0-9])$/)?.[1] ??
+                e.code?.match(/^Numpad([0-9])$/)?.[1];
+            if (digitKey === comboKey) return true;
+        }
         return eventKey === comboKey;
     }
 
@@ -2253,7 +2261,9 @@ const App: Component = () => {
     /** Get the effective hotkey combo for a command (override or default) */
     function getHotkey(command: string, defaultKeys: string): string {
         const overrides = settingsStore.settings().hotkey_overrides || {};
-        return overrides[command] || defaultKeys;
+        return Object.prototype.hasOwnProperty.call(overrides, command)
+            ? overrides[command]
+            : defaultKeys;
     }
 
     // Reentrancy guard for Ctrl+E. OS key-repeat and rapid pressing during
@@ -3309,6 +3319,32 @@ const App: Component = () => {
                 }),
             );
             return;
+        }
+        const markerPalette = getMarkerPalette(
+            settingsStore.settings().marker_colors,
+        );
+        for (let index = 0; index < markerPalette.length; index += 1) {
+            if (
+                matchesHotkey(
+                    e,
+                    getHotkey(
+                        `color-highlight-${index + 1}`,
+                        `Ctrl+Shift+${index + 1}`,
+                    ),
+                )
+            ) {
+                e.preventDefault();
+                e.stopPropagation();
+                document.dispatchEvent(
+                    new CustomEvent("mindzj:editor-command", {
+                        detail: {
+                            command: "color-highlight",
+                            color: markerPalette[index].color,
+                        },
+                    }),
+                );
+                return;
+            }
         }
         if (matchesHotkey(e, getHotkey("toggle-view-mode", "Ctrl+E"))) {
             e.preventDefault();

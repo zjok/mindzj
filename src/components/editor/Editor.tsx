@@ -177,7 +177,7 @@ interface MarkerSpan {
 
 function collectMarkerSpans(text: string): MarkerSpan[] {
     const tagRegex =
-        /<mark\s+data-mz-color=(["'])(#[0-9a-f]{6}|[a-z0-9_-]+)\1>|<\/mark>/gi;
+        /<mark\s+(?:m-color|data-mz-color)=(["'])(#[0-9a-f]{6}|[a-z0-9_-]+)\1>|<\/mark>/gi;
     const stack: Array<{ from: number; to: number }> = [];
     const spans: MarkerSpan[] = [];
     let match: RegExpExecArray | null;
@@ -208,7 +208,7 @@ function collectMarkerSpans(text: string): MarkerSpan[] {
 
 function stripMarkerTags(text: string): string {
     return text.replace(
-        /<\/?mark(?:\s+data-mz-color=(["'])(?:#[0-9a-f]{6}|[a-z0-9_-]+)\1)?>/gi,
+        /<\/?mark(?:\s+(?:m-color|data-mz-color)=(["'])(?:#[0-9a-f]{6}|[a-z0-9_-]+)\1)?>/gi,
         "",
     );
 }
@@ -2210,7 +2210,7 @@ export const Editor: Component<EditorProps> = (props) => {
                 changes: {
                     from: enclosing.openFrom,
                     to: enclosing.openTo,
-                    insert: `<mark data-mz-color="${color}">`,
+                    insert: `<mark m-color="${color}">`,
                 },
             });
             return true;
@@ -2220,7 +2220,7 @@ export const Editor: Component<EditorProps> = (props) => {
         if (!selectedText && !allowInsert) return false;
         const cleanText = stripMarkerTags(selectedText);
         const content = cleanText || "text";
-        const before = `<mark data-mz-color="${color}">`;
+        const before = `<mark m-color="${color}">`;
         const after = "</mark>";
         view.dispatch({
             changes: {

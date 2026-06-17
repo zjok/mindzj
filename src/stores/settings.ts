@@ -307,9 +307,7 @@ function hotkeyOverridesToBindings(
     overrides: Record<string, string>,
 ): HotkeyBinding[] {
     return Object.entries(overrides)
-        .filter(
-            ([, keys]) => typeof keys === "string" && keys.trim().length > 0,
-        )
+        .filter(([command, keys]) => !!command && typeof keys === "string")
         .map(([command, keys]) => ({ command, keys }));
 }
 
@@ -805,7 +803,10 @@ function createSettingsStore() {
             const hotkeys = await invoke<HotkeyBinding[]>("get_hotkeys");
             next.hotkey_overrides = Object.fromEntries(
                 hotkeys
-                    .filter((binding) => binding.command && binding.keys)
+                    .filter(
+                        (binding) =>
+                            binding.command && typeof binding.keys === "string",
+                    )
                     .map((binding) => [binding.command, binding.keys]),
             );
         } catch (e) {

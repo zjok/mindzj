@@ -2065,7 +2065,7 @@ function collectColorHighlightSpans(
     cursorLineTo: number,
 ): ColorHighlightSpan[] {
     const tagRegex = new RegExp(
-        `<mark\\s+data-mz-color=(["'])(#[0-9a-f]{6}|[a-z0-9_-]+)\\1>|<\\/mark>`,
+        `<mark\\s+(?:m-color|data-mz-color)=(["'])(#[0-9a-f]{6}|[a-z0-9_-]+)\\1>|<\\/mark>`,
         "gi",
     );
     const stack: Array<{
@@ -2250,7 +2250,7 @@ function removeOverlaps(decos: Range<Decoration>[]): Range<Decoration>[] {
 function buildMarkerColorSwatchDecorations(view: EditorView): DecorationSet {
     const decorations: Range<Decoration>[] = [];
     const tagRegex =
-        /<mark\s+data-mz-color=(["'])(#[0-9a-f]{6})\1>/gi;
+        /<mark\s+(?:m-color|data-mz-color)=(["'])(#[0-9a-f]{6})\1>/gi;
 
     for (const range of view.visibleRanges) {
         const text = view.state.doc.sliceString(range.from, range.to);
