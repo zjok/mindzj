@@ -887,7 +887,7 @@ html[data-theme="light"] .cm-editor .cm-panel.mz-search-panel {
 }
 .cm-editor .mz-lp-underline {
     text-decoration: underline;
-    text-underline-offset: 2px;
+    text-underline-offset: 0.35em;
 }
 .cm-editor .mz-lp-highlight {
     background: var(--mz-syntax-highlight-bg);
@@ -1560,7 +1560,7 @@ html[data-theme-mode="light"] .mz-lp-checkbox:checked {
 }
 .mz-reading-view .mz-rv-underline {
     text-decoration: underline;
-    text-underline-offset: 2px;
+    text-underline-offset: 0.35em;
 }
 
 /* Highlight */

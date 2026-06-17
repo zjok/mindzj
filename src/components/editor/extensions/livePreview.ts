@@ -2219,7 +2219,7 @@ const livePreviewTheme = EditorView.baseTheme({
     },
     ".mz-lp-underline": {
         textDecoration: "underline",
-        textUnderlineOffset: "2px",
+        textUnderlineOffset: "0.35em",
     },
     ".mz-lp-highlight": {
         background: "var(--mz-syntax-highlight-bg)",
