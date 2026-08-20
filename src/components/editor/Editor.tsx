@@ -108,6 +108,7 @@ import {
     normalizeVaultRelativePath,
 } from "../../utils/vaultPaths";
 import { t } from "../../i18n";
+import { normalizePastedOrderedLists } from "../../utils/pasteMarkdown";
 
 interface EditorProps {
     file?: ReturnType<typeof vaultStore.activeFile>;
@@ -1609,6 +1610,21 @@ export const Editor: Component<EditorProps> = (props) => {
                             return true;
                         }
                     }
+                    const plainText = event.clipboardData?.getData("text/plain") ?? "";
+                    const normalizedText = normalizePastedOrderedLists(plainText);
+                    if (plainText && normalizedText !== plainText) {
+                        event.preventDefault();
+                        const selection = view.state.selection.main;
+                        view.dispatch({
+                            changes: {
+                                from: selection.from,
+                                to: selection.to,
+                                insert: normalizedText,
+                            },
+                            selection: { anchor: selection.from + normalizedText.length },
+                        });
+                        return true;
+                    }
                     return false;
                 },
             }),
@@ -2488,6 +2504,8 @@ export const Editor: Component<EditorProps> = (props) => {
             if (!isPaneActive()) return;
             if (!editorView) return;
             const detail = (e as CustomEvent).detail;
+            if (detail?.path && detail.path !== currentFilePath) return;
+            detail?.handled?.();
             dispatchEditorCommand(detail);
         };
 
@@ -2790,10 +2808,14 @@ export const Editor: Component<EditorProps> = (props) => {
                 // Flash is line-level (not mark-level) so the whole row
                 // highlights, matching the "heading row background
                 // block" UX requested by the user.
-                const lineNum = Math.min(detail.line + 1, view.state.doc.lines);
+                const lineNum = Math.max(1, Math.min(detail.line + 1, view.state.doc.lines));
                 const lineInfo = view.state.doc.line(lineNum);
+                const column = Math.max(
+                    0,
+                    Math.min(Number(detail.column) || 0, lineInfo.length),
+                );
                 view.dispatch({
-                    selection: { anchor: lineInfo.from },
+                    selection: { anchor: lineInfo.from + column },
                     effects: [
                         EditorView.scrollIntoView(lineInfo.from, {
                             y: "start",

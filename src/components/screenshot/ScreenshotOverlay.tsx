@@ -18,6 +18,7 @@ import { t } from "../../i18n";
 // ---------------------------------------------------------------------------
 
 interface Rect { x: number; y: number; w: number; h: number; }
+type ResizeHandle = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w";
 
 type ToolType = "select" | "rect" | "circle" | "arrow" | "line" | "text" | "freehand" | "mosaic";
 
@@ -117,6 +118,7 @@ export const ScreenshotOverlay: Component<ScreenshotOverlayProps> = (props) => {
   // Move selection
   const [movingSelection, setMovingSelection] = createSignal(false);
   const [moveOffset, setMoveOffset] = createSignal<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [resizingSelection, setResizingSelection] = createSignal<ResizeHandle | null>(null);
   // Mouse position in VIEWPORT coordinates (for the full-screen
   // crosshair guide lines). We read it on every mousemove while in
   // the "select" phase and clear it once a selection is locked in.
@@ -172,6 +174,7 @@ export const ScreenshotOverlay: Component<ScreenshotOverlayProps> = (props) => {
   let bgCanvasRef: HTMLCanvasElement | undefined;
   let annotateCanvasRef: HTMLCanvasElement | undefined;
   let bgImage: HTMLImageElement | null = null;
+  let removeResizeListeners: (() => void) | null = null;
 
   // --- Load background image ---
   onMount(() => {
@@ -205,7 +208,7 @@ export const ScreenshotOverlay: Component<ScreenshotOverlayProps> = (props) => {
     document.addEventListener("keydown", handleEsc, true);
     document.addEventListener("keydown", handleCtrlZ, true);
     document.addEventListener("keydown", handleDelete, true);
-    onCleanup(() => { document.removeEventListener("keydown", handleEsc, true); document.removeEventListener("keydown", handleCtrlZ, true); document.removeEventListener("keydown", handleDelete, true); });
+    onCleanup(() => { document.removeEventListener("keydown", handleEsc, true); document.removeEventListener("keydown", handleCtrlZ, true); document.removeEventListener("keydown", handleDelete, true); removeResizeListeners?.(); });
   });
 
   // ─── Coordinate helpers ────────────────────────────────────────────
@@ -336,6 +339,56 @@ export const ScreenshotOverlay: Component<ScreenshotOverlayProps> = (props) => {
     return !!sel && pointInRect(pos.x, pos.y, sel);
   }
 
+  function selectionViewportRect(): Rect | null {
+    const sel = selection();
+    const displayed = bgDisplayedRect();
+    if (!sel || !displayed || !bgImage) return null;
+    return {
+      x: displayed.left + (sel.x / bgImage.width) * displayed.width,
+      y: displayed.top + (sel.y / bgImage.height) * displayed.height,
+      w: (sel.w / bgImage.width) * displayed.width,
+      h: (sel.h / bgImage.height) * displayed.height,
+    };
+  }
+
+  function startSelectionResize(handle: ResizeHandle, event: MouseEvent) {
+    if (!selection() || !bgImage || event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const initial = { ...selection()! };
+    setResizingSelection(handle);
+
+    const onMove = (moveEvent: MouseEvent) => {
+      const pos = bgPos(moveEvent);
+      const minSize = 10;
+      let left = initial.x;
+      let top = initial.y;
+      let right = initial.x + initial.w;
+      let bottom = initial.y + initial.h;
+
+      if (handle.includes("w")) left = Math.max(0, Math.min(pos.x, right - minSize));
+      if (handle.includes("e")) right = Math.min(bgImage!.width, Math.max(pos.x, left + minSize));
+      if (handle.includes("n")) top = Math.max(0, Math.min(pos.y, bottom - minSize));
+      if (handle.includes("s")) bottom = Math.min(bgImage!.height, Math.max(pos.y, top + minSize));
+
+      setSelection({ x: left, y: top, w: right - left, h: bottom - top });
+      drawSelectionOverlay();
+    };
+    const onUp = () => {
+      setResizingSelection(null);
+      document.removeEventListener("mousemove", onMove, true);
+      document.removeEventListener("mouseup", onUp, true);
+      removeResizeListeners = null;
+    };
+    removeResizeListeners?.();
+    removeResizeListeners = () => {
+      document.removeEventListener("mousemove", onMove, true);
+      document.removeEventListener("mouseup", onUp, true);
+    };
+    document.addEventListener("mousemove", onMove, true);
+    document.addEventListener("mouseup", onUp, true);
+  }
+
   function onSelMouseDown(e: MouseEvent) {
     if (phase() !== "select") return;
     // Only left-click (button 0) starts or moves a selection.
@@ -370,7 +423,7 @@ export const ScreenshotOverlay: Component<ScreenshotOverlayProps> = (props) => {
     // aware `rectToBufferCoords` helper that `bgPos` uses, so the
     // guide lines are pixel-perfect aligned with the underlying
     // screenshot content.
-    if (phase() === "select" && !selection() && !dragging() && !movingSelection()) {
+    if (phase() === "select" && !selection() && !dragging() && !movingSelection() && !resizingSelection()) {
       const displayed = bgDisplayedRect();
       if (
         displayed &&
@@ -397,7 +450,9 @@ export const ScreenshotOverlay: Component<ScreenshotOverlayProps> = (props) => {
       const pos = bgPos(e);
       const sel = selection()!;
       const off = moveOffset();
-      setSelection({ ...sel, x: pos.x - off.x, y: pos.y - off.y });
+      const x = Math.max(0, Math.min(pos.x - off.x, (bgImage?.width ?? sel.w) - sel.w));
+      const y = Math.max(0, Math.min(pos.y - off.y, (bgImage?.height ?? sel.h) - sel.h));
+      setSelection({ ...sel, x, y });
       drawSelectionOverlay();
       return;
     }
@@ -837,6 +892,40 @@ export const ScreenshotOverlay: Component<ScreenshotOverlayProps> = (props) => {
 
         {/* Confirm button appears after selection */}
         <Show when={selection()}>
+          {(() => {
+            const rect = selectionViewportRect();
+            if (!rect) return null;
+            const handles: Array<{ id: ResizeHandle; x: number; y: number; cursor: string }> = [
+              { id: "nw", x: rect.x, y: rect.y, cursor: "nwse-resize" },
+              { id: "n", x: rect.x + rect.w / 2, y: rect.y, cursor: "ns-resize" },
+              { id: "ne", x: rect.x + rect.w, y: rect.y, cursor: "nesw-resize" },
+              { id: "e", x: rect.x + rect.w, y: rect.y + rect.h / 2, cursor: "ew-resize" },
+              { id: "se", x: rect.x + rect.w, y: rect.y + rect.h, cursor: "nwse-resize" },
+              { id: "s", x: rect.x + rect.w / 2, y: rect.y + rect.h, cursor: "ns-resize" },
+              { id: "sw", x: rect.x, y: rect.y + rect.h, cursor: "nesw-resize" },
+              { id: "w", x: rect.x, y: rect.y + rect.h / 2, cursor: "ew-resize" },
+            ];
+            return handles.map((handle) => (
+              <div
+                data-resize-handle={handle.id}
+                onMouseDown={(event) => startSelectionResize(handle.id, event)}
+                style={{
+                  position: "fixed",
+                  left: `${handle.x}px`,
+                  top: `${handle.y}px`,
+                  width: "10px",
+                  height: "10px",
+                  transform: "translate(-50%, -50%)",
+                  background: "#fff",
+                  border: "2px solid #00aaff",
+                  "border-radius": "2px",
+                  cursor: handle.cursor,
+                  "z-index": "100003",
+                  "box-sizing": "border-box",
+                }}
+              />
+            ));
+          })()}
           <div style={{ position: "absolute", bottom: "20px", left: "50%", transform: "translateX(-50%)", display: "flex", gap: "8px" }}>
             <button onClick={props.onClose} style={{ padding: "8px 20px", background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.3)", "border-radius": "6px", color: "#ddd", cursor: "pointer", "font-size": "14px", "font-family": "system-ui" }}>{t("common.cancel")}</button>
             <button onClick={confirmSelection} style={{ padding: "8px 20px", background: "#00aaff", border: "none", "border-radius": "6px", color: "#fff", cursor: "pointer", "font-size": "14px", "font-family": "system-ui", "font-weight": "600" }}>{t("screenshot.confirmSelection")}</button>

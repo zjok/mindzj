@@ -13,13 +13,17 @@ import { vaultStore } from "../../stores/vault";
 import { editorStore } from "../../stores/editor";
 import { settingsStore } from "../../stores/settings";
 import { skinMode } from "../../styles/themes";
+import { openFileRouted } from "../../utils/openFileRouted";
+import { revealFileLocation } from "../../utils/wikiNavigation";
 
 interface NoteLink {
   source: string;
   target: string;
   display_text: string | null;
+  anchor: string | null;
   link_type: string;
   line: number;
+  column: number;
 }
 
 export const StatusBar: Component = () => {
@@ -49,18 +53,19 @@ export const StatusBar: Component = () => {
     ),
   );
 
-  const grouped = () => {
-    const map = new Map<string, NoteLink[]>();
-    for (const link of backlinks()) {
-      const list = map.get(link.source) || [];
-      list.push(link);
-      map.set(link.source, list);
-    }
-    return [...map.entries()];
-  };
-
   const displayName = (path: string) =>
     path.replace(/\.md$/, "").split("/").pop() ?? path;
+
+  const truncateLabel = (value: string) => {
+    const chars = Array.from(value);
+    return chars.length > 15 ? `${chars.slice(0, 15).join("")}…` : value;
+  };
+
+  const openBacklink = async (link: NoteLink) => {
+    await openFileRouted(link.source);
+    revealFileLocation(link.source, link.line, link.column);
+    setShowPopover(false);
+  };
 
   const handleOutsideClick = (event: MouseEvent) => {
     if (
@@ -164,18 +169,15 @@ export const StatusBar: Component = () => {
           >
             {t("status.backlinksTitle", { count: backlinks().length })}
           </div>
-          <For each={grouped()}>
-            {([source]) => (
+          <For each={backlinks()}>
+            {(link) => (
               <div
-                onClick={() => {
-                  void vaultStore.openFile(source);
-                  setShowPopover(false);
-                }}
+                onClick={() => void openBacklink(link)}
                 style={{
                   display: "flex",
-                  "align-items": "center",
-                  gap: "6px",
-                  padding: "5px 12px",
+                  "align-items": "flex-start",
+                  gap: "8px",
+                  padding: "7px 12px",
                   cursor: "pointer",
                   color: "var(--mz-text-primary)",
                 }}
@@ -202,12 +204,35 @@ export const StatusBar: Component = () => {
                 </svg>
                 <span
                   style={{
+                    display: "flex",
+                    "flex-direction": "column",
+                    gap: "2px",
+                    "min-width": "0",
                     overflow: "hidden",
-                    "text-overflow": "ellipsis",
-                    "white-space": "nowrap",
                   }}
                 >
-                  {displayName(source)}
+                  <span
+                    title={link.anchor ?? displayName(link.target)}
+                    style={{
+                      color: "var(--mz-text-primary)",
+                      "font-weight": "500",
+                      "white-space": "nowrap",
+                    }}
+                  >
+                    {truncateLabel(link.anchor ?? displayName(link.target))}
+                  </span>
+                  <span
+                    title={link.source}
+                    style={{
+                      color: "var(--mz-text-muted)",
+                      "font-size": "var(--mz-font-size-xs)",
+                      overflow: "hidden",
+                      "text-overflow": "ellipsis",
+                      "white-space": "nowrap",
+                    }}
+                  >
+                    {displayName(link.source)}
+                  </span>
                 </span>
               </div>
             )}

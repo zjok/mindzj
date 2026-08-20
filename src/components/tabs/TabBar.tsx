@@ -118,7 +118,7 @@ type SplitDirection = "left" | "right" | "up" | "down";
 interface TabBarProps {
   files: FileContent[];
   activeFile: FileContent | null;
-  onSelect: (path: string) => void;
+  onSelect: (path: string) => void | Promise<void>;
   onClose: (path: string) => void;
   onReorder?: (fromIdx: number, toIdx: number) => void;
   onOpenSplit?: (path: string, direction: SplitDirection) => void;
@@ -474,7 +474,7 @@ export const TabBar: Component<TabBarProps> = (props) => {
                 }}
                 onClick={() => {
                   closeTooltip();
-                  if (!dragging) props.onSelect(file.path);
+                  if (!dragging) void props.onSelect(file.path);
                 }}
                 onContextMenu={(event) => openContextMenu(event, index())}
                 style={{

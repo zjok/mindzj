@@ -219,13 +219,21 @@ impl LinkIndex {
 
                     if !target.is_empty() {
                         let target_path = Self::resolve_link_target(target);
+                        let anchor = target
+                            .split_once('#')
+                            .map(|(_, value)| value.trim().to_string())
+                            .filter(|value| !value.is_empty());
                         links.push(NoteLink {
                             source: source.to_string(),
                             target: target_path,
                             display_text: display,
+                            anchor,
                             link_type: LinkType::WikiLink,
                             line: line_num,
-                            column: i as u32,
+                            // CodeMirror positions use JavaScript UTF-16 code
+                            // units, not UTF-8 byte offsets. Store the same unit
+                            // so backlink clicks land exactly after CJK/emoji.
+                            column: line[..i].encode_utf16().count() as u32,
                         });
                     }
 
@@ -275,6 +283,10 @@ impl LinkIndex {
                                 && !url.is_empty()
                             {
                                 let target_path = Self::resolve_link_target(url);
+                                let anchor = url
+                                    .split_once('#')
+                                    .map(|(_, value)| value.trim().to_string())
+                                    .filter(|value| !value.is_empty());
                                 links.push(NoteLink {
                                     source: source.to_string(),
                                     target: target_path,
@@ -283,9 +295,10 @@ impl LinkIndex {
                                     } else {
                                         Some(display_text.to_string())
                                     },
+                                    anchor,
                                     link_type: LinkType::MarkdownLink,
                                     line: line_num,
-                                    column: i as u32,
+                                    column: line[..i].encode_utf16().count() as u32,
                                 });
                             }
 
@@ -322,13 +335,18 @@ impl LinkIndex {
 
                     if !target.is_empty() {
                         let target_path = Self::resolve_link_target(target);
+                        let anchor = target
+                            .split_once('#')
+                            .map(|(_, value)| value.trim().to_string())
+                            .filter(|value| !value.is_empty());
                         links.push(NoteLink {
                             source: source.to_string(),
                             target: target_path,
                             display_text: None,
+                            anchor,
                             link_type: LinkType::Embed,
                             line: line_num,
-                            column: i as u32,
+                            column: line[..i].encode_utf16().count() as u32,
                         });
                     }
 
@@ -365,14 +383,21 @@ mod tests {
 
     #[test]
     fn test_parse_wiki_links() {
-        let content = "Here is a [[note]] and [[folder/other|Other Note]].";
+        let content = "Here is a [[note]] and [[folder/other#Target heading|Other Note]].";
         let links = LinkIndex::parse_links("source.md", content);
 
         assert_eq!(links.len(), 2);
         assert_eq!(links[0].target, "note.md");
         assert_eq!(links[0].link_type, LinkType::WikiLink);
         assert_eq!(links[1].target, "folder/other.md");
+        assert_eq!(links[1].anchor, Some("Target heading".to_string()));
         assert_eq!(links[1].display_text, Some("Other Note".to_string()));
+    }
+
+    #[test]
+    fn test_link_column_uses_utf16_units() {
+        let links = LinkIndex::parse_links("source.md", "中文🙂 [[note]]");
+        assert_eq!(links[0].column, "中文🙂 ".encode_utf16().count() as u32);
     }
 
     #[test]

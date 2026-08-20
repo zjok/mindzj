@@ -45,6 +45,7 @@ import {
 import { Range, StateField, Transaction } from "@codemirror/state";
 import {
     getContinuationInfo,
+    measureIndentColumns,
     LIST_INDENT_EXTRA_PX,
     LIST_INDENT_WIDTH,
     LIST_RENDER_TAB_SIZE,
@@ -91,11 +92,15 @@ function listGuideDeco(level: number): Decoration {
     });
 }
 
-function listWrapDeco(level: number, markerChars: number): Decoration {
+function listWrapDeco(
+    level: number,
+    markerChars: number,
+    residualSpaces: number,
+): Decoration {
     return Decoration.line({
         class: "mz-list-wrap-line",
         attributes: {
-            style: `--mz-list-wrap-tabs: ${level}; --mz-list-wrap-marker: ${markerChars};`,
+            style: `--mz-list-wrap-tabs: ${level}; --mz-list-wrap-spaces: ${residualSpaces}; --mz-list-wrap-marker: ${markerChars};`,
         },
     });
 }
@@ -195,7 +200,11 @@ function buildListLineDecorations(
         if (!listInfo || listInfo.kind === "blockquote") continue;
 
         decos.push(
-            listWrapDeco(listInfo.level, listInfo.marker.length).range(line.from),
+            listWrapDeco(
+                listInfo.level,
+                listInfo.marker.length,
+                measureIndentColumns(listInfo.rawIndent) % LIST_INDENT_WIDTH,
+            ).range(line.from),
         );
         if (listInfo.level > 0) {
             decos.push(listGuideDeco(listInfo.level).range(line.from));

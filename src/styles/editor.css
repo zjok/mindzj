@@ -145,6 +145,7 @@
 .cm-editor .cm-line.mz-list-wrap-line .mz-lp-list-content {
     --_wrap: calc(
         var(--mz-list-wrap-tabs, 0) * var(--mz-list-indent-step, 40px) +
+            var(--mz-list-wrap-spaces, 0) * 1ch +
             var(--mz-list-wrap-marker, 0) * 1ch
     );
     display: inline-block;

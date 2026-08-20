@@ -1027,7 +1027,19 @@ const App: Component = () => {
         }
     }
 
-    function handleTabSelect(path: string) {
+    let tabSelectRequest = 0;
+    async function handleTabSelect(path: string) {
+        const request = ++tabSelectRequest;
+        const currentPath = activePanePath() ?? vaultStore.activeFile()?.path;
+        if (currentPath && currentPath !== path && editorStore.isDirtyPath(currentPath)) {
+            try {
+                await editorStore.flushPendingSave(currentPath);
+            } catch (error) {
+                console.error("[Tab] Failed to save before switching:", error);
+                return;
+            }
+        }
+        if (request !== tabSelectRequest) return;
         document.dispatchEvent(
             new CustomEvent("mindzj:remember-active-viewport"),
         );
@@ -1081,7 +1093,7 @@ const App: Component = () => {
         const next = files[newIdx];
         if (!next) return false;
 
-        handleTabSelect(next.path);
+        void handleTabSelect(next.path);
         return true;
     }
 

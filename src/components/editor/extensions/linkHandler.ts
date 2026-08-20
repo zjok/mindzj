@@ -25,7 +25,7 @@ import {
 } from "@codemirror/autocomplete";
 import { t } from "../../../i18n";
 import { vaultStore, type VaultEntry } from "../../../stores/vault";
-import { openFileRouted } from "../../../utils/openFileRouted";
+import { navigateWikiTarget } from "../../../utils/wikiNavigation";
 import { settingsStore } from "../../../stores/settings";
 import { URL_REGEX, trimTrailingPunct, ensureScheme } from "../../../utils/autoLink";
 
@@ -52,7 +52,7 @@ function handleLinkClick(view: EditorView, pos: number, _event: MouseEvent): boo
     while ((match = wikiRegex.exec(text)) !== null) {
         if (col >= match.index && col <= match.index + match[0].length) {
             const target = match[1].trim();
-            navigateToFile(target);
+            void navigateWikiTarget(target);
             return true;
         }
     }
@@ -67,7 +67,7 @@ function handleLinkClick(view: EditorView, pos: number, _event: MouseEvent): boo
                 window.open(url, "_blank");
             } else {
                 // Internal link - open file
-                navigateToFile(url);
+                void navigateWikiTarget(url);
             }
             return true;
         }
@@ -116,101 +116,6 @@ function handleLinkClick(view: EditorView, pos: number, _event: MouseEvent): boo
  * Navigate to a file, optionally jumping to a specific heading.
  * Supports [[page#heading]] syntax: the part after # is the heading text.
  */
-async function navigateToFile(target: string): Promise<void> {
-    let filePath = target;
-    let heading: string | null = null;
-
-    // Split on first # for heading anchors: "page#heading"
-    const hashIdx = filePath.indexOf("#");
-    if (hashIdx >= 0) {
-        heading = filePath.slice(hashIdx + 1).trim();
-        filePath = filePath.slice(0, hashIdx).trim();
-    }
-
-    // Add .md extension if not present (and there's a file part)
-    if (filePath && !filePath.includes(".")) {
-        filePath += ".md";
-    }
-
-    try {
-        if (filePath) {
-            // Route via openFileRouted so an editor wikilink to an
-            // image / .doc / .pdf opens in the right viewer rather
-            // than feeding raw bytes to the markdown editor.
-            await openFileRouted(filePath);
-        }
-
-        // After opening (or if same file), jump to anchor
-        if (heading) {
-            // Delay to let editor rebuild after file open, then poll
-            // until the new EditorView is available.
-            const initialDelay = filePath ? 150 : 0;
-            const tryJump = (retries: number) => {
-                const view = getEditorView();
-                if (view) {
-                    jumpToAnchor(view, heading!);
-                } else if (retries > 0) {
-                    setTimeout(() => tryJump(retries - 1), 50);
-                }
-            };
-            setTimeout(() => tryJump(20), initialDelay);
-        }
-    } catch {
-        console.warn(`Could not open file: ${filePath}`);
-    }
-}
-
-/**
- * Jump to a heading OR exact line text in the current editor view.
- * First tries to match a heading (# title). If no heading matches,
- * falls back to finding any line whose trimmed text matches the anchor.
- * This supports both [[page#Heading]] and Ctrl+Alt+C/V arbitrary anchors.
- */
-function jumpToAnchor(view: EditorView, anchor: string): void {
-    const doc = view.state.doc;
-    const lowerAnchor = anchor.toLowerCase();
-
-    /** Place cursor and scroll the matched line to the TOP of the viewport. */
-    function scrollToLine(pos: number) {
-        view.dispatch({
-            selection: { anchor: pos },
-            effects: EditorView.scrollIntoView(pos, { y: "start", yMargin: 10 }),
-        });
-        view.focus();
-    }
-
-    // Pass 1: match headings
-    for (let i = 1; i <= doc.lines; i++) {
-        const line = doc.line(i);
-        const match = line.text.match(/^#{1,6}\s+(.+)$/);
-        if (match) {
-            const text = match[1].trim().toLowerCase();
-            if (text === lowerAnchor || text.replace(/\s+/g, "-") === lowerAnchor) {
-                scrollToLine(line.from);
-                return;
-            }
-        }
-    }
-
-    // Pass 2: match any line whose trimmed text equals the anchor
-    for (let i = 1; i <= doc.lines; i++) {
-        const line = doc.line(i);
-        if (line.text.trim().toLowerCase() === lowerAnchor) {
-            scrollToLine(line.from);
-            return;
-        }
-    }
-
-    // Pass 3: match any line that contains the anchor text
-    for (let i = 1; i <= doc.lines; i++) {
-        const line = doc.line(i);
-        if (line.text.toLowerCase().includes(lowerAnchor)) {
-            scrollToLine(line.from);
-            return;
-        }
-    }
-}
-
 function jumpToFootnote(view: EditorView, fnId: string): void {
     const doc = view.state.doc;
     const searchPattern = `[^${fnId}]:`;

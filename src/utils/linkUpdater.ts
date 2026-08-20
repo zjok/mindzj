@@ -16,6 +16,7 @@ interface NoteLink {
     source: string;
     target: string;
     display_text: string | null;
+    anchor?: string | null;
     link_type: string;
     line: number;
 }

@@ -120,6 +120,7 @@ function createEditorStore() {
   // callback owns the content via closure, which isn't reachable from
   // the outside, so we mirror it here.
   const pendingSaveContent = new Map<string, string>();
+  const inFlightSaves = new Map<string, Promise<void>>();
 
   // ── Heading & anchor tracking for backlink updates ──
   // Stores the last-known headings per file and the list of anchors
@@ -287,7 +288,7 @@ function createEditorStore() {
     const t = setTimeout(async () => {
       saveTimers.delete(relativePath);
       pendingSaveContent.delete(relativePath);
-      try {
+      const savePromise = (async () => {
         const saved = await vaultStore.saveFile(relativePath, content, {
           updateState: false,
         });
@@ -299,8 +300,16 @@ function createEditorStore() {
           // and update wiki-link references across the vault.
           checkHeadingChanges(relativePath, content);
         }
+      })();
+      inFlightSaves.set(relativePath, savePromise);
+      try {
+        await savePromise;
       } catch (e) {
         console.error("Auto-save failed:", e);
+      } finally {
+        if (inFlightSaves.get(relativePath) === savePromise) {
+          inFlightSaves.delete(relativePath);
+        }
       }
     }, autoSaveDelayMs());
     saveTimers.set(relativePath, t);
@@ -330,6 +339,7 @@ function createEditorStore() {
     }
     pendingSaveContent.delete(relativePath);
     try {
+      await inFlightSaves.get(relativePath);
       await vaultStore.saveFile(relativePath, content, {
         suppressSavedEvent: options?.suppressSavedEvent,
       });
@@ -337,6 +347,42 @@ function createEditorStore() {
     } catch (e) {
       console.error("Force save failed:", e);
       throw e;
+    }
+  }
+
+  /** Save one tab's latest debounced content and wait for the disk write. */
+  async function flushPendingSave(relativePath: string): Promise<void> {
+    const content = pendingSaveContent.get(relativePath);
+    const timer = saveTimers.get(relativePath);
+    if (timer) {
+      clearTimeout(timer);
+      saveTimers.delete(relativePath);
+    }
+    pendingSaveContent.delete(relativePath);
+
+    const existingSave = inFlightSaves.get(relativePath);
+    if (existingSave) await existingSave;
+    if (content == null) {
+      // Another flush can start a write after the await above resumes.
+      // Re-read the map so simultaneous rapid tab clicks all wait for it.
+      await inFlightSaves.get(relativePath);
+      return;
+    }
+
+    const savePromise = (async () => {
+      await vaultStore.saveFile(relativePath, content);
+      if (!pendingSaveContent.has(relativePath)) {
+        clearDirty(relativePath);
+        checkHeadingChanges(relativePath, content);
+      }
+    })();
+    inFlightSaves.set(relativePath, savePromise);
+    try {
+      await savePromise;
+    } finally {
+      if (inFlightSaves.get(relativePath) === savePromise) {
+        inFlightSaves.delete(relativePath);
+      }
     }
   }
 
@@ -708,6 +754,7 @@ function createEditorStore() {
     cancelAutoSave,
     storeHeadings,
     forceSave,
+    flushPendingSave,
     flushAllPendingSaves,
     updateStats,
     cycleViewMode,

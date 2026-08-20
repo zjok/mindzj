@@ -81,6 +81,9 @@ pub struct NoteLink {
     pub target: String,
     /// Display text of the link (if any)
     pub display_text: Option<String>,
+    /// Heading/anchor after `#`, kept separately from the resolved file path.
+    #[serde(default)]
+    pub anchor: Option<String>,
     /// Type of link
     pub link_type: LinkType,
     /// Line number where the link appears in the source file

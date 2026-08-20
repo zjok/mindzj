@@ -80,6 +80,10 @@ const MarkdownOutline: Component = () => {
   );
 
   const jumpToHeading = (heading: OutlineHeading) => {
+    // Select immediately. Reading mode may be unable to place a heading at
+    // the viewport top near the end of a short document; selection should
+    // reflect the clicked outline row, not the resulting scroll geometry.
+    editorStore.setCursorLine(heading.line);
     document.dispatchEvent(
       new CustomEvent("mindzj:editor-command", {
         detail: { command: "goto-line", line: heading.line - 1 },

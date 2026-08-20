@@ -39,7 +39,7 @@ import {
 } from "../../stores/findState";
 import katex from "katex";
 import { resolveImageAssetUrl } from "../../utils/vaultPaths";
-import { openFileRouted } from "../../utils/openFileRouted";
+import { navigateWikiTarget } from "../../utils/wikiNavigation";
 import { showImageContextMenu } from "./extensions/livePreview";
 import {
     LIST_INDENT_EXTRA_PX,
@@ -549,7 +549,12 @@ function renderInline(text: string, ctx: RenderContext): string {
         /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g,
         (_, target, display) => {
             const label = display || target;
-            return `<a class="mz-rv-wikilink" data-target="${escapeAttr(target)}">${label}</a>`;
+            // Encode the whole target before putting it in an attribute. The
+            // inline-formatting passes below intentionally process Markdown in
+            // the visible label; raw backticks/asterisks in data-target would
+            // otherwise inject formatting markup into the opening tag.
+            const attrTarget = encodeURIComponent(unescapeHtml(target));
+            return `<a class="mz-rv-wikilink" data-target="${attrTarget}">${label}</a>`;
         },
     );
 
@@ -1211,7 +1216,10 @@ export const ReadingView: Component<ReadingViewProps> = (props) => {
         return best?.line ?? null;
     }
 
-    function rememberReadingViewport(path: string | null = currentFilePath) {
+    function rememberReadingViewport(
+        path: string | null = currentFilePath,
+        updateOutline = true,
+    ) {
         if (!path || !scrollContainerRef) return;
         editorStore.setFileScrollPosition(
             path,
@@ -1221,7 +1229,7 @@ export const ReadingView: Component<ReadingViewProps> = (props) => {
         const line = computeTopVisibleLine();
         if (line !== null) {
             editorStore.setFileTopLine(path, line);
-            editorStore.setCursorLine(line);
+            if (updateOutline) editorStore.setCursorLine(line);
         }
     }
 
@@ -1342,6 +1350,7 @@ export const ReadingView: Component<ReadingViewProps> = (props) => {
             "mindzj:remember-active-viewport",
             handleRememberViewport,
         );
+        let outlineJumpLockUntil = 0;
         const handler = (e: Event) => {
             const detail = (e as CustomEvent).detail;
             if (
@@ -1349,6 +1358,7 @@ export const ReadingView: Component<ReadingViewProps> = (props) => {
                 containerRef &&
                 scrollContainerRef
             ) {
+                if (detail?.path && detail.path !== currentFilePath) return;
                 const targetLine = detail.line;
                 // Find an anchor element matching the target source
                 // line. Exact match first; if none, fall back to the
@@ -1375,6 +1385,9 @@ export const ReadingView: Component<ReadingViewProps> = (props) => {
                     target = anchors[0];
                 }
                 if (target) {
+                    detail?.handled?.();
+                    outlineJumpLockUntil = Date.now() + 180;
+                    editorStore.setCursorLine(targetLine + 1);
                     // Instant scroll (no smooth animation) — user wants
                     // outline / Ctrl+G clicks to jump straight to the
                     // target.
@@ -1497,7 +1510,10 @@ export const ReadingView: Component<ReadingViewProps> = (props) => {
             if (scrollTimer != null) return;
             scrollTimer = window.setTimeout(() => {
                 scrollTimer = null;
-                rememberReadingViewport();
+                rememberReadingViewport(
+                    currentFilePath,
+                    Date.now() >= outlineJumpLockUntil,
+                );
             }, 60);
         };
         scrollContainerRef?.addEventListener("scroll", onScroll, {
@@ -1617,20 +1633,19 @@ export const ReadingView: Component<ReadingViewProps> = (props) => {
                 .forEach((el) => {
                     el.addEventListener("click", async (e) => {
                         e.preventDefault();
-                        const target = el.dataset.target;
+                        const encodedTarget = el.dataset.target;
+                        const target = encodedTarget
+                            ? decodeURIComponent(encodedTarget)
+                            : "";
                         if (target) {
-                            let path = target;
-                            if (!path.includes(".")) path += ".md";
                             try {
                                 activatePane();
-                                // Route via openFileRouted so wikilinks
-                                // pointing at images / office docs /
-                                // PDFs open in their proper viewer.
-                                await openFileRouted(path);
-                                editorStore.setViewMode("reading", path);
+                                await navigateWikiTarget(target, {
+                                    viewMode: "reading",
+                                });
                             } catch {
                                 console.warn(
-                                    t("reading.couldNotOpen", { path }),
+                                    t("reading.couldNotOpen", { path: target }),
                                 );
                             }
                         }
