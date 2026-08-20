@@ -458,122 +458,306 @@ html[data-mz-platform="macos"] .mz-sidebar-file-list-scroll::-webkit-scrollbar,
 html[data-mz-platform="linux"] .mz-sidebar-file-list-scroll::-webkit-scrollbar,
 html[data-mz-platform="macos"] .mz-split-pane .cm-scroller::-webkit-scrollbar,
 html[data-mz-platform="linux"] .mz-split-pane .cm-scroller::-webkit-scrollbar,
-html[data-mz-platform="macos"] .mz-split-pane .mz-reading-scroll-container::-webkit-scrollbar,
-html[data-mz-platform="linux"] .mz-split-pane .mz-reading-scroll-container::-webkit-scrollbar,
-html[data-mz-platform="macos"] .mz-split-pane .mz-file-preview-scroll::-webkit-scrollbar,
-html[data-mz-platform="linux"] .mz-split-pane .mz-file-preview-scroll::-webkit-scrollbar,
-html[data-mz-platform="macos"] .mz-pane-wrap-primary .cm-scroller::-webkit-scrollbar,
-html[data-mz-platform="linux"] .mz-pane-wrap-primary .cm-scroller::-webkit-scrollbar,
-html[data-mz-platform="macos"] .mz-pane-wrap-primary .mz-reading-scroll-container::-webkit-scrollbar,
-html[data-mz-platform="linux"] .mz-pane-wrap-primary .mz-reading-scroll-container::-webkit-scrollbar,
-html[data-mz-platform="macos"] .mz-pane-wrap-primary .mz-file-preview-scroll::-webkit-scrollbar,
-html[data-mz-platform="linux"] .mz-pane-wrap-primary .mz-file-preview-scroll::-webkit-scrollbar,
-html[data-mz-platform="macos"] .mz-pane-wrap-secondary .cm-scroller::-webkit-scrollbar,
-html[data-mz-platform="linux"] .mz-pane-wrap-secondary .cm-scroller::-webkit-scrollbar,
-html[data-mz-platform="macos"] .mz-pane-wrap-secondary .mz-reading-scroll-container::-webkit-scrollbar,
-html[data-mz-platform="linux"] .mz-pane-wrap-secondary .mz-reading-scroll-container::-webkit-scrollbar,
-html[data-mz-platform="macos"] .mz-pane-wrap-secondary .mz-file-preview-scroll::-webkit-scrollbar,
-html[data-mz-platform="linux"] .mz-pane-wrap-secondary .mz-file-preview-scroll::-webkit-scrollbar {
+html[data-mz-platform="macos"]
+    .mz-split-pane
+    .mz-reading-scroll-container::-webkit-scrollbar,
+html[data-mz-platform="linux"]
+    .mz-split-pane
+    .mz-reading-scroll-container::-webkit-scrollbar,
+html[data-mz-platform="macos"]
+    .mz-split-pane
+    .mz-file-preview-scroll::-webkit-scrollbar,
+html[data-mz-platform="linux"]
+    .mz-split-pane
+    .mz-file-preview-scroll::-webkit-scrollbar,
+html[data-mz-platform="macos"]
+    .mz-pane-wrap-primary
+    .cm-scroller::-webkit-scrollbar,
+html[data-mz-platform="linux"]
+    .mz-pane-wrap-primary
+    .cm-scroller::-webkit-scrollbar,
+html[data-mz-platform="macos"]
+    .mz-pane-wrap-primary
+    .mz-reading-scroll-container::-webkit-scrollbar,
+html[data-mz-platform="linux"]
+    .mz-pane-wrap-primary
+    .mz-reading-scroll-container::-webkit-scrollbar,
+html[data-mz-platform="macos"]
+    .mz-pane-wrap-primary
+    .mz-file-preview-scroll::-webkit-scrollbar,
+html[data-mz-platform="linux"]
+    .mz-pane-wrap-primary
+    .mz-file-preview-scroll::-webkit-scrollbar,
+html[data-mz-platform="macos"]
+    .mz-pane-wrap-secondary
+    .cm-scroller::-webkit-scrollbar,
+html[data-mz-platform="linux"]
+    .mz-pane-wrap-secondary
+    .cm-scroller::-webkit-scrollbar,
+html[data-mz-platform="macos"]
+    .mz-pane-wrap-secondary
+    .mz-reading-scroll-container::-webkit-scrollbar,
+html[data-mz-platform="linux"]
+    .mz-pane-wrap-secondary
+    .mz-reading-scroll-container::-webkit-scrollbar,
+html[data-mz-platform="macos"]
+    .mz-pane-wrap-secondary
+    .mz-file-preview-scroll::-webkit-scrollbar,
+html[data-mz-platform="linux"]
+    .mz-pane-wrap-secondary
+    .mz-file-preview-scroll::-webkit-scrollbar {
     width: 7px !important;
     height: 7px !important;
     background: transparent !important;
 }
 
-html[data-mz-platform="macos"] .mz-sidebar-file-list-scroll::-webkit-scrollbar-track,
-html[data-mz-platform="linux"] .mz-sidebar-file-list-scroll::-webkit-scrollbar-track,
-html[data-mz-platform="macos"] .mz-split-pane .cm-scroller::-webkit-scrollbar-track,
-html[data-mz-platform="linux"] .mz-split-pane .cm-scroller::-webkit-scrollbar-track,
-html[data-mz-platform="macos"] .mz-split-pane .mz-reading-scroll-container::-webkit-scrollbar-track,
-html[data-mz-platform="linux"] .mz-split-pane .mz-reading-scroll-container::-webkit-scrollbar-track,
-html[data-mz-platform="macos"] .mz-split-pane .mz-file-preview-scroll::-webkit-scrollbar-track,
-html[data-mz-platform="linux"] .mz-split-pane .mz-file-preview-scroll::-webkit-scrollbar-track,
-html[data-mz-platform="macos"] .mz-pane-wrap-primary .cm-scroller::-webkit-scrollbar-track,
-html[data-mz-platform="linux"] .mz-pane-wrap-primary .cm-scroller::-webkit-scrollbar-track,
-html[data-mz-platform="macos"] .mz-pane-wrap-primary .mz-reading-scroll-container::-webkit-scrollbar-track,
-html[data-mz-platform="linux"] .mz-pane-wrap-primary .mz-reading-scroll-container::-webkit-scrollbar-track,
-html[data-mz-platform="macos"] .mz-pane-wrap-primary .mz-file-preview-scroll::-webkit-scrollbar-track,
-html[data-mz-platform="linux"] .mz-pane-wrap-primary .mz-file-preview-scroll::-webkit-scrollbar-track,
-html[data-mz-platform="macos"] .mz-pane-wrap-secondary .cm-scroller::-webkit-scrollbar-track,
-html[data-mz-platform="linux"] .mz-pane-wrap-secondary .cm-scroller::-webkit-scrollbar-track,
-html[data-mz-platform="macos"] .mz-pane-wrap-secondary .mz-reading-scroll-container::-webkit-scrollbar-track,
-html[data-mz-platform="linux"] .mz-pane-wrap-secondary .mz-reading-scroll-container::-webkit-scrollbar-track,
-html[data-mz-platform="macos"] .mz-pane-wrap-secondary .mz-file-preview-scroll::-webkit-scrollbar-track,
-html[data-mz-platform="linux"] .mz-pane-wrap-secondary .mz-file-preview-scroll::-webkit-scrollbar-track {
+html[data-mz-platform="macos"]
+    .mz-sidebar-file-list-scroll::-webkit-scrollbar-track,
+html[data-mz-platform="linux"]
+    .mz-sidebar-file-list-scroll::-webkit-scrollbar-track,
+html[data-mz-platform="macos"]
+    .mz-split-pane
+    .cm-scroller::-webkit-scrollbar-track,
+html[data-mz-platform="linux"]
+    .mz-split-pane
+    .cm-scroller::-webkit-scrollbar-track,
+html[data-mz-platform="macos"]
+    .mz-split-pane
+    .mz-reading-scroll-container::-webkit-scrollbar-track,
+html[data-mz-platform="linux"]
+    .mz-split-pane
+    .mz-reading-scroll-container::-webkit-scrollbar-track,
+html[data-mz-platform="macos"]
+    .mz-split-pane
+    .mz-file-preview-scroll::-webkit-scrollbar-track,
+html[data-mz-platform="linux"]
+    .mz-split-pane
+    .mz-file-preview-scroll::-webkit-scrollbar-track,
+html[data-mz-platform="macos"]
+    .mz-pane-wrap-primary
+    .cm-scroller::-webkit-scrollbar-track,
+html[data-mz-platform="linux"]
+    .mz-pane-wrap-primary
+    .cm-scroller::-webkit-scrollbar-track,
+html[data-mz-platform="macos"]
+    .mz-pane-wrap-primary
+    .mz-reading-scroll-container::-webkit-scrollbar-track,
+html[data-mz-platform="linux"]
+    .mz-pane-wrap-primary
+    .mz-reading-scroll-container::-webkit-scrollbar-track,
+html[data-mz-platform="macos"]
+    .mz-pane-wrap-primary
+    .mz-file-preview-scroll::-webkit-scrollbar-track,
+html[data-mz-platform="linux"]
+    .mz-pane-wrap-primary
+    .mz-file-preview-scroll::-webkit-scrollbar-track,
+html[data-mz-platform="macos"]
+    .mz-pane-wrap-secondary
+    .cm-scroller::-webkit-scrollbar-track,
+html[data-mz-platform="linux"]
+    .mz-pane-wrap-secondary
+    .cm-scroller::-webkit-scrollbar-track,
+html[data-mz-platform="macos"]
+    .mz-pane-wrap-secondary
+    .mz-reading-scroll-container::-webkit-scrollbar-track,
+html[data-mz-platform="linux"]
+    .mz-pane-wrap-secondary
+    .mz-reading-scroll-container::-webkit-scrollbar-track,
+html[data-mz-platform="macos"]
+    .mz-pane-wrap-secondary
+    .mz-file-preview-scroll::-webkit-scrollbar-track,
+html[data-mz-platform="linux"]
+    .mz-pane-wrap-secondary
+    .mz-file-preview-scroll::-webkit-scrollbar-track {
     background: transparent !important;
     border: none !important;
 }
 
-html[data-mz-platform="macos"] .mz-sidebar-file-list-scroll::-webkit-scrollbar-button,
-html[data-mz-platform="linux"] .mz-sidebar-file-list-scroll::-webkit-scrollbar-button,
-html[data-mz-platform="macos"] .mz-split-pane .cm-scroller::-webkit-scrollbar-button,
-html[data-mz-platform="linux"] .mz-split-pane .cm-scroller::-webkit-scrollbar-button,
-html[data-mz-platform="macos"] .mz-split-pane .mz-reading-scroll-container::-webkit-scrollbar-button,
-html[data-mz-platform="linux"] .mz-split-pane .mz-reading-scroll-container::-webkit-scrollbar-button,
-html[data-mz-platform="macos"] .mz-split-pane .mz-file-preview-scroll::-webkit-scrollbar-button,
-html[data-mz-platform="linux"] .mz-split-pane .mz-file-preview-scroll::-webkit-scrollbar-button,
-html[data-mz-platform="macos"] .mz-pane-wrap-primary .cm-scroller::-webkit-scrollbar-button,
-html[data-mz-platform="linux"] .mz-pane-wrap-primary .cm-scroller::-webkit-scrollbar-button,
-html[data-mz-platform="macos"] .mz-pane-wrap-primary .mz-reading-scroll-container::-webkit-scrollbar-button,
-html[data-mz-platform="linux"] .mz-pane-wrap-primary .mz-reading-scroll-container::-webkit-scrollbar-button,
-html[data-mz-platform="macos"] .mz-pane-wrap-primary .mz-file-preview-scroll::-webkit-scrollbar-button,
-html[data-mz-platform="linux"] .mz-pane-wrap-primary .mz-file-preview-scroll::-webkit-scrollbar-button,
-html[data-mz-platform="macos"] .mz-pane-wrap-secondary .cm-scroller::-webkit-scrollbar-button,
-html[data-mz-platform="linux"] .mz-pane-wrap-secondary .cm-scroller::-webkit-scrollbar-button,
-html[data-mz-platform="macos"] .mz-pane-wrap-secondary .mz-reading-scroll-container::-webkit-scrollbar-button,
-html[data-mz-platform="linux"] .mz-pane-wrap-secondary .mz-reading-scroll-container::-webkit-scrollbar-button,
-html[data-mz-platform="macos"] .mz-pane-wrap-secondary .mz-file-preview-scroll::-webkit-scrollbar-button,
-html[data-mz-platform="linux"] .mz-pane-wrap-secondary .mz-file-preview-scroll::-webkit-scrollbar-button {
+html[data-mz-platform="macos"]
+    .mz-sidebar-file-list-scroll::-webkit-scrollbar-button,
+html[data-mz-platform="linux"]
+    .mz-sidebar-file-list-scroll::-webkit-scrollbar-button,
+html[data-mz-platform="macos"]
+    .mz-split-pane
+    .cm-scroller::-webkit-scrollbar-button,
+html[data-mz-platform="linux"]
+    .mz-split-pane
+    .cm-scroller::-webkit-scrollbar-button,
+html[data-mz-platform="macos"]
+    .mz-split-pane
+    .mz-reading-scroll-container::-webkit-scrollbar-button,
+html[data-mz-platform="linux"]
+    .mz-split-pane
+    .mz-reading-scroll-container::-webkit-scrollbar-button,
+html[data-mz-platform="macos"]
+    .mz-split-pane
+    .mz-file-preview-scroll::-webkit-scrollbar-button,
+html[data-mz-platform="linux"]
+    .mz-split-pane
+    .mz-file-preview-scroll::-webkit-scrollbar-button,
+html[data-mz-platform="macos"]
+    .mz-pane-wrap-primary
+    .cm-scroller::-webkit-scrollbar-button,
+html[data-mz-platform="linux"]
+    .mz-pane-wrap-primary
+    .cm-scroller::-webkit-scrollbar-button,
+html[data-mz-platform="macos"]
+    .mz-pane-wrap-primary
+    .mz-reading-scroll-container::-webkit-scrollbar-button,
+html[data-mz-platform="linux"]
+    .mz-pane-wrap-primary
+    .mz-reading-scroll-container::-webkit-scrollbar-button,
+html[data-mz-platform="macos"]
+    .mz-pane-wrap-primary
+    .mz-file-preview-scroll::-webkit-scrollbar-button,
+html[data-mz-platform="linux"]
+    .mz-pane-wrap-primary
+    .mz-file-preview-scroll::-webkit-scrollbar-button,
+html[data-mz-platform="macos"]
+    .mz-pane-wrap-secondary
+    .cm-scroller::-webkit-scrollbar-button,
+html[data-mz-platform="linux"]
+    .mz-pane-wrap-secondary
+    .cm-scroller::-webkit-scrollbar-button,
+html[data-mz-platform="macos"]
+    .mz-pane-wrap-secondary
+    .mz-reading-scroll-container::-webkit-scrollbar-button,
+html[data-mz-platform="linux"]
+    .mz-pane-wrap-secondary
+    .mz-reading-scroll-container::-webkit-scrollbar-button,
+html[data-mz-platform="macos"]
+    .mz-pane-wrap-secondary
+    .mz-file-preview-scroll::-webkit-scrollbar-button,
+html[data-mz-platform="linux"]
+    .mz-pane-wrap-secondary
+    .mz-file-preview-scroll::-webkit-scrollbar-button {
     display: none !important;
     width: 0 !important;
     height: 0 !important;
 }
 
-html[data-mz-platform="macos"] .mz-sidebar-file-list-scroll::-webkit-scrollbar-thumb,
-html[data-mz-platform="linux"] .mz-sidebar-file-list-scroll::-webkit-scrollbar-thumb,
-html[data-mz-platform="macos"] .mz-split-pane .cm-scroller::-webkit-scrollbar-thumb,
-html[data-mz-platform="linux"] .mz-split-pane .cm-scroller::-webkit-scrollbar-thumb,
-html[data-mz-platform="macos"] .mz-split-pane .mz-reading-scroll-container::-webkit-scrollbar-thumb,
-html[data-mz-platform="linux"] .mz-split-pane .mz-reading-scroll-container::-webkit-scrollbar-thumb,
-html[data-mz-platform="macos"] .mz-split-pane .mz-file-preview-scroll::-webkit-scrollbar-thumb,
-html[data-mz-platform="linux"] .mz-split-pane .mz-file-preview-scroll::-webkit-scrollbar-thumb,
-html[data-mz-platform="macos"] .mz-pane-wrap-primary .cm-scroller::-webkit-scrollbar-thumb,
-html[data-mz-platform="linux"] .mz-pane-wrap-primary .cm-scroller::-webkit-scrollbar-thumb,
-html[data-mz-platform="macos"] .mz-pane-wrap-primary .mz-reading-scroll-container::-webkit-scrollbar-thumb,
-html[data-mz-platform="linux"] .mz-pane-wrap-primary .mz-reading-scroll-container::-webkit-scrollbar-thumb,
-html[data-mz-platform="macos"] .mz-pane-wrap-primary .mz-file-preview-scroll::-webkit-scrollbar-thumb,
-html[data-mz-platform="linux"] .mz-pane-wrap-primary .mz-file-preview-scroll::-webkit-scrollbar-thumb,
-html[data-mz-platform="macos"] .mz-pane-wrap-secondary .cm-scroller::-webkit-scrollbar-thumb,
-html[data-mz-platform="linux"] .mz-pane-wrap-secondary .cm-scroller::-webkit-scrollbar-thumb,
-html[data-mz-platform="macos"] .mz-pane-wrap-secondary .mz-reading-scroll-container::-webkit-scrollbar-thumb,
-html[data-mz-platform="linux"] .mz-pane-wrap-secondary .mz-reading-scroll-container::-webkit-scrollbar-thumb,
-html[data-mz-platform="macos"] .mz-pane-wrap-secondary .mz-file-preview-scroll::-webkit-scrollbar-thumb,
-html[data-mz-platform="linux"] .mz-pane-wrap-secondary .mz-file-preview-scroll::-webkit-scrollbar-thumb {
+html[data-mz-platform="macos"]
+    .mz-sidebar-file-list-scroll::-webkit-scrollbar-thumb,
+html[data-mz-platform="linux"]
+    .mz-sidebar-file-list-scroll::-webkit-scrollbar-thumb,
+html[data-mz-platform="macos"]
+    .mz-split-pane
+    .cm-scroller::-webkit-scrollbar-thumb,
+html[data-mz-platform="linux"]
+    .mz-split-pane
+    .cm-scroller::-webkit-scrollbar-thumb,
+html[data-mz-platform="macos"]
+    .mz-split-pane
+    .mz-reading-scroll-container::-webkit-scrollbar-thumb,
+html[data-mz-platform="linux"]
+    .mz-split-pane
+    .mz-reading-scroll-container::-webkit-scrollbar-thumb,
+html[data-mz-platform="macos"]
+    .mz-split-pane
+    .mz-file-preview-scroll::-webkit-scrollbar-thumb,
+html[data-mz-platform="linux"]
+    .mz-split-pane
+    .mz-file-preview-scroll::-webkit-scrollbar-thumb,
+html[data-mz-platform="macos"]
+    .mz-pane-wrap-primary
+    .cm-scroller::-webkit-scrollbar-thumb,
+html[data-mz-platform="linux"]
+    .mz-pane-wrap-primary
+    .cm-scroller::-webkit-scrollbar-thumb,
+html[data-mz-platform="macos"]
+    .mz-pane-wrap-primary
+    .mz-reading-scroll-container::-webkit-scrollbar-thumb,
+html[data-mz-platform="linux"]
+    .mz-pane-wrap-primary
+    .mz-reading-scroll-container::-webkit-scrollbar-thumb,
+html[data-mz-platform="macos"]
+    .mz-pane-wrap-primary
+    .mz-file-preview-scroll::-webkit-scrollbar-thumb,
+html[data-mz-platform="linux"]
+    .mz-pane-wrap-primary
+    .mz-file-preview-scroll::-webkit-scrollbar-thumb,
+html[data-mz-platform="macos"]
+    .mz-pane-wrap-secondary
+    .cm-scroller::-webkit-scrollbar-thumb,
+html[data-mz-platform="linux"]
+    .mz-pane-wrap-secondary
+    .cm-scroller::-webkit-scrollbar-thumb,
+html[data-mz-platform="macos"]
+    .mz-pane-wrap-secondary
+    .mz-reading-scroll-container::-webkit-scrollbar-thumb,
+html[data-mz-platform="linux"]
+    .mz-pane-wrap-secondary
+    .mz-reading-scroll-container::-webkit-scrollbar-thumb,
+html[data-mz-platform="macos"]
+    .mz-pane-wrap-secondary
+    .mz-file-preview-scroll::-webkit-scrollbar-thumb,
+html[data-mz-platform="linux"]
+    .mz-pane-wrap-secondary
+    .mz-file-preview-scroll::-webkit-scrollbar-thumb {
     background: var(--mz-scrollbar-thumb) !important;
     border: 0 !important;
     border-radius: 0 !important;
     background-clip: border-box !important;
 }
 
-html[data-mz-platform="macos"] .mz-sidebar-file-list-scroll::-webkit-scrollbar-thumb:hover,
-html[data-mz-platform="linux"] .mz-sidebar-file-list-scroll::-webkit-scrollbar-thumb:hover,
-html[data-mz-platform="macos"] .mz-split-pane .cm-scroller::-webkit-scrollbar-thumb:hover,
-html[data-mz-platform="linux"] .mz-split-pane .cm-scroller::-webkit-scrollbar-thumb:hover,
-html[data-mz-platform="macos"] .mz-split-pane .mz-reading-scroll-container::-webkit-scrollbar-thumb:hover,
-html[data-mz-platform="linux"] .mz-split-pane .mz-reading-scroll-container::-webkit-scrollbar-thumb:hover,
-html[data-mz-platform="macos"] .mz-split-pane .mz-file-preview-scroll::-webkit-scrollbar-thumb:hover,
-html[data-mz-platform="linux"] .mz-split-pane .mz-file-preview-scroll::-webkit-scrollbar-thumb:hover,
-html[data-mz-platform="macos"] .mz-pane-wrap-primary .cm-scroller::-webkit-scrollbar-thumb:hover,
-html[data-mz-platform="linux"] .mz-pane-wrap-primary .cm-scroller::-webkit-scrollbar-thumb:hover,
-html[data-mz-platform="macos"] .mz-pane-wrap-primary .mz-reading-scroll-container::-webkit-scrollbar-thumb:hover,
-html[data-mz-platform="linux"] .mz-pane-wrap-primary .mz-reading-scroll-container::-webkit-scrollbar-thumb:hover,
-html[data-mz-platform="macos"] .mz-pane-wrap-primary .mz-file-preview-scroll::-webkit-scrollbar-thumb:hover,
-html[data-mz-platform="linux"] .mz-pane-wrap-primary .mz-file-preview-scroll::-webkit-scrollbar-thumb:hover,
-html[data-mz-platform="macos"] .mz-pane-wrap-secondary .cm-scroller::-webkit-scrollbar-thumb:hover,
-html[data-mz-platform="linux"] .mz-pane-wrap-secondary .cm-scroller::-webkit-scrollbar-thumb:hover,
-html[data-mz-platform="macos"] .mz-pane-wrap-secondary .mz-reading-scroll-container::-webkit-scrollbar-thumb:hover,
-html[data-mz-platform="linux"] .mz-pane-wrap-secondary .mz-reading-scroll-container::-webkit-scrollbar-thumb:hover,
-html[data-mz-platform="macos"] .mz-pane-wrap-secondary .mz-file-preview-scroll::-webkit-scrollbar-thumb:hover,
-html[data-mz-platform="linux"] .mz-pane-wrap-secondary .mz-file-preview-scroll::-webkit-scrollbar-thumb:hover {
+html[data-mz-platform="macos"]
+    .mz-sidebar-file-list-scroll::-webkit-scrollbar-thumb:hover,
+html[data-mz-platform="linux"]
+    .mz-sidebar-file-list-scroll::-webkit-scrollbar-thumb:hover,
+html[data-mz-platform="macos"]
+    .mz-split-pane
+    .cm-scroller::-webkit-scrollbar-thumb:hover,
+html[data-mz-platform="linux"]
+    .mz-split-pane
+    .cm-scroller::-webkit-scrollbar-thumb:hover,
+html[data-mz-platform="macos"]
+    .mz-split-pane
+    .mz-reading-scroll-container::-webkit-scrollbar-thumb:hover,
+html[data-mz-platform="linux"]
+    .mz-split-pane
+    .mz-reading-scroll-container::-webkit-scrollbar-thumb:hover,
+html[data-mz-platform="macos"]
+    .mz-split-pane
+    .mz-file-preview-scroll::-webkit-scrollbar-thumb:hover,
+html[data-mz-platform="linux"]
+    .mz-split-pane
+    .mz-file-preview-scroll::-webkit-scrollbar-thumb:hover,
+html[data-mz-platform="macos"]
+    .mz-pane-wrap-primary
+    .cm-scroller::-webkit-scrollbar-thumb:hover,
+html[data-mz-platform="linux"]
+    .mz-pane-wrap-primary
+    .cm-scroller::-webkit-scrollbar-thumb:hover,
+html[data-mz-platform="macos"]
+    .mz-pane-wrap-primary
+    .mz-reading-scroll-container::-webkit-scrollbar-thumb:hover,
+html[data-mz-platform="linux"]
+    .mz-pane-wrap-primary
+    .mz-reading-scroll-container::-webkit-scrollbar-thumb:hover,
+html[data-mz-platform="macos"]
+    .mz-pane-wrap-primary
+    .mz-file-preview-scroll::-webkit-scrollbar-thumb:hover,
+html[data-mz-platform="linux"]
+    .mz-pane-wrap-primary
+    .mz-file-preview-scroll::-webkit-scrollbar-thumb:hover,
+html[data-mz-platform="macos"]
+    .mz-pane-wrap-secondary
+    .cm-scroller::-webkit-scrollbar-thumb:hover,
+html[data-mz-platform="linux"]
+    .mz-pane-wrap-secondary
+    .cm-scroller::-webkit-scrollbar-thumb:hover,
+html[data-mz-platform="macos"]
+    .mz-pane-wrap-secondary
+    .mz-reading-scroll-container::-webkit-scrollbar-thumb:hover,
+html[data-mz-platform="linux"]
+    .mz-pane-wrap-secondary
+    .mz-reading-scroll-container::-webkit-scrollbar-thumb:hover,
+html[data-mz-platform="macos"]
+    .mz-pane-wrap-secondary
+    .mz-file-preview-scroll::-webkit-scrollbar-thumb:hover,
+html[data-mz-platform="linux"]
+    .mz-pane-wrap-secondary
+    .mz-file-preview-scroll::-webkit-scrollbar-thumb:hover {
     background: var(--mz-border-strong) !important;
 }
 
@@ -1507,7 +1691,7 @@ html[data-theme-mode="light"] .mz-lp-checkbox:checked {
     font-size: 1.8em;
     font-weight: 700;
     color: var(--mz-syntax-heading);
-    margin: 24px 0 12px;
+    /* margin: 24px 0 12px; */
     line-height: 1.3;
 }
 .mz-reading-view h2.mz-rv-h2 {
