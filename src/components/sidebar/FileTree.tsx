@@ -9,6 +9,7 @@ import { displayName } from "../../utils/displayName";
 import { fetchBacklinks, updateBacklinksOnFileRename } from "../../utils/linkUpdater";
 import { openFileRouted } from "../../utils/openFileRouted";
 import { isMarkdownPath } from "../../utils/fileTypes";
+import { reorderVisibleNames } from "../../utils/fileOrder";
 import { t } from "../../i18n";
 
 type FolderVisibilityAction = "default" | "collapse" | "expand";
@@ -713,32 +714,24 @@ function startDrag(
 
 /** Reorder item within a directory's custom order */
 async function reorderInDir(dirPath: string, sourceName: string, targetName: string, pos: "before" | "after") {
+    // A drag can happen while the persisted order is still loading. Waiting
+    // prevents the first drag from overwriting an existing custom sequence.
+    await loadFileOrder();
     const currentOrder = { ...fileOrderMap() };
-    let orderList = currentOrder[dirPath] ? [...currentOrder[dirPath]] : [];
-
-    // If no existing order, build from current file tree
-    if (orderList.length === 0) {
-        const entries = findEntriesForDir(dirPath, vaultStore.fileTree());
-        if (entries) {
-            // Dirs first, then files, alphabetical within each group
-            const dirs = entries.filter(e => e.is_dir).map(e => e.name).sort();
-            const files = entries.filter(e => !e.is_dir).map(e => e.name).sort();
-            orderList = [...dirs, ...files];
-        }
-    }
-
-    // Remove source from its current position
-    orderList = orderList.filter(n => n !== sourceName);
-
-    // Find target position
-    const targetIdx = orderList.indexOf(targetName);
-    if (targetIdx === -1) {
-        orderList.push(sourceName);
-    } else if (pos === "before") {
-        orderList.splice(targetIdx, 0, sourceName);
-    } else {
-        orderList.splice(targetIdx + 1, 0, sourceName);
-    }
+    const entries = findEntriesForDir(dirPath, vaultStore.fileTree());
+    // Use the actual pre-drop display order, including the current persisted
+    // order and any entries added since it was saved. Previously the no-order
+    // path rebuilt this list with JavaScript `.sort()`, which disagreed with
+    // the backend's default case-insensitive ordering and caused folder jumps.
+    const displayedNames = entries
+        ? sortEntries(entries, "custom", "asc", dirPath).map((entry) => entry.name)
+        : [...(currentOrder[dirPath] ?? [])];
+    const orderList = reorderVisibleNames(
+        displayedNames,
+        sourceName,
+        targetName,
+        pos,
+    );
 
     currentOrder[dirPath] = orderList;
     await saveFileOrder(currentOrder);
