@@ -58,7 +58,7 @@ export const StatusBar: Component = () => {
 
   const truncateLabel = (value: string) => {
     const chars = Array.from(value);
-    return chars.length > 15 ? `${chars.slice(0, 15).join("")}…` : value;
+    return chars.length > 30 ? `${chars.slice(0, 30).join("")}…` : value;
   };
 
   const openBacklink = async (link: NoteLink) => {
@@ -193,7 +193,10 @@ export const StatusBar: Component = () => {
                   height="14"
                   viewBox="0 0 16 16"
                   fill="none"
-                  style={{ "flex-shrink": "0" }}
+                  style={{
+                    "flex-shrink": "0",
+                    "margin-top": "4.5px",
+                  }}
                 >
                   <path
                     d="M4 1.5h5.586a1 1 0 01.707.293l2.914 2.914a1 1 0 01.293.707V13.5a1 1 0 01-1 1H4a1 1 0 01-1-1v-11a1 1 0 011-1z"

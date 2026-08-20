@@ -1954,7 +1954,7 @@ html[data-theme-mode="light"] .mz-lp-checkbox:checked {
     position: relative;
     width: 15px;
     height: 15px;
-    margin-top: 2px;
+
     border: 1px solid var(--mz-border-strong);
     border-radius: 4px;
     background: var(--mz-bg-primary);
