@@ -10,6 +10,7 @@ import { fetchBacklinks, updateBacklinksOnFileRename } from "../../utils/linkUpd
 import { openFileRouted } from "../../utils/openFileRouted";
 import { isMarkdownPath } from "../../utils/fileTypes";
 import { reorderVisibleNames } from "../../utils/fileOrder";
+import { remapMovedPath } from "../../utils/pathMove";
 import { t } from "../../i18n";
 
 type FolderVisibilityAction = "default" | "collapse" | "expand";
@@ -249,6 +250,58 @@ function startInlineRename(path: string, isDir: boolean) {
     setRenamingPath(path);
 }
 
+/**
+ * Move an entry on disk while migrating every open editor path. Auto-save is
+ * paused first so a write racing the move cannot recreate the source file.
+ */
+async function moveEntryAndSync(oldPath: string, newPath: string, isDir: boolean) {
+    const affectedPaths = isDir
+        ? vaultStore.openFiles()
+            .map((file) => file.path)
+            .filter((path) => path === oldPath || path.startsWith(`${oldPath}/`))
+        : [oldPath];
+    const uniqueAffectedPaths = [...new Set(affectedPaths)];
+
+    for (const path of uniqueAffectedPaths) editorStore.pauseAutoSave(path);
+
+    let moved = false;
+    let migratedPaths: string[] = [];
+    try {
+        // Persist edits made before the drag. Later keystrokes remain buffered
+        // until their editor state has been assigned to the destination path.
+        await Promise.all(
+            uniqueAffectedPaths.map((path) => editorStore.flushPendingSave(path)),
+        );
+
+        // Snapshot backlinks before rename_file clears the old index entry.
+        const backlinks = isDir ? [] : await fetchBacklinks(oldPath);
+        await invoke("rename_file", { from: oldPath, to: newPath });
+        moved = true;
+
+        migratedPaths = uniqueAffectedPaths.map((path) =>
+            remapMovedPath(path, oldPath, newPath, isDir),
+        );
+        vaultStore.renameFilePath(oldPath, newPath, isDir);
+        uniqueAffectedPaths.forEach((path, index) => {
+            editorStore.renameFileState(path, migratedPaths[index]!);
+        });
+
+        // Persist edits made while rename_file was running to the new path.
+        for (const path of migratedPaths) editorStore.resumeAutoSave(path);
+        await Promise.all(
+            migratedPaths.map((path) => editorStore.flushPendingSave(path)),
+        );
+
+        if (!isDir) {
+            await updateBacklinksOnFileRename(oldPath, newPath, backlinks);
+        }
+    } catch (error) {
+        const pathsToResume = moved ? migratedPaths : uniqueAffectedPaths;
+        for (const path of pathsToResume) editorStore.resumeAutoSave(path);
+        throw error;
+    }
+}
+
 /** Confirm rename — called on Enter or blur */
 async function confirmRename() {
     const path = renamingPath();
@@ -270,28 +323,13 @@ async function confirmRename() {
     const newPath = dir ? `${dir}/${newName}` : newName;
 
     try {
-        // Cancel any pending auto-save for the old path so it doesn't
-        // re-create the old file after rename.
-        editorStore.cancelAutoSave(path);
         const nextFileOrder = await buildFileOrderAfterRename(path, newPath, _renameIsDir);
-
-        // Snapshot backlinks BEFORE the rename — the backend clears
-        // the old path's backlink entries during rename_file.
-        const backlinks = await fetchBacklinks(path);
-
-        await invoke("rename_file", { from: path, to: newPath });
-
-        // Keep open tabs & active file in sync with the new path
-        vaultStore.renameFilePath(path, newPath);
-        editorStore.renameFileState(path, newPath);
+        await moveEntryAndSync(path, newPath, _renameIsDir);
 
         // Preserve the visible default-order slot for this entry.
         if (nextFileOrder) {
             await saveFileOrder(nextFileOrder);
         }
-
-        // Rewrite [[oldName…]] → [[newName…]] in all referencing files
-        await updateBacklinksOnFileRename(path, newPath, backlinks);
 
         await vaultStore.refreshFileTree();
     } catch (e) {
@@ -677,7 +715,7 @@ function startDrag(
             if (ds.path !== destPath) {
                 if (ds.isDir && destPath.startsWith(ds.path + "/")) return;
                 try {
-                    await invoke("rename_file", { from: ds.path, to: destPath });
+                    await moveEntryAndSync(ds.path, destPath, ds.isDir);
                     await vaultStore.refreshFileTree();
                 } catch (err) {
                     console.error("Move failed:", err);
@@ -697,7 +735,7 @@ function startDrag(
                 if (ds.path !== destPath) {
                     if (ds.isDir && destPath.startsWith(ds.path + "/")) return;
                     try {
-                        await invoke("rename_file", { from: ds.path, to: destPath });
+                        await moveEntryAndSync(ds.path, destPath, ds.isDir);
                         await reorderInDir(targetDir, ds.name, targetName, pos);
                         await vaultStore.refreshFileTree();
                     } catch (err) {

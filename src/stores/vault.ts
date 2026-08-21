@@ -1,5 +1,6 @@
 import { createSignal, createRoot } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
+import { remapMovedPath, remapUniquePathItems } from "../utils/pathMove";
 
 // ---------------------------------------------------------------------------
 // Types mirroring Rust kernel types
@@ -322,14 +323,17 @@ function createVaultStore() {
     setIsLoading(false);
   }
 
-  // Update file paths after a rename (keeps open tabs & active file in sync)
-  function renameFilePath(oldPath: string, newPath: string) {
+  // Update file paths after a rename/move (keeps tabs unique and active file in sync)
+  function renameFilePath(oldPath: string, newPath: string, recursive = false) {
     const active = activeFile();
-    if (active && active.path === oldPath) {
-      setActiveFile({ ...active, path: newPath });
+    if (active) {
+      const nextPath = remapMovedPath(active.path, oldPath, newPath, recursive);
+      if (nextPath !== active.path) {
+        setActiveFile({ ...active, path: nextPath });
+      }
     }
     setOpenFiles((prev) =>
-      prev.map((f) => (f.path === oldPath ? { ...f, path: newPath } : f)),
+      remapUniquePathItems(prev, oldPath, newPath, recursive),
     );
   }
 

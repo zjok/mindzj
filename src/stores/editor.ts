@@ -121,6 +121,9 @@ function createEditorStore() {
   // the outside, so we mirror it here.
   const pendingSaveContent = new Map<string, string>();
   const inFlightSaves = new Map<string, Promise<void>>();
+  // A drag/rename briefly pauses writes for the old path. Edits made while the
+  // filesystem move is running stay buffered and resume at the new path.
+  const pausedAutoSavePaths = new Set<string>();
 
   // ── Heading & anchor tracking for backlink updates ──
   // Stores the last-known headings per file and the list of anchors
@@ -285,6 +288,11 @@ function createEditorStore() {
     const existing = saveTimers.get(relativePath);
     if (existing) clearTimeout(existing);
 
+    if (pausedAutoSavePaths.has(relativePath)) {
+      saveTimers.delete(relativePath);
+      return;
+    }
+
     const t = setTimeout(async () => {
       saveTimers.delete(relativePath);
       pendingSaveContent.delete(relativePath);
@@ -315,6 +323,21 @@ function createEditorStore() {
     saveTimers.set(relativePath, t);
   }
 
+  /** Buffer new edits without allowing the old filesystem path to be written. */
+  function pauseAutoSave(path: string) {
+    pausedAutoSavePaths.add(path);
+    const timer = saveTimers.get(path);
+    if (timer) clearTimeout(timer);
+    saveTimers.delete(path);
+  }
+
+  /** Resume a paused path, preserving the latest edit made during the move. */
+  function resumeAutoSave(path: string) {
+    pausedAutoSavePaths.delete(path);
+    const content = pendingSaveContent.get(path);
+    if (content != null) scheduleAutoSave(path, content);
+  }
+
   // Cancel a pending auto-save and clear dirty state (e.g. before rename)
   function cancelAutoSave(path: string) {
     const timer = saveTimers.get(path);
@@ -322,6 +345,7 @@ function createEditorStore() {
       clearTimeout(timer);
       saveTimers.delete(path);
     }
+    pausedAutoSavePaths.delete(path);
     pendingSaveContent.delete(path);
     clearDirty(path);
   }
@@ -595,6 +619,22 @@ function createEditorStore() {
   function renameFileState(oldPath: string, newPath: string) {
     if (!oldPath || !newPath || oldPath === newPath) return;
 
+    const oldTimer = saveTimers.get(oldPath);
+    if (oldTimer) clearTimeout(oldTimer);
+    saveTimers.delete(oldPath);
+
+    const pendingContent = pendingSaveContent.get(oldPath);
+    pendingSaveContent.delete(oldPath);
+    const wasPaused = pausedAutoSavePaths.delete(oldPath);
+    if (wasPaused) pausedAutoSavePaths.add(newPath);
+    if (pendingContent != null) {
+      if (wasPaused) {
+        pendingSaveContent.set(newPath, pendingContent);
+      } else {
+        scheduleAutoSave(newPath, pendingContent);
+      }
+    }
+
     setFileScrollPositions((prev) => {
       if (!(oldPath in prev)) return prev;
       const next = { ...prev };
@@ -644,6 +684,18 @@ function createEditorStore() {
     if (_pendingExternalEdits.has(oldPath)) {
       _pendingExternalEdits.set(newPath, _pendingExternalEdits.get(oldPath)!);
       _pendingExternalEdits.delete(oldPath);
+    }
+    if (_fileHeadings.has(oldPath)) {
+      _fileHeadings.set(newPath, _fileHeadings.get(oldPath)!);
+      _fileHeadings.delete(oldPath);
+    }
+    if (_fileContent.has(oldPath)) {
+      _fileContent.set(newPath, _fileContent.get(oldPath)!);
+      _fileContent.delete(oldPath);
+    }
+    if (_fileAnchors.has(oldPath)) {
+      _fileAnchors.set(newPath, _fileAnchors.get(oldPath)!);
+      _fileAnchors.delete(oldPath);
     }
   }
 
@@ -709,6 +761,7 @@ function createEditorStore() {
   function cleanup() {
     for (const t of saveTimers.values()) clearTimeout(t);
     saveTimers.clear();
+    pausedAutoSavePaths.clear();
   }
 
   return {
@@ -751,6 +804,8 @@ function createEditorStore() {
     discardExternalEdit,
     takePendingExternalEdits,
     scheduleAutoSave,
+    pauseAutoSave,
+    resumeAutoSave,
     cancelAutoSave,
     storeHeadings,
     forceSave,
