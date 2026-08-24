@@ -10,6 +10,11 @@ import {
     LIST_INDENT_WIDTH,
     measureIndentColumns,
 } from "./listUtils";
+import {
+    canContinueOrderedList,
+    orderedListHasBlankSeparators,
+    parseOrderedListItem,
+} from "./orderedListUtils";
 
 function getCollapsedLineContext(view: EditorView) {
     const selection = view.state.selection.main;
@@ -61,7 +66,15 @@ function continueList(view: EditorView): boolean {
     const info = getContinuationInfo(line.text);
     if (!info) return false;
 
-    const insert = `\n${info.indent}${info.continuation}`;
+    const keepBlankSeparator =
+        info.kind === "ordered" &&
+        orderedListHasBlankSeparators(
+            view.state.doc.toString().split("\n"),
+            line.number - 1,
+        );
+    const insert = `\n${keepBlankSeparator ? "\n" : ""}${info.indent}${
+        info.continuation
+    }`;
     view.dispatch({
         changes: { from: selection.head, insert },
         selection: { anchor: selection.head + insert.length },
@@ -227,30 +240,44 @@ function renumberOrderedList(view: EditorView): void {
 
     for (let i = 1; i <= doc.lines; i++) {
         const line = doc.line(i);
-        const match = line.text.match(/^(\s*)(\d+)\.\s/);
-        if (!match) continue;
+        const item = parseOrderedListItem(line.text);
+        if (!item) continue;
 
-        const indent = match[1];
-        const startNum = Number.parseInt(match[2], 10);
+        const startNum = item.number;
         let expectedNext = startNum + 1;
+        let lastItemLine = i;
+        let previousItem = item;
+        let blankLineCount = 0;
 
-        // Walk subsequent lines at the same indent level
+        // Blank rows are separators inside a loose Markdown list, not the end
+        // of the sequence. Continue across them so tight and loose lists use
+        // the same accurate numbering behaviour.
         for (let j = i + 1; j <= doc.lines; j++) {
             const nextLine = doc.line(j);
-            const nextMatch = nextLine.text.match(/^(\s*)(\d+)\.\s/);
+            if (nextLine.text.trim() === "") {
+                blankLineCount++;
+                if (blankLineCount > 1) break;
+                continue;
+            }
+            const nextItem = parseOrderedListItem(nextLine.text);
 
-            if (!nextMatch || nextMatch[1] !== indent) break;
+            if (
+                !nextItem ||
+                !canContinueOrderedList(previousItem, nextItem, blankLineCount)
+            ) break;
 
-            const currentNum = Number.parseInt(nextMatch[2], 10);
+            const currentNum = nextItem.number;
             if (currentNum !== expectedNext) {
-                const numStart = nextLine.from + nextMatch[1].length;
-                const numEnd = numStart + nextMatch[2].length;
+                const numStart = nextLine.from + nextItem.indent.length;
+                const numEnd = numStart + String(nextItem.number).length;
                 changes.push({ from: numStart, to: numEnd, insert: String(expectedNext) });
             }
             expectedNext++;
+            lastItemLine = j;
+            previousItem = nextItem;
+            blankLineCount = 0;
         }
-        // Skip past the items we just checked
-        i += (expectedNext - startNum - 1);
+        i = lastItemLine;
     }
 
     if (changes.length > 0) {

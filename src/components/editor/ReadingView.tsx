@@ -71,6 +71,7 @@ interface ReadingListToken {
     content: string;
     checked?: boolean;
     start?: number;
+    separatedBefore?: boolean;
 }
 
 function measureListIndent(whitespace: string): number {
@@ -148,9 +149,12 @@ function renderReadingListItem(
     ctx: RenderContext,
 ): string {
     const content = renderInline(token.content, ctx);
+    const separatedClass = token.separatedBefore
+        ? " mz-rv-list-item-separated"
+        : "";
     if (token.kind === "task") {
         return (
-            `<li class="mz-rv-task-item${token.checked ? " checked" : ""}" data-line="${token.line}">` +
+            `<li class="mz-rv-task-item${token.checked ? " checked" : ""}${separatedClass}" data-line="${token.line}">` +
             `<input type="checkbox" ${token.checked ? "checked" : ""} disabled />` +
             `<div class="mz-rv-task-item-content"><span>${content}</span>`
         );
@@ -159,7 +163,10 @@ function renderReadingListItem(
         token.content.trim() === ""
             ? '<span class="mz-rv-empty-list-slot" aria-hidden="true"></span>'
             : content;
-    return `<li data-line="${token.line}">${body}`;
+    const classAttr = separatedClass
+        ? ` class="${separatedClass.trim()}"`
+        : "";
+    return `<li${classAttr} data-line="${token.line}">${body}`;
 }
 
 function renderReadingListTokens(
@@ -220,12 +227,38 @@ function renderReadingListBlock(
 ): { html: string; nextIndex: number } | null {
     const tokens: ReadingListToken[] = [];
     let index = startIndex;
+    let separatedBefore = false;
 
     while (index < lines.length) {
         const token = parseReadingListToken(lines[index], index);
         if (!token) break;
+        token.separatedBefore = separatedBefore;
         tokens.push(token);
         index++;
+
+        separatedBefore = false;
+        let nextItemIndex = index;
+        let blankLineCount = 0;
+        while (
+            nextItemIndex < lines.length &&
+            lines[nextItemIndex]!.trim() === ""
+        ) {
+            blankLineCount++;
+            nextItemIndex++;
+        }
+        const nextToken = nextItemIndex < lines.length
+            ? parseReadingListToken(lines[nextItemIndex]!, nextItemIndex)
+            : null;
+        if (
+            blankLineCount === 1 &&
+            nextToken &&
+            nextToken.kind === token.kind &&
+            nextToken.level === token.level &&
+            !(token.kind === "ol" && nextToken.start === 1)
+        ) {
+            separatedBefore = true;
+            index = nextItemIndex;
+        }
     }
 
     if (tokens.length === 0) return null;

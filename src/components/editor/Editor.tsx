@@ -84,6 +84,11 @@ import {
 } from "./extensions/livePreview";
 import { listContinuationExtension } from "./extensions/listContinuation";
 import { listStyleExtension } from "./extensions/listStyleExtension";
+import {
+    findOrderedListBlock,
+    parseOrderedListItem,
+    toggleOrderedListLines,
+} from "./extensions/orderedListUtils";
 import { resolveMarkerColor } from "./markerColors";
 
 // `searchCounterExtension` used to append a match-count span into
@@ -164,6 +169,109 @@ function selectLineAndSnapHorizontalRule(
     const ok = move(view);
     if (!ok) return false;
     adjustHorizontalRuleCursor(view, anchor);
+    return true;
+}
+
+function toggleOrderedList(view: EditorView): boolean {
+    const selection = view.state.selection.main;
+    const doc = view.state.doc;
+    const lines = doc.toString().split("\n");
+    let fromIndex = doc.lineAt(selection.from).number - 1;
+    let toIndex = doc.lineAt(selection.to).number - 1;
+
+    // A selection ending exactly at the next row's start does not include that
+    // row's content, matching CodeMirror's standard line-command behaviour.
+    if (
+        !selection.empty &&
+        toIndex > fromIndex &&
+        selection.to === doc.line(toIndex + 1).from
+    ) {
+        toIndex--;
+    }
+
+    const selectedNonBlank = lines
+        .slice(fromIndex, toIndex + 1)
+        .map((line, offset) => ({
+            index: fromIndex + offset,
+            line,
+            item: line.trim() === "" ? null : parseOrderedListItem(line),
+        }))
+        .filter((entry) => entry.line.trim() !== "");
+    const selectedIsOrdered =
+        selectedNonBlank.length > 0 &&
+        selectedNonBlank.every((entry) => entry.item !== null) &&
+        selectedNonBlank.every(
+            (entry) => entry.item!.indent === selectedNonBlank[0]!.item!.indent,
+        );
+
+    if (selection.empty || selectedIsOrdered) {
+        const seedIndex = selectedNonBlank[0]?.index ?? fromIndex;
+        const block = findOrderedListBlock(lines, seedIndex);
+        if (block && block.from <= fromIndex && block.to >= toIndex) {
+            fromIndex = block.from;
+            toIndex = block.to;
+        }
+    } else {
+        while (fromIndex < toIndex && lines[fromIndex]!.trim() === "") fromIndex++;
+        while (toIndex > fromIndex && lines[toIndex]!.trim() === "") toIndex--;
+    }
+
+    const sourceLines = lines.slice(fromIndex, toIndex + 1);
+    const result = toggleOrderedListLines(sourceLines);
+    const replacement = result.lines.join("\n");
+    const from = doc.line(fromIndex + 1).from;
+    const to = doc.line(toIndex + 1).to;
+
+    if (!selection.empty) {
+        view.dispatch({
+            changes: { from, to, insert: replacement },
+            selection: { anchor: from, head: from + replacement.length },
+            scrollIntoView: true,
+        });
+        return true;
+    }
+
+    // Preserve the cursor's logical item/content column while blank separator
+    // rows are inserted or removed around it.
+    const focusIndex = doc.lineAt(selection.head).number - 1;
+    const focusLine = lines[focusIndex] ?? "";
+    const oldItem = parseOrderedListItem(focusLine);
+    const oldColumn = selection.head - doc.line(focusIndex + 1).from;
+    const contentColumn = Math.max(
+        0,
+        oldColumn - (oldItem?.prefixLength ?? 0),
+    );
+    const sourceItemOrdinal = Math.max(
+        0,
+        sourceLines
+            .slice(0, Math.max(0, focusIndex - fromIndex + 1))
+            .filter((line) => line.trim() !== "").length - 1,
+    );
+    const outputItemIndexes = result.lines
+        .map((line, index) => ({ line, index }))
+        .filter((entry) => entry.line.trim() !== "");
+    const targetEntry =
+        outputItemIndexes[
+            Math.min(sourceItemOrdinal, outputItemIndexes.length - 1)
+        ] ??
+        { line: result.lines[0] ?? "", index: 0 };
+    const targetItem = parseOrderedListItem(targetEntry.line);
+    const precedingLength = result.lines
+        .slice(0, targetEntry.index)
+        .reduce((length, line) => length + line.length + 1, 0);
+    const targetContentLength =
+        targetItem?.content.length ?? targetEntry.line.length;
+    const anchor =
+        from +
+        precedingLength +
+        (targetItem?.prefixLength ?? 0) +
+        Math.min(contentColumn, targetContentLength);
+
+    view.dispatch({
+        changes: { from, to, insert: replacement },
+        selection: { anchor },
+        scrollIntoView: true,
+    });
     return true;
 }
 
@@ -2667,9 +2775,7 @@ export const Editor: Component<EditorProps> = (props) => {
                 break;
             }
             case "numbered-list": {
-                const pos = view.state.selection.main.head;
-                const line = view.state.doc.lineAt(pos);
-                view.dispatch({ changes: { from: line.from, insert: "1. " } });
+                toggleOrderedList(view);
                 break;
             }
             case "toggle-checklist-status": {

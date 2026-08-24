@@ -531,7 +531,11 @@ const ToolbarBtn: Component<{
   <button
     data-toolbar-command={props.item.command}
     onClick={(event) => props.onClick(event)}
-    title={`${props.label}${props.item.shortcut ? ` (${props.item.shortcut})` : ""}`}
+    title={`${
+      props.item.command === "numbered-list"
+        ? t("toolbar.numberedListToggleHint")
+        : props.label
+    }${props.item.shortcut ? ` (${props.item.shortcut})` : ""}`}
     style={{
       display: "flex",
       "align-items": "center",

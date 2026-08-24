@@ -1852,6 +1852,11 @@ html[data-theme-mode="light"] .mz-lp-checkbox:checked {
     font-weight: 400;
 }
 
+/* Preserve a source blank row between items in a loose Markdown list. */
+.mz-reading-view .mz-rv-list > li.mz-rv-list-item-separated {
+    margin-top: calc(1.7em + 4px);
+}
+
 /* Ordered list number markers are muted in reading mode */
 .mz-reading-view .mz-rv-list-ol li::marker {
     color: var(--mz-text-muted);

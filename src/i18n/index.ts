@@ -227,6 +227,7 @@ const MESSAGES: Record<string, TranslationMap> = {
   "toolbar.taskList": { "zh-CN": "待办", en: "Task list", ja: "タスクリスト", fr: "Liste de tâches", de: "Aufgabenliste", es: "Lista de tareas" },
   "toolbar.bulletList": { "zh-CN": "无序列表", en: "Bullet list", ja: "箇条書き", fr: "Liste à puces", de: "Aufzählung", es: "Lista con viñetas" },
   "toolbar.numberedList": { "zh-CN": "有序列表", en: "Numbered list", ja: "番号付きリスト", fr: "Liste numérotée", de: "Nummerierte Liste", es: "Lista numerada" },
+  "toolbar.numberedListToggleHint": { "zh-CN": "有序列表；在列表内再次点击可切换有／无空行", en: "Numbered list; click again inside a list to toggle blank rows", ja: "番号付きリスト。リスト内でもう一度クリックすると空行を切り替えます", fr: "Liste numérotée ; recliquez dans la liste pour alterner les lignes vides", de: "Nummerierte Liste; erneut in der Liste klicken, um Leerzeilen umzuschalten", es: "Lista numerada; vuelve a pulsar dentro para alternar líneas vacías" },
   "toolbar.quote": { "zh-CN": "引用", en: "Quote", ja: "引用", fr: "Citation", de: "Zitat", es: "Cita" },
   "toolbar.ai": { "zh-CN": "AI 对话框", en: "AI panel", ja: "AI パネル", fr: "Panneau IA", de: "KI-Panel", es: "Panel de IA" },
   "toolbar.headingLevel": { "zh-CN": "标题级别", en: "Heading level", ja: "見出しレベル", fr: "Niveau de titre", de: "Überschriftenebene", es: "Nivel de encabezado" },
